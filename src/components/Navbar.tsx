@@ -349,7 +349,7 @@ export default function Navbar() {
                   </span>
                   <span className="hidden lg:inline">Notifications</span>
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-2 bg-orbit-accent text-orbit-accent-foreground font-mono text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold">
+                    <span className="absolute -top-2 -right-2.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white font-mono text-[10px] rounded-full flex items-center justify-center font-bold shadow-md shadow-red-500/40 ring-2 ring-orbit-card">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}

@@ -288,7 +288,7 @@ export default function CreateEditPost() {
             {/* Upload Button */}
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed rounded-3xl p-6 text-center cursor-pointer transition-all hover:border-orbit-accent bg-black/20"
+              className="border-2 border-dashed border-orbit-border/60 rounded-3xl p-6 sm:p-8 text-center cursor-pointer transition-all hover:border-orbit-accent hover:bg-orbit-accent/5 bg-black/20 group"
             >
               <input
                 type="file"
@@ -303,9 +303,12 @@ export default function CreateEditPost() {
               />
 
               <div className="space-y-2">
-                <ImagePlus className="w-9 h-9 text-orbit-accent mx-auto" />
-                <p className="text-xs font-semibold text-white">Click to select images</p>
+                <div className="w-14 h-14 rounded-full bg-orbit-accent/10 border border-orbit-accent/20 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                  <ImagePlus className="w-7 h-7 text-orbit-accent" />
+                </div>
+                <p className="text-xs font-semibold text-white">Click here to add images</p>
                 <p className="text-[10px] text-orbit-muted">Supports JPEG, PNG, GIF — up to 5 images</p>
+                <p className="text-[10px] text-orbit-muted/70 font-mono">Max file size: 3MB per image</p>
               </div>
             </div>
           </div>

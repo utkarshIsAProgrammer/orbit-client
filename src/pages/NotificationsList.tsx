@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -13,7 +13,7 @@ import { Notification } from '../types/api';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { toast } from 'sonner';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
-import { Bell, CheckCheck, Heart, MessageSquare, UserPlus, Bookmark, Repeat2, RotateCw, Trash2, X } from 'lucide-react';
+import { Bell, CheckCheck, Heart, MessageSquare, UserPlus, Bookmark, Repeat2, RotateCw, Trash2 } from 'lucide-react';
 
 export default function NotificationsList() {
   const { user } = useAuth();
@@ -25,17 +25,7 @@ export default function NotificationsList() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [holdTargetId, setHoldTargetId] = useState<string | null>(null);
-  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Clean up hold timer on unmount
-  useEffect(() => {
-    return () => {
-      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
-    };
-  }, []);
 
   // Listen for new notifications and add them to the list
   useEffect(() => {
@@ -153,26 +143,8 @@ export default function NotificationsList() {
     }
   };
 
-  const handleHoldStart = (notificationId: string) => {
-    holdTimerRef.current = setTimeout(() => {
-      holdTimerRef.current = null;
-      setHoldTargetId(notificationId);
-    }, 600);
-  };
-
-  const handleHoldEnd = () => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-  };
-
-  const handleHoldCancel = (notificationId: string) => {
-    handleHoldEnd();
-    if (holdTargetId === notificationId) {
-      setHoldTargetId(null);
-    }
-  };
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Compute unread count from the loaded notifications array
   // (socket's unreadCount resets to 0 on this page, so we compute locally instead)
@@ -285,40 +257,40 @@ export default function NotificationsList() {
         </div>
       )}
       {/* Notifications Header */}{' '}
-      <div className="flex items-center justify-between border-b border-orbit-border pb-4">
-        <div className="space-y-1 text-left">
-          <h1 className="font-display font-semibold text-2xl text-white flex items-center gap-2">
+      <div className="flex items-center justify-between border-b border-orbit-border pb-4 gap-2">
+        <div className="space-y-1 text-left min-w-0">
+          <h1 className="font-display font-semibold text-lg sm:text-2xl text-white flex items-center gap-2">
             <div className="relative">
-              <Bell className="w-5.5 h-5.5 text-orbit-accent" />
+              <Bell className="w-4.5 h-4.5 sm:w-5.5 sm:h-5.5 text-orbit-accent" />
               {/* Unread count badge */}
               {unreadCountDisplay > 0 && (
-                <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-orbit-accent text-orbit-accent-foreground text-[10px] font-bold font-mono leading-none shadow-md shadow-orbit-accent/30">
+                <span className="absolute -top-2 -right-2 min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] sm:text-[10px] font-bold font-mono leading-none shadow-md shadow-red-500/40 ring-2 ring-orbit-card">
                   {unreadCountDisplay > 9 ? '9+' : unreadCountDisplay}
                 </span>
               )}
             </div>
             <span>Notifications</span>
           </h1>
-          <p className="text-xs text-orbit-muted">Stay updated with activities and interactions.</p>
+          <p className="text-[10px] sm:text-xs text-orbit-muted">Stay updated with activities and interactions.</p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             onClick={handleMarkAllRead}
             disabled={loading || notifications.length === 0}
-            className="bg-white/5 hover:bg-orbit-accent hover:text-orbit-accent-foreground disabled:opacity-50 text-orbit-muted font-semibold text-xs px-4 py-2 rounded-full flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
+            className="bg-white/5 hover:bg-orbit-accent hover:text-orbit-accent-foreground disabled:opacity-50 text-orbit-muted font-semibold text-[10px] sm:text-xs px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer whitespace-nowrap"
           >
-            <CheckCheck className="w-3.5 h-3.5 shrink-0" />
-            <span>Mark all read</span>
+            <CheckCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+            <span className="hidden xs:inline sm:inline">Mark all read</span>
           </button>
 
           <button
             onClick={() => setShowClearConfirm(true)}
             disabled={loading || notifications.length === 0}
-            className="bg-red-500/10 hover:bg-red-500/25 disabled:opacity-50 text-red-400 font-semibold text-xs px-4 py-2 rounded-full flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
+            className="bg-red-500/10 hover:bg-red-500/25 disabled:opacity-50 text-red-400 font-semibold text-[10px] sm:text-xs px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer whitespace-nowrap"
           >
-            <Trash2 className="w-3.5 h-3.5 shrink-0" />
-            <span>Clear all</span>
+            <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+            <span className="hidden xs:inline sm:inline">Clear all</span>
           </button>
         </div>
       </div>
@@ -345,7 +317,7 @@ export default function NotificationsList() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-3.5">
+        <div className="space-y-2.5 sm:space-y-3.5">
           {notifications.map((notif) => {
             const senderPic =
               notif.sender.profilePic?.url ||
@@ -354,67 +326,21 @@ export default function NotificationsList() {
             return (
               <div
                 key={notif._id}
-                onMouseDown={() => handleHoldStart(notif._id)}
-                onMouseUp={() => handleHoldCancel(notif._id)}
-                onMouseLeave={() => handleHoldCancel(notif._id)}
-                onTouchStart={() => handleHoldStart(notif._id)}
-                onTouchEnd={(e) => {
-                  if (holdTargetId === notif._id) {
-                    e.preventDefault();
-                    return;
-                  }
-                  handleHoldCancel(notif._id);
-                }}
-                onTouchMove={() => handleHoldCancel(notif._id)}
-                onClick={() => {
-                  if (holdTargetId === notif._id) {
-                    return;
-                  }
-                  handleNotificationClick(notif);
-                }}
-                className={`flex gap-3.5 items-start p-4 border rounded-3xl cursor-pointer transition-all text-xs relative select-none ${
-                  holdTargetId === notif._id
-                    ? 'bg-red-500/10 border-red-500/40 scale-[0.98]'
-                    : notif.isRead
-                      ? 'bg-orbit-card/70 border-orbit-border opacity-75 hover:bg-white/5'
-                      : 'bg-orbit-card border-orbit-accent/40 shadow-lg ring-1 ring-orbit-accent/10 hover:bg-white/[0.03]'
+                className={`flex gap-2.5 sm:gap-3.5 items-start p-3 sm:p-4 border rounded-2xl sm:rounded-3xl cursor-pointer transition-all text-xs relative ${
+                  notif.isRead
+                    ? 'bg-orbit-card/70 border-orbit-border opacity-75 hover:bg-white/5'
+                    : 'bg-orbit-card border-orbit-accent/40 shadow-lg ring-1 ring-orbit-accent/10 hover:bg-white/[0.03]'
                 }`}
               >
                 {/* Notif status indicator */}
-                {!notif.isRead && holdTargetId !== notif._id && (
-                  <span className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-orbit-accent animate-pulse" />
-                )}
-
-                {/* Delete overlay when held */}
-                {holdTargetId === notif._id && (
-                  <div className="absolute inset-0 flex items-center justify-center gap-3 bg-red-500/10 backdrop-blur-[2px] rounded-3xl z-10">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteSingle(notif._id);
-                      }}
-                      disabled={deletingId === notif._id}
-                      className="flex items-center gap-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-300 font-bold text-xs px-4 py-2 rounded-full transition-all disabled:opacity-50"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      {deletingId === notif._id ? 'Deleting...' : 'Delete'}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setHoldTargetId(null);
-                      }}
-                      className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-orbit-muted font-semibold text-xs px-4 py-2 rounded-full transition-all"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      Cancel
-                    </button>
-                  </div>
+                {!notif.isRead && (
+                  <span className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-orbit-accent animate-pulse" />
                 )}
 
                 {/* Left icon wrapper */}
                 <div
-                  className={`bg-black/20 p-2 rounded-2xl border border-orbit-border shrink-0 mt-0.5 ${holdTargetId === notif._id ? 'opacity-20' : ''}`}
+                  className="bg-black/20 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-orbit-border shrink-0 mt-0.5"
+                  onClick={() => handleNotificationClick(notif)}
                 >
                   {getNotifIcon(notif.type)}
                 </div>
@@ -424,17 +350,36 @@ export default function NotificationsList() {
                   src={senderPic}
                   alt={notif.sender.username}
                   referrerPolicy="no-referrer"
-                  className={`w-8 h-8 rounded-full border border-orbit-border object-cover shrink-0 ${holdTargetId === notif._id ? 'opacity-20' : ''}`}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-orbit-border object-cover shrink-0"
+                  onClick={() => handleNotificationClick(notif)}
                 />
 
                 {/* Copy content */}
-                <div className={`flex-1 space-y-1 ${holdTargetId === notif._id ? 'opacity-20' : ''}`}>
-                  <p className="text-zinc-200 leading-normal font-medium text-left">{getNotifText(notif)}</p>
-                  <p className="text-[10px] text-zinc-500 font-mono text-left">
+                <div className="flex-1 space-y-0.5 sm:space-y-1 min-w-0" onClick={() => handleNotificationClick(notif)}>
+                  <p className="text-zinc-200 leading-normal font-medium text-left text-[11px] sm:text-xs">{getNotifText(notif)}</p>
+                  <p className="text-[9px] sm:text-[10px] text-zinc-500 font-mono text-left">
                     {new Date(notif.createdAt).toLocaleDateString()}{' '}
                     {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
+
+                {/* Delete button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteSingle(notif._id);
+                  }}
+                  disabled={deletingId === notif._id}
+                  className="shrink-0 p-1.5 sm:p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50 cursor-pointer self-center"
+                  title="Delete notification"
+                  aria-label="Delete notification"
+                >
+                  {deletingId === notif._id ? (
+                    <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                </button>
               </div>
             );
           })}
