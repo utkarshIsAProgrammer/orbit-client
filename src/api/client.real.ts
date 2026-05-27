@@ -6,6 +6,9 @@ export const setNavigateFunction = (navigate: NavigateFunction) => {
   navigateFunction = navigate;
 };
 
+let storedCsrfToken: string | null = null;
+
+
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 export const realAxiosClient = axios.create({
@@ -34,8 +37,8 @@ function getCookie(name: string): string | null {
 // Interceptor for CSRF token: add to headers for all requests
 realAxiosClient.interceptors.request.use(
   (config) => {
-    // Get CSRF token from cookie
-    const csrfToken = getCookie('csrfToken');
+    // Get CSRF token from memory or fallback to cookie
+    const csrfToken = storedCsrfToken || getCookie('csrfToken');
     if (csrfToken) {
       config.headers['x-csrf-token'] = csrfToken;
     }
@@ -45,8 +48,15 @@ realAxiosClient.interceptors.request.use(
 );
 
 // Interceptor for 401: redirect to login if session expires
+// Also capture CSRF token from responses
 realAxiosClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // If the response contains a CSRF token in the body, store it
+    if (response.data && response.data.token && response.config.url?.includes('/api/get-csrf-token')) {
+      storedCsrfToken = response.data.token;
+    }
+    return response;
+  },
   (error) => {
     if (error.response) {
       const status = error.response.status;
