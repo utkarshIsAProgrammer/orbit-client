@@ -5,6 +5,8 @@ import { getPostDetail, createPost, updatePost } from '../api/posts';
 import FormError from '../components/FormError';
 import { PlusSquare, Edit, FileImage, RotateCw, X, ImagePlus, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'motion/react';
+import { OrbitRing, SlideIn, GlowPulse } from '../components/MotionPrimitives';
 
 export default function CreateEditPost() {
   const { postId } = useParams();
@@ -169,8 +171,15 @@ export default function CreateEditPost() {
   if (loading) {
     return (
       <div className="min-h-[50vh] flex flex-col items-center justify-center">
-        <RotateCw className="w-8 h-8 animate-spin text-orbit-accent" />
-        <p className="mt-3 text-xs text-orbit-muted animate-pulse">Loading post details...</p>
+        <OrbitRing size={48} />
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="mt-4 text-xs text-orbit-muted"
+        >
+          Loading post details...
+        </motion.p>
       </div>
     );
   }
@@ -180,27 +189,33 @@ export default function CreateEditPost() {
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4 md:px-6">
-      <div className="bg-orbit-card border border-orbit-border rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 space-y-5 md:space-y-6 shadow-2xl relative">
+      <GlowPulse className="bg-orbit-card border border-orbit-border rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 space-y-5 md:space-y-6 shadow-2xl relative">
         {/* Dynamic Header */}
-        <div className="flex items-center gap-3 pb-4 border-b border-orbit-border">
-          <div className="w-10 h-10 rounded-full border border-orbit-accent/40 flex items-center justify-center">
-            {isEditMode ? (
-              <Edit className="w-5 h-5 text-orbit-accent" />
-            ) : (
-              <PlusSquare className="w-5 h-5 text-orbit-accent" />
-            )}
+        <SlideIn direction="down" duration={0.5}>
+          <div className="flex items-center gap-3 pb-4 border-b border-orbit-border">
+            <motion.div
+              className="w-10 h-10 rounded-full border border-orbit-accent/40 flex items-center justify-center"
+              animate={{ rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              {isEditMode ? (
+                <Edit className="w-5 h-5 text-orbit-accent" />
+              ) : (
+                <PlusSquare className="w-5 h-5 text-orbit-accent" />
+              )}
+            </motion.div>
+            <div>
+              <h1 className="font-display font-semibold text-lg text-white">
+                {isEditMode ? 'Edit Post' : "What's on your mind?"}
+              </h1>
+              <p className="text-xs text-orbit-muted">
+                {isEditMode
+                  ? 'Make changes to your post below.'
+                  : 'Share photos, updates, or thoughts with your followers.'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-display font-semibold text-lg text-white">
-              {isEditMode ? 'Edit Post' : "What's on your mind?"}
-            </h1>
-            <p className="text-xs text-orbit-muted">
-              {isEditMode
-                ? 'Make changes to your post below.'
-                : 'Share photos, updates, or thoughts with your followers.'}
-            </p>
-          </div>
-        </div>
+        </SlideIn>
 
         {/* Input Form */}
         <form onSubmit={handleFormSubmit} className="space-y-5 text-sm" noValidate>
@@ -249,39 +264,55 @@ export default function CreateEditPost() {
             {/* Image Previews Grid */}
             {totalImages > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
-                {imagePreviews.map((preview, i) => (
-                  <div
-                    key={`new-${i}`}
-                    className="relative group rounded-2xl overflow-hidden border border-orbit-border aspect-square"
-                  >
-                    <img src={preview} alt={`Upload ${i + 1}`} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removeNewImage(i)}
-                      className="absolute top-1 right-1 bg-rose-600/90 hover:bg-rose-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                <AnimatePresence mode="popLayout">
+                  {imagePreviews.map((preview, i) => (
+                    <motion.div
+                      key={`new-${i}`}
+                      layout
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.5 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                      className="relative group rounded-2xl overflow-hidden border border-orbit-border aspect-square"
                     >
-                      <X className="w-3 h-3" />
-                    </button>
-                    <span className="absolute bottom-1 left-1 bg-black/60 text-[9px] text-white px-1.5 py-0.5 rounded-full">
-                      New
-                    </span>
-                  </div>
-                ))}
-                {existingImages.map((img, i) => (
-                  <div
-                    key={`exist-${i}`}
-                    className="relative group rounded-2xl overflow-hidden border border-orbit-border aspect-square"
-                  >
-                    <img src={img.url} alt={`Existing ${i + 1}`} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removeExistingImage(i)}
-                      className="absolute top-1 right-1 bg-rose-600/90 hover:bg-rose-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      <img src={preview} alt={`Upload ${i + 1}`} className="w-full h-full object-cover" />
+                      <motion.button
+                        type="button"
+                        onClick={() => removeNewImage(i)}
+                        className="absolute top-1 right-1 bg-rose-600/90 hover:bg-rose-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        whileHover={{ scale: 1.2 }}
+                        whileTap={{ scale: 0.85 }}
+                      >
+                        <X className="w-3 h-3" />
+                      </motion.button>
+                      <span className="absolute bottom-1 left-1 bg-black/60 text-[9px] text-white px-1.5 py-0.5 rounded-full">
+                        New
+                      </span>
+                    </motion.div>
+                  ))}
+                  {existingImages.map((img, i) => (
+                    <motion.div
+                      key={`exist-${i}`}
+                      layout
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.5 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                      className="relative group rounded-2xl overflow-hidden border border-orbit-border aspect-square"
                     >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
+                      <img src={img.url} alt={`Existing ${i + 1}`} className="w-full h-full object-cover" />
+                      <motion.button
+                        type="button"
+                        onClick={() => removeExistingImage(i)}
+                        className="absolute top-1 right-1 bg-rose-600/90 hover:bg-rose-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        whileHover={{ scale: 1.2 }}
+                        whileTap={{ scale: 0.85 }}
+                      >
+                        <X className="w-3 h-3" />
+                      </motion.button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
             )}
 
@@ -338,7 +369,7 @@ export default function CreateEditPost() {
             </button>
           </div>
         </form>
-      </div>
+      </GlowPulse>
     </div>
   );
 }

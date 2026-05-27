@@ -14,6 +14,8 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { toast } from 'sonner';
 import { Skeleton, SkeletonCard } from '../components/Skeleton';
 import { Bell, CheckCheck, Heart, MessageSquare, UserPlus, Bookmark, Repeat2, RotateCw, Trash2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { SlideIn, BreathingDot } from '../components/MotionPrimitives';
 
 export default function NotificationsList() {
   const { user } = useAuth();
@@ -25,7 +27,6 @@ export default function NotificationsList() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
-
 
   // Listen for new notifications and add them to the list
   useEffect(() => {
@@ -256,44 +257,54 @@ export default function NotificationsList() {
           </div>
         </div>
       )}
-      {/* Notifications Header */}{' '}
-      <div className="flex items-center justify-between border-b border-orbit-border pb-4 gap-2">
-        <div className="space-y-1 text-left min-w-0">
-          <h1 className="font-display font-semibold text-lg sm:text-2xl text-white flex items-center gap-2">
-            <div className="relative">
-              <Bell className="w-4.5 h-4.5 sm:w-5.5 sm:h-5.5 text-orbit-accent" />
-              {/* Unread count badge */}
-              {unreadCountDisplay > 0 && (
-                <span className="absolute -top-2 -right-2 min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] sm:text-[10px] font-bold font-mono leading-none shadow-md shadow-red-500/40 ring-2 ring-orbit-card">
-                  {unreadCountDisplay > 9 ? '9+' : unreadCountDisplay}
-                </span>
-              )}
-            </div>
-            <span>Notifications</span>
-          </h1>
-          <p className="text-[10px] sm:text-xs text-orbit-muted">Stay updated with activities and interactions.</p>
-        </div>
+      {/* Notifications Header */}
+      <SlideIn direction="down" duration={0.4}>
+        <div className="flex items-center justify-between border-b border-orbit-border pb-4 gap-2">
+          <div className="space-y-1 text-left min-w-0">
+            <h1 className="font-display font-semibold text-lg sm:text-2xl text-white flex items-center gap-2">
+              <div className="relative">
+                <Bell className="w-4.5 h-4.5 sm:w-5.5 sm:h-5.5 text-orbit-accent" />
+                {/* Unread count badge */}
+                {unreadCountDisplay > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-2 -right-2 min-w-[16px] h-[16px] sm:min-w-[18px] sm:h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] sm:text-[10px] font-bold font-mono leading-none shadow-md shadow-red-500/40 ring-2 ring-orbit-card"
+                  >
+                    {unreadCountDisplay > 9 ? '9+' : unreadCountDisplay}
+                  </motion.span>
+                )}
+              </div>
+              <span>Notifications</span>
+            </h1>
+            <p className="text-[10px] sm:text-xs text-orbit-muted">Stay updated with activities and interactions.</p>
+          </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <button
-            onClick={handleMarkAllRead}
-            disabled={loading || notifications.length === 0}
-            className="bg-white/5 hover:bg-orbit-accent hover:text-orbit-accent-foreground disabled:opacity-50 text-orbit-muted font-semibold text-[10px] sm:text-xs px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer whitespace-nowrap"
-          >
-            <CheckCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-            <span className="hidden xs:inline sm:inline">Mark all read</span>
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleMarkAllRead}
+              disabled={loading || notifications.length === 0}
+              className="bg-white/5 hover:bg-orbit-accent hover:text-orbit-accent-foreground disabled:opacity-50 text-orbit-muted font-semibold text-[10px] sm:text-xs px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer whitespace-nowrap"
+            >
+              <CheckCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+              <span className="hidden xs:inline sm:inline">Mark all read</span>
+            </motion.button>
 
-          <button
-            onClick={() => setShowClearConfirm(true)}
-            disabled={loading || notifications.length === 0}
-            className="bg-red-500/10 hover:bg-red-500/25 disabled:opacity-50 text-red-400 font-semibold text-[10px] sm:text-xs px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer whitespace-nowrap"
-          >
-            <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-            <span className="hidden xs:inline sm:inline">Clear all</span>
-          </button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowClearConfirm(true)}
+              disabled={loading || notifications.length === 0}
+              className="bg-red-500/10 hover:bg-red-500/25 disabled:opacity-50 text-red-400 font-semibold text-[10px] sm:text-xs px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer whitespace-nowrap"
+            >
+              <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+              <span className="hidden xs:inline sm:inline">Clear all</span>
+            </motion.button>
+          </div>
         </div>
-      </div>
+      </SlideIn>
       {loading ? (
         <div role="status" aria-label="Loading notifications" className="space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -318,71 +329,85 @@ export default function NotificationsList() {
         </div>
       ) : (
         <div className="space-y-2.5 sm:space-y-3.5">
-          {notifications.map((notif) => {
-            const senderPic =
-              notif.sender.profilePic?.url ||
-              'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop';
+          <AnimatePresence mode="popLayout">
+            {notifications.map((notif, index) => {
+              const senderPic =
+                notif.sender.profilePic?.url ||
+                'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop';
 
-            return (
-              <div
-                key={notif._id}
-                className={`flex gap-2.5 sm:gap-3.5 items-start p-3 sm:p-4 border rounded-2xl sm:rounded-3xl cursor-pointer transition-all text-xs relative ${
-                  notif.isRead
-                    ? 'bg-orbit-card/70 border-orbit-border opacity-75 hover:bg-white/5'
-                    : 'bg-orbit-card border-orbit-accent/40 shadow-lg ring-1 ring-orbit-accent/10 hover:bg-white/[0.03]'
-                }`}
-              >
-                {/* Notif status indicator */}
-                {!notif.isRead && (
-                  <span className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-orbit-accent animate-pulse" />
-                )}
-
-                {/* Left icon wrapper */}
-                <div
-                  className="bg-black/20 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-orbit-border shrink-0 mt-0.5"
-                  onClick={() => handleNotificationClick(notif)}
+              return (
+                <motion.div
+                  key={notif._id}
+                  layout
+                  initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 50, scale: 0.9, filter: 'blur(4px)' }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  className={`flex gap-2.5 sm:gap-3.5 items-start p-3 sm:p-4 border rounded-2xl sm:rounded-3xl cursor-pointer transition-all text-xs relative ${
+                    notif.isRead
+                      ? 'bg-orbit-card/70 border-orbit-border opacity-75 hover:bg-white/5'
+                      : 'bg-orbit-card border-orbit-accent/40 shadow-lg ring-1 ring-orbit-accent/10 hover:bg-white/[0.03]'
+                  }`}
                 >
-                  {getNotifIcon(notif.type)}
-                </div>
-
-                {/* Avatar pic */}
-                <img
-                  src={senderPic}
-                  alt={notif.sender.username}
-                  referrerPolicy="no-referrer"
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-orbit-border object-cover shrink-0"
-                  onClick={() => handleNotificationClick(notif)}
-                />
-
-                {/* Copy content */}
-                <div className="flex-1 space-y-0.5 sm:space-y-1 min-w-0" onClick={() => handleNotificationClick(notif)}>
-                  <p className="text-zinc-200 leading-normal font-medium text-left text-[11px] sm:text-xs">{getNotifText(notif)}</p>
-                  <p className="text-[9px] sm:text-[10px] text-zinc-500 font-mono text-left">
-                    {new Date(notif.createdAt).toLocaleDateString()}{' '}
-                    {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-
-                {/* Delete button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteSingle(notif._id);
-                  }}
-                  disabled={deletingId === notif._id}
-                  className="shrink-0 p-1.5 sm:p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50 cursor-pointer self-center"
-                  title="Delete notification"
-                  aria-label="Delete notification"
-                >
-                  {deletingId === notif._id ? (
-                    <RotateCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-3.5 h-3.5" />
+                  {/* Notif status indicator */}
+                  {!notif.isRead && (
+                    <BreathingDot className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-2 h-2 sm:w-2.5 sm:h-2.5" />
                   )}
-                </button>
-              </div>
-            );
-          })}
+
+                  {/* Left icon wrapper */}
+                  <div
+                    className="bg-black/20 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-orbit-border shrink-0 mt-0.5"
+                    onClick={() => handleNotificationClick(notif)}
+                  >
+                    {getNotifIcon(notif.type)}
+                  </div>
+
+                  {/* Avatar pic */}
+                  <img
+                    src={senderPic}
+                    alt={notif.sender.username}
+                    referrerPolicy="no-referrer"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-orbit-border object-cover shrink-0"
+                    onClick={() => handleNotificationClick(notif)}
+                  />
+
+                  {/* Copy content */}
+                  <div
+                    className="flex-1 space-y-0.5 sm:space-y-1 min-w-0"
+                    onClick={() => handleNotificationClick(notif)}
+                  >
+                    <p className="text-zinc-200 leading-normal font-medium text-left text-[11px] sm:text-xs">
+                      {getNotifText(notif)}
+                    </p>
+                    <p className="text-[9px] sm:text-[10px] text-zinc-500 font-mono text-left">
+                      {new Date(notif.createdAt).toLocaleDateString()}{' '}
+                      {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+
+                  {/* Delete button */}
+                  <motion.button
+                    whileHover={{ scale: 1.15, rotate: 5 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      handleDeleteSingle(notif._id);
+                    }}
+                    disabled={deletingId === notif._id}
+                    className="shrink-0 p-1.5 sm:p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50 cursor-pointer self-center"
+                    title="Delete notification"
+                    aria-label="Delete notification"
+                  >
+                    {deletingId === notif._id ? (
+                      <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                  </motion.button>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
 
           {/* Infinite Scroll Sentry */}
           {hasMore && (
