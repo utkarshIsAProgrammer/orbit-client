@@ -87,9 +87,9 @@ export default function CreateEditPost() {
     }
 
     const currentTotal = imageFiles.length + existingImages.length;
-    if (currentTotal + validFiles.length > 10) {
-      toast.error('Maximum 10 images allowed. Extra images were discarded.');
-      validFiles = validFiles.slice(0, Math.max(0, 10 - currentTotal));
+    if (currentTotal + validFiles.length > 5) {
+      toast.error('Maximum 5 images allowed. Extra images were discarded.');
+      validFiles = validFiles.slice(0, Math.max(0, 5 - currentTotal));
     }
 
     if (validFiles.length > 0) {
@@ -243,7 +243,7 @@ export default function CreateEditPost() {
           {/* Image Upload Section - Multiple Images */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-orbit-muted uppercase tracking-wider block">
-              Images (Optional - Up to 10)
+              Images (Optional - Up to 5)
             </label>
 
             {/* Image Previews Grid */}
@@ -305,7 +305,7 @@ export default function CreateEditPost() {
               <div className="space-y-2">
                 <ImagePlus className="w-9 h-9 text-orbit-accent mx-auto" />
                 <p className="text-xs font-semibold text-white">Click to select images</p>
-                <p className="text-[10px] text-orbit-muted">Supports JPEG, PNG, GIF — up to 10 images</p>
+                <p className="text-[10px] text-orbit-muted">Supports JPEG, PNG, GIF — up to 5 images</p>
               </div>
             </div>
           </div>
