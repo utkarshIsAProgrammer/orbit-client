@@ -78,9 +78,9 @@ const PostCard: React.FC<PostCardProps> = ({ post: initialPost, onDelete, index 
   }, [index]);
 
   const author =
-    typeof post.author === 'object'
+    typeof post.author === 'object' && post.author !== null
       ? post.author
-      : { _id: post.author, username: 'unknown', fullName: 'User', profilePic: { url: '' } };
+      : { _id: post.author || 'unknown', username: 'unknown', fullName: 'User', profilePic: { url: '' } };
   const authorName = author.fullName || 'User';
   const authorHandle = author.username || 'user';
   const authorPic = author.profilePic?.url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authorHandle}`;
