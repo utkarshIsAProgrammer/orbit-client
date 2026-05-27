@@ -1,0 +1,6 @@
+{
+  "name": "Orbit",
+  "description": "A production-quality social media web platform featuring deep profiles, paginated feeds, media uploads, interactive comments with nested replies, saves, reposts, and full notifications.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,377 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --radius-3xl: 14px;
+  --radius-2xl: 11px;
+  --radius-xl: 8px;
+  --radius-lg: 6px;
+  --radius-md: 4px;
+  --radius-sm: 2px;
+
+  --color-orbit-bg: var(--color-orbit-bg);
+  --color-orbit-card: var(--color-orbit-card);
+  --color-orbit-glow: var(--color-orbit-glow);
+  --color-orbit-accent: var(--color-orbit-accent);
+  --color-orbit-accent-foreground: var(--color-orbit-accent-foreground);
+  --color-orbit-secondary: var(--color-orbit-secondary);
+  --color-orbit-muted: var(--color-orbit-muted);
+  --color-orbit-border: var(--color-orbit-border);
+  --breakpoint-xs: 480px;
+}
+
+:root {
+  /* Default Theme: Midnight Orbit (Pure OLED High Contrast) */
+  --color-orbit-bg: #000000;
+  --color-orbit-card: #080808;
+  --color-orbit-glow: rgba(255, 255, 255, 0.04);
+  --color-orbit-accent: #ffffff;
+  --color-orbit-accent-foreground: #000000;
+  --color-orbit-secondary: rgba(255, 255, 255, 0.95);
+  --color-orbit-muted: rgba(255, 255, 255, 0.65);
+  /* Enhanced contrast for high element legibility */
+  --color-orbit-border: rgba(255, 255, 255, 0.15);
+}
+
+.theme-midnight {
+  --color-orbit-bg: #000000;
+  --color-orbit-card: #080808;
+  --color-orbit-glow: rgba(255, 255, 255, 0.04);
+  --color-orbit-accent: #ffffff;
+  --color-orbit-accent-foreground: #000000;
+  --color-orbit-secondary: rgba(255, 255, 255, 0.95);
+  --color-orbit-muted: rgba(255, 255, 255, 0.65);
+  --color-orbit-border: rgba(255, 255, 255, 0.15);
+}
+
+.theme-light {
+  --color-orbit-bg: #eae9e4;
+  /* Elegant warm gallery linen (eye-friendly off-white) */
+  --color-orbit-card: #fafaf9;
+  /* Perfect soft warm card */
+  --color-orbit-glow: rgba(0, 0, 0, 0.04);
+  --color-orbit-accent: #111111;
+  /* Sleek obsidian black accent (Opposite of midnight white!) */
+  --color-orbit-accent-foreground: #ffffff;
+  --color-orbit-secondary: #222222;
+  /* Pure obsidian text highlight */
+  --color-orbit-muted: #555555;
+  /* Soft slate/coal for subtitles */
+  --color-orbit-border: rgba(17, 17, 17, 0.12);
+  /* Crisp elegant frame lines */
+}
+
+.theme-nordic {
+  --color-orbit-bg: #050e1e;
+  /* Aurora polar night */
+  --color-orbit-card: #0b172a;
+  /* Frost fjord dark glacier card */
+  --color-orbit-glow: rgba(45, 212, 191, 0.16);
+  --color-orbit-accent: #2dd4bf;
+  /* Stunning ice blue cyan */
+  --color-orbit-accent-foreground: #050e1e;
+  --color-orbit-secondary: #38bdf8;
+  /* Polar high contrast blue sky tag */
+  --color-orbit-muted: #64748b;
+  --color-orbit-border: rgba(45, 212, 191, 0.3);
+}
+
+.theme-instagram {
+  --color-orbit-bg: #0a0a0a;
+  /* Warm dark background for Instagram vibes */
+  --color-orbit-card: #161616;
+  /* Warmer card background */
+  --color-orbit-glow: rgba(225, 48, 108, 0.25);
+  /* Instagram pink glow */
+  --color-orbit-accent: #e1306c;
+  /* Instagram pink for buttons */
+  --color-orbit-accent-foreground: #ffffff;
+  --color-orbit-secondary: #ffffff;
+  /* White text */
+  --color-orbit-muted: #a8a8a8;
+  /* Instagram gray */
+  --color-orbit-border: rgba(255, 255, 255, 0.15);
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  background-color: var(--color-orbit-bg);
+  color: rgba(255, 255, 255, 0.9);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  overflow-y: scroll;
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* Hide all scrollbars */
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+* {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Guarantee buttons never wrap text into multiple lines */
+button:not(nav button),
+.btn,
+a.btn,
+[role='button'],
+.whitespace-nowrap-btn {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100%;
+}
+
+/* Slightly less aggressive button text protection for navbar */
+nav button,
+nav a[role='button'],
+nav .btn {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Global responsive helpers */
+@media (max-width: 639px) {
+  .hide-icon-text span:not(.keep-icon) {
+    /* Hide text adjacent to icons on very small screens, keep icon visible */
+  }
+  
+  /* Reduce button padding on mobile */
+  .btn-responsive {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    font-size: 0.625rem !important;
+  }
+}
+
+/* Ensure content containers never cause horizontal overflow */
+#root {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Safe area padding for modern mobile devices */
+.p-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Dynamic viewport height for proper mobile/tablet layout */
+.min-h-screen-dynamic {
+  min-height: 100dvh;
+}
+
+.h-screen-dynamic {
+  height: 100dvh;
+}
+
+/* Orientation-aware adjustments */
+@media (orientation: landscape) and (max-height: 600px) {
+  /* Compact layouts for landscape phones */
+  .landscape-compact {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  
+  .landscape-hide {
+    display: none !important;
+  }
+  
+  /* Reduce gap/space on landscape mobile to fit content */
+  .landscape-space-y-sm > * + * {
+    margin-top: 0.5rem !important;
+  }
+}
+
+@media (orientation: portrait) and (min-width: 768px) {
+  /* Tablet portrait: slightly more breathing room */
+  .portrait-tablet-padded {
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+  }
+}
+
+/* Tablet-specific responsive break */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .tablet-only\:text-icon {
+    font-size: 0;
+  }
+  .tablet-only\:text-icon span {
+    font-size: 0.625rem;
+  }
+}
+
+/* Increase border radius for signup button */
+button.rounded-full,
+a.rounded-full.btn {
+  border-radius: 9999px !important;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Light theme overrides for rich dark-on-light color pairing */
+.theme-light {
+  color: #0f172a !important;
+}
+
+.theme-light body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.theme-light .text-white,
+.theme-light .text-white\/95,
+.theme-light .text-white\/90,
+.theme-light .text-white\/85,
+.theme-light .text-white\/80 {
+  color: #0f172a !important;
+}
+
+.theme-light .text-white\/70,
+.theme-light .text-white\/60,
+.theme-light .text-white\/50,
+.theme-light .text-orbit-secondary {
+  color: #1e293b !important;
+}
+
+.theme-light .text-white\/40,
+.theme-light .text-white\/30,
+.theme-light .text-[#8b949e],
+.theme-light .text-orbit-muted {
+  color: #64748b !important;
+}
+
+.theme-light .border-white\/10,
+.theme-light .border-white\/15,
+.theme-light .border-orbit-border {
+  border-color: #e2e8f0 !important;
+}
+
+.theme-light .border-white\/5 {
+  border-color: #f1f5f9 !important;
+}
+
+.theme-light .bg-black\/45,
+.theme-light .bg-black\/40 {
+  background-color: #f1f5f9 !important;
+}
+
+.theme-light .bg-black\/30 {
+  background-color: #f8fafc !important;
+}
+
+.theme-light .bg-black\/20 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light .bg-[#0a0a0a]\/95,
+.theme-light .bg-[#050505]\/95 {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+}
+
+.theme-light .hover\:bg-white\/5:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.theme-light .hover\:bg-white\/10:hover {
+  background-color: #e2e8f0 !important;
+}
+
+.theme-light input,
+.theme-light textarea,
+.theme-light select {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light input::placeholder,
+.theme-light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.theme-light .bg-[#000000]\/80,
+.theme-light .bg-black\/80,
+.theme-light .bg-black\/75 {
+  background-color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.theme-light .shadow-black\/80 {
+  --tw-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05) !important;
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow) !important;
+}
+
+.theme-light .shadow-2xl {
+  --tw-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.08) !important;
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow) !important;
+}
+
+.theme-light .bg-orbit-card {
+  background-color: #ffffff !important;
+}
+
+.theme-light .p-2.5.bg-white\/5,
+.theme-light .bg-white\/5 {
+  background-color: #f1f5f9 !important;
+}
+
+.theme-light .bg-white\/10 {
+  background-color: #e2e8f0 !important;
+}
+
+.theme-light .border-white\/25,
+.theme-light .border-white\/20,
+.theme-light .border-amber-500\/20 {
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light .text-zinc-400 {
+  color: #475569 !important;
+}
+
+.theme-light .file\:bg-white\/10::file-selector-button {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.theme-light .hover\:border-white:hover {
+  border-color: #4f46e5 !important;
+}
+
+.theme-light #cosmic-matrix-background {
+  opacity: 0.12 !important;
+  /* Low opacity on light mode for elegant, subtle network visibility */
+}
+
+.theme-light .fixed.inset-0.bg-black\/70 {
+  background-color: rgba(15, 23, 42, 0.45) !important;
+}
