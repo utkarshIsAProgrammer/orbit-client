@@ -68,17 +68,40 @@ export default function CreateEditPost() {
     fetchPost();
   }, [postId, isEditMode, user]);
 
-  const handleFileChange = (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      toast.error('The selected file must be an image.');
-      return;
+  const handleFilesSelect = (files: FileList | null) => {
+    if (!files) return;
+
+    const fileArray = Array.from(files);
+    let validFiles: File[] = [];
+
+    for (const file of fileArray) {
+      if (!file.type.startsWith('image/')) {
+        toast.error(`File ${file.name} is not an image.`);
+        continue;
+      }
+      if (file.size > 3 * 1024 * 1024) {
+        toast.error(`File ${file.name} is too large. Maximum size is 3MB.`);
+        continue;
+      }
+      validFiles.push(file);
     }
-    setImageFiles((prev) => [...prev, file]);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImagePreviews((prev) => [...prev, reader.result as string]);
-    };
-    reader.readAsDataURL(file);
+
+    const currentTotal = imageFiles.length + existingImages.length;
+    if (currentTotal + validFiles.length > 10) {
+      toast.error('Maximum 10 images allowed. Extra images were discarded.');
+      validFiles = validFiles.slice(0, Math.max(0, 10 - currentTotal));
+    }
+
+    if (validFiles.length > 0) {
+      setImageFiles((prev) => [...prev, ...validFiles]);
+      validFiles.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          setImagePreviews((p) => [...p, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
   };
 
   const removeNewImage = (index: number) => {
@@ -271,9 +294,7 @@ export default function CreateEditPost() {
                 type="file"
                 ref={fileInputRef}
                 onChange={(e) => {
-                  if (e.target.files) {
-                    Array.from(e.target.files).forEach((file) => handleFileChange(file));
-                  }
+                  handleFilesSelect(e.target.files);
                   e.target.value = '';
                 }}
                 className="hidden"
@@ -301,7 +322,7 @@ export default function CreateEditPost() {
             <button
               type="submit"
               disabled={submitting}
-              className="flex-[2] py-3 bg-orbit-accent hover:opacity-95 text-orbit-accent-foreground font-semibold rounded-full text-[10px] sm:text-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
+              className="flex-2 py-3 bg-orbit-accent hover:opacity-95 text-orbit-accent-foreground font-semibold rounded-full text-[10px] sm:text-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
             >
               {submitting ? (
                 <>
