@@ -8,7 +8,6 @@ pnpm-debug.log*
 
 # Dependencies
 node_modules/
-dist/
 dist-ssr/
 *.local
 
