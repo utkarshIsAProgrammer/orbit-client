@@ -231,11 +231,19 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
           if (payload.type === "add" && payload.reaction) {
             const existingReactions = m.reactions || [];
-            const filtered = existingReactions.filter(r => r.sender._id !== payload.reaction.sender._id || r.emoji !== payload.reaction.emoji);
+            const senderId = typeof payload.reaction.sender === "string" ? payload.reaction.sender : payload.reaction.sender._id;
+            const filtered = existingReactions.filter((r) => {
+              const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
+              return sId !== senderId;
+            });
             return { ...m, reactions: [...filtered, payload.reaction] };
           } else if (payload.type === "remove" && payload.reaction) {
             const existingReactions = m.reactions || [];
-            const filtered = existingReactions.filter(r => r.sender._id !== payload.reaction.sender._id || r.emoji !== payload.reaction.emoji);
+            const senderId = typeof payload.reaction.sender === "string" ? payload.reaction.sender : payload.reaction.sender._id;
+            const filtered = existingReactions.filter((r) => {
+              const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
+              return !(sId === senderId && r.emoji === payload.reaction.emoji);
+            });
             return { ...m, reactions: filtered };
           }
           return m;
@@ -589,9 +597,10 @@ export default function Chat({ user, socket, conversations, setConversations, on
   const handleReaction = async (message: Message, emoji: string) => {
     // 1. Optimistic UI update
     const userId = user._id;
-    const existingIndex = (message.reactions || []).findIndex(
-      (r) => r.sender._id === userId && r.emoji === emoji
-    );
+    const existingIndex = (message.reactions || []).findIndex((r) => {
+      const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
+      return sId === userId && r.emoji === emoji;
+    });
 
     let nextReactions = [...(message.reactions || [])];
     if (existingIndex >= 0) {
@@ -599,7 +608,10 @@ export default function Chat({ user, socket, conversations, setConversations, on
       nextReactions.splice(existingIndex, 1);
     } else {
       // Toggle off any other reaction by this sender first
-      nextReactions = nextReactions.filter((r) => r.sender._id !== userId);
+      nextReactions = nextReactions.filter((r) => {
+        const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
+        return sId !== userId;
+      });
       // Add new reaction
       nextReactions.push({
         _id: Date.now().toString(), // temp ID
@@ -735,7 +747,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
         grouped[r.emoji] = { count: 0, hasReacted: false };
       }
       grouped[r.emoji].count++;
-      if (r.sender._id === user._id) {
+      const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
+      if (sId === user._id) {
         grouped[r.emoji].hasReacted = true;
       }
     });

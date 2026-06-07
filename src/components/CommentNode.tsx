@@ -105,15 +105,20 @@ export default function CommentNode({
       setReactions((prev) => {
         if (type === "add" && reaction) {
           // Remove ALL previous reactions by this sender, then add new one
-          const filtered = prev.filter(
-            (r) => r.sender._id !== reaction.sender._id
-          );
+          const senderId = typeof reaction.sender === "string" ? reaction.sender : reaction.sender?._id;
+          const filtered = prev.filter((r) => {
+            const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
+            return sId !== senderId;
+          });
           return [...filtered, reaction];
         } else if (type === "remove" && reaction) {
           // Remove only the reaction matching this sender + emoji
-          return prev.filter(
-            (r) => r.sender._id !== reaction.sender._id || r.emoji !== reaction.emoji
-          );
+          const senderId = typeof reaction.sender === "string" ? reaction.sender : reaction.sender?._id;
+          const filtered = prev.filter((r) => {
+            const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
+            return !(sId === senderId && r.emoji === reaction.emoji);
+          });
+          return filtered;
         }
         return prev;
       });
@@ -177,9 +182,10 @@ export default function CommentNode({
 
     // 1. Optimistic UI update
     const userId = user._id;
-    const existingIndex = (reactions || []).findIndex(
-      (r) => r.sender._id === userId && r.emoji === emoji
-    );
+    const existingIndex = (reactions || []).findIndex((r) => {
+      const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
+      return sId === userId && r.emoji === emoji;
+    });
 
     let nextReactions = [...(reactions || [])];
     if (existingIndex >= 0) {
@@ -187,7 +193,10 @@ export default function CommentNode({
       nextReactions.splice(existingIndex, 1);
     } else {
       // Toggle off any other reaction by this sender first
-      nextReactions = nextReactions.filter((r) => r.sender._id !== userId);
+      nextReactions = nextReactions.filter((r) => {
+        const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
+        return sId !== userId;
+      });
       // Add new reaction
       nextReactions.push({
         _id: Date.now().toString(), // temp ID
@@ -268,7 +277,8 @@ export default function CommentNode({
         grouped[r.emoji] = { count: 0, hasReacted: false };
       }
       grouped[r.emoji].count++;
-      if (r.sender._id === user?._id) {
+      const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
+      if (sId === user?._id) {
         grouped[r.emoji].hasReacted = true;
       }
     });
@@ -388,8 +398,8 @@ export default function CommentNode({
                 key={emoji}
                 onClick={() => handleReaction(emoji)}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors ${data.hasReacted
-                    ? "bg-indigo-500/20 border-indigo-400/30 text-indigo-300"
-                    : "bg-zinc-800/50 border-zinc-700/50 text-zinc-400 hover:bg-zinc-700/50"
+                  ? "bg-indigo-500/20 border-indigo-400/30 text-indigo-300"
+                  : "bg-zinc-800/50 border-zinc-700/50 text-zinc-400 hover:bg-zinc-700/50"
                   }`}
               >
                 <span>{emoji}</span>
@@ -408,8 +418,8 @@ export default function CommentNode({
             >
               <Heart
                 className={`h-3.5 w-3.5 transition-colors ${likedByMe
-                    ? "fill-red-500 text-red-500"
-                    : "text-slate-500 dark:text-zinc-400 group-hover:text-red-400"
+                  ? "fill-red-500 text-red-500"
+                  : "text-slate-500 dark:text-zinc-400 group-hover:text-red-400"
                   }`}
               />
               <span className={`${likedByMe ? "text-red-400 font-semibold" : "text-slate-500 dark:text-zinc-400 group-hover:text-red-400"}`}>
@@ -456,8 +466,8 @@ export default function CommentNode({
             <button
               onClick={() => setShowReplies(!showReplies)}
               className={`text-xs font-medium transition-colors ${showReplies
-                  ? "text-indigo-400"
-                  : "text-slate-500 dark:text-zinc-400 hover:text-indigo-650 dark:hover:text-indigo-400"
+                ? "text-indigo-400"
+                : "text-slate-500 dark:text-zinc-400 hover:text-indigo-650 dark:hover:text-indigo-400"
                 }`}
             >
               {showReplies ? "Hide Replies" : `View ${effectiveRepliesCount} ${effectiveRepliesCount === 1 ? "Reply" : "Replies"}`}

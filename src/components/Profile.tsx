@@ -246,10 +246,10 @@ export default function Profile({
 					prev.map((p) =>
 						p._id === postId
 							? {
-									...p,
-									title: editPostTitle,
-									content: editPostContent,
-								}
+								...p,
+								title: editPostTitle,
+								content: editPostContent,
+							}
 							: p,
 					),
 				);
@@ -854,21 +854,39 @@ export default function Profile({
 			(profile as any).followingByMe ??
 			(profile as any).isFollowing ??
 			false;
-		// Call the global toggle function
-		await onToggleFollow(profile._id);
-		// Update local profile state too
+
+		// 1. Optimistic Update local profile state instantly
 		setProfile((prev) =>
 			prev
 				? ({
+					...prev,
+					isFollowing: !amIFollowing,
+					followingByMe: !amIFollowing,
+					followersCount: amIFollowing
+						? Math.max(0, (prev.followersCount || 0) - 1)
+						: (prev.followersCount || 0) + 1,
+				} as any)
+				: null
+		);
+
+		try {
+			// Call the global toggle function (handles global optimistic state + rollback + toast)
+			await onToggleFollow(profile._id);
+		} catch (err) {
+			// 2. Rollback local profile state if server failed
+			setProfile((prev) =>
+				prev
+					? ({
 						...prev,
-						isFollowing: !amIFollowing,
-						followingByMe: !amIFollowing,
-						followersCount: amIFollowing
+						isFollowing: amIFollowing,
+						followingByMe: amIFollowing,
+						followersCount: !amIFollowing
 							? Math.max(0, (prev.followersCount || 0) - 1)
 							: (prev.followersCount || 0) + 1,
 					} as any)
-				: null,
-		);
+					: null
+			);
+		}
 	};
 
 	const handleShareProfile = async () => {
@@ -965,162 +983,162 @@ export default function Profile({
 
 	return (
 		<>
-		<div
-			ref={containerRef}
-			onTouchStart={handleTouchStart}
-			onTouchMove={handleTouchMove}
-			onTouchEnd={handleTouchEnd}
-			className="w-full px-2 pb-24 pt-6"
-			style={{ transform: `translateY(${pullDistance}px)`, transition: isPullingRef.current ? 'none' : 'transform 0.3s ease-out' }}
-		>
-			{success && (
-				<div className="fixed top-6 right-6 z-50 flex items-center gap-2.5 rounded-full bg-black dark:bg-zinc-900 border border-zinc-800 px-5.5 py-3.5 text-xs font-semibold text-white dark:text-zinc-100 shadow-xl backdrop-blur-md">
-					<CheckCircle className="h-4 w-4" />
-					<span>{success}</span>
-				</div>
-			)}
-
-			{/* Banner */}
 			<div
-				className="group relative h-40 overflow-hidden rounded-3xl border border-white/20 bg-zinc-900 md:h-48 cursor-pointer"
-				onClick={() => {
-					window.dispatchEvent(
-						new CustomEvent("openImagePreview", {
-							detail:
-								bannerPicPreview ||
-								"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800",
-						}),
-					);
-				}}>
-				<img
-					src={
-						bannerPicPreview ||
-						"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800"
-					}
-					alt="User banner"
-					className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-102"
-				/>
-				<div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
-			</div>
+				ref={containerRef}
+				onTouchStart={handleTouchStart}
+				onTouchMove={handleTouchMove}
+				onTouchEnd={handleTouchEnd}
+				className="w-full px-2 pb-24 pt-6"
+				style={{ transform: `translateY(${pullDistance}px)`, transition: isPullingRef.current ? 'none' : 'transform 0.3s ease-out' }}
+			>
+				{success && (
+					<div className="fixed top-6 right-6 z-50 flex items-center gap-2.5 rounded-full bg-black dark:bg-zinc-900 border border-zinc-800 px-5.5 py-3.5 text-xs font-semibold text-white dark:text-zinc-100 shadow-xl backdrop-blur-md">
+						<CheckCircle className="h-4 w-4" />
+						<span>{success}</span>
+					</div>
+				)}
 
-			{/* Profile Header Block */}
-			<div className="relative -mt-12 px-6 font-sans">
-				<div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
-					<div className="relative">
-					<img loading="lazy"
+				{/* Banner */}
+				<div
+					className="group relative h-40 overflow-hidden rounded-3xl border border-white/20 bg-zinc-900 md:h-48 cursor-pointer"
+					onClick={() => {
+						window.dispatchEvent(
+							new CustomEvent("openImagePreview", {
+								detail:
+									bannerPicPreview ||
+									"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800",
+							}),
+						);
+					}}>
+					<img
 						src={
-								profilePicPreview ||
-								"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"
-							}
-							alt={profile.fullName}
-							className="h-24 w-24 rounded-full border-4 border-white dark:border-zinc-900 object-cover shadow-md cursor-pointer hover:opacity-90 transition-opacity"
-							onClick={() => {
-								window.dispatchEvent(
-									new CustomEvent("openImagePreview", {
-										detail:
-											profilePicPreview ||
-											"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200",
-									}),
-								);
-							}}
-						/>
-					</div>
+							bannerPicPreview ||
+							"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800"
+						}
+						alt="User banner"
+						className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-102"
+					/>
+					<div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+				</div>
 
-					<div className="flex items-center gap-2.5">
-						<button
-							onClick={handleShareProfile}
-							className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-150 transition-colors shadow-sm cursor-pointer">
-							<Share2 className="h-4.5 w-4.5" />
-						</button>
-
-						{isSelf ? (
-							<button
+				{/* Profile Header Block */}
+				<div className="relative -mt-12 px-6 font-sans">
+					<div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+						<div className="relative">
+							<img loading="lazy"
+								src={
+									profilePicPreview ||
+									"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"
+								}
+								alt={profile.fullName}
+								className="h-24 w-24 rounded-full border-4 border-white dark:border-zinc-900 object-cover shadow-md cursor-pointer hover:opacity-90 transition-opacity"
 								onClick={() => {
-									setEditType("profile");
-									setEditOpen(true);
+									window.dispatchEvent(
+										new CustomEvent("openImagePreview", {
+											detail:
+												profilePicPreview ||
+												"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200",
+										}),
+									);
 								}}
-								className="flex h-10 items-center justify-center gap-1.5 rounded-full border border-zinc-800 bg-white dark:bg-zinc-900 px-5 text-sm font-medium text-zinc-400 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800 shadow-sm cursor-pointer">
-								<Edit3 className="h-4 w-4" /> Edit Profile
+							/>
+						</div>
+
+						<div className="flex items-center gap-2.5">
+							<button
+								onClick={handleShareProfile}
+								className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-150 transition-colors shadow-sm cursor-pointer">
+								<Share2 className="h-4.5 w-4.5" />
 							</button>
-						) : (
-							(() => {
-								const amIFollowing =
-									followingStates[profile._id] ??
-									(profile as any).followingByMe ??
-									(profile as any).isFollowing ??
-									false;
-								return (
-									<button
-										onClick={(e) => {
-											e.stopPropagation();
-											handleFollowToggle();
-										}}
-										className={`text-xs font-semibold px-4 py-2 rounded-full transition-all cursor-pointer transform hover:scale-105 active:scale-95 ${amIFollowing ? "bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white border border-zinc-300 dark:border-zinc-600 shadow-md" : "bg-black text-white hover:bg-zinc-800 shadow-lg"}`}>
-										{amIFollowing ? "Following" : "Follow"}
-									</button>
-								);
-							})()
-						)}
+
+							{isSelf ? (
+								<button
+									onClick={() => {
+										setEditType("profile");
+										setEditOpen(true);
+									}}
+									className="flex h-10 items-center justify-center gap-1.5 rounded-full border border-zinc-800 bg-white dark:bg-zinc-900 px-5 text-sm font-medium text-zinc-400 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800 shadow-sm cursor-pointer">
+									<Edit3 className="h-4 w-4" /> Edit Profile
+								</button>
+							) : (
+								(() => {
+									const amIFollowing =
+										followingStates[profile._id] ??
+										(profile as any).followingByMe ??
+										(profile as any).isFollowing ??
+										false;
+									return (
+										<button
+											onClick={(e) => {
+												e.stopPropagation();
+												handleFollowToggle();
+											}}
+											className={`text-xs font-semibold px-4 py-2 rounded-full transition-all cursor-pointer transform hover:scale-105 active:scale-95 ${amIFollowing ? "bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white border border-zinc-300 dark:border-zinc-600 shadow-md" : "bg-black text-white hover:bg-zinc-800 shadow-lg"}`}>
+											{amIFollowing ? "Following" : "Follow"}
+										</button>
+									);
+								})()
+							)}
+						</div>
 					</div>
 				</div>
-			</div>
 
-			{/* User details: name, username, bio, join date, stats */}
-			<div className="mt-4 px-1.5 space-y-3">
-				<div>
-					<h1 className="text-xl font-bold text-white">{profile.fullName}</h1>
-					<p className="text-sm text-zinc-400">@{profile.username}</p>
+				{/* User details: name, username, bio, join date, stats */}
+				<div className="mt-4 px-1.5 space-y-3">
+					<div>
+						<h1 className="text-xl font-bold text-white">{profile.fullName}</h1>
+						<p className="text-sm text-zinc-400">@{profile.username}</p>
+					</div>
+
+					{profile.bio && (
+						<p className="text-sm text-zinc-300 leading-relaxed max-w-lg">{profile.bio}</p>
+					)}
+
+					{profile.createdAt && (
+						<div className="flex items-center gap-1.5 text-xs text-zinc-500">
+							<Calendar className="h-3.5 w-3.5" />
+							<span>Joined {new Date(profile.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span>
+						</div>
+					)}
+
+
 				</div>
 
-				{profile.bio && (
-					<p className="text-sm text-zinc-300 leading-relaxed max-w-lg">{profile.bio}</p>
-				)}
+				<div className="mt-5 flex items-center gap-6 px-1.5 text-sm">
+					<button
+						onClick={() => loadList("following")}
+						className="flex items-center gap-1.5 hover:underline cursor-pointer group">
+						<span className="font-bold text-white">
+							{(profile.followingCount ?? 0).toLocaleString()}
+						</span>
+						<span className="text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-zinc-300">
+							Following
+						</span>
+					</button>
+					<button
+						onClick={() => loadList("followers")}
+						className="flex items-center gap-1.5 hover:underline cursor-pointer group">
+						<span className="font-bold text-white">
+							{(profile.followersCount ?? 0).toLocaleString()}
+						</span>
+						<span className="text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-zinc-300">
+							Followers
+						</span>
+					</button>
+				</div>
 
-				{profile.createdAt && (
-					<div className="flex items-center gap-1.5 text-xs text-zinc-500">
-						<Calendar className="h-3.5 w-3.5" />
-						<span>Joined {new Date(profile.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span>
-					</div>
-				)}
-
-
-			</div>
-
-			<div className="mt-5 flex items-center gap-6 px-1.5 text-sm">
-				<button
-					onClick={() => loadList("following")}
-					className="flex items-center gap-1.5 hover:underline cursor-pointer group">
-					<span className="font-bold text-white">
-						{(profile.followingCount ?? 0).toLocaleString()}
-					</span>
-					<span className="text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-zinc-300">
-						Following
-					</span>
-				</button>
-				<button
-					onClick={() => loadList("followers")}
-					className="flex items-center gap-1.5 hover:underline cursor-pointer group">
-					<span className="font-bold text-white">
-						{(profile.followersCount ?? 0).toLocaleString()}
-					</span>
-					<span className="text-zinc-400 group-hover:text-slate-700 dark:group-hover:text-zinc-300">
-						Followers
-					</span>
-				</button>
-			</div>
-
-			{/* Profile Content Tabs */}
-			<div className="mt-7">
-				<div className="flex items-center gap-1 mb-5">
-					{[
-						{
-							id: "posts" as const,
-							label: "Posts",
-							icon: FileText,
-							count: posts.length,
-						},
-						...(isSelf
-							? [
+				{/* Profile Content Tabs */}
+				<div className="mt-7">
+					<div className="flex items-center gap-1 mb-5">
+						{[
+							{
+								id: "posts" as const,
+								label: "Posts",
+								icon: FileText,
+								count: posts.length,
+							},
+							...(isSelf
+								? [
 									{
 										id: "saved" as const,
 										label: "Saved",
@@ -1134,785 +1152,782 @@ export default function Profile({
 										count: repostedPosts.length,
 									},
 								]
-							: []),
-					].map((tab) => {
-						const Icon = tab.icon;
-						const active = profileTab === tab.id;
-						return (
-							<button
-								key={tab.id}
-								onClick={() => setProfileTab(tab.id)}
-								className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all cursor-pointer rounded-t-lg ${
-									active
-										? "text-black dark:text-white"
-										: "text-zinc-500"
-								}`}>
-								<Icon className="h-3.5 w-3.5" />
-								{tab.label}
-								<span
-									className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${
-										active
-											? "bg-white text-black"
-											: "bg-slate-100 dark:bg-zinc-800 text-zinc-400"
-									}`}>
-									{tab.count}
-								</span>
-							</button>
-						);
-					})}
-				</div>
+								: []),
+						].map((tab) => {
+							const Icon = tab.icon;
+							const active = profileTab === tab.id;
+							return (
+								<button
+									key={tab.id}
+									onClick={() => setProfileTab(tab.id)}
+									className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-all cursor-pointer rounded-t-lg ${active
+											? "text-black dark:text-white"
+											: "text-zinc-500"
+										}`}>
+									<Icon className="h-3.5 w-3.5" />
+									{tab.label}
+									<span
+										className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${active
+												? "bg-white text-black"
+												: "bg-slate-100 dark:bg-zinc-800 text-zinc-400"
+											}`}>
+										{tab.count}
+									</span>
+								</button>
+							);
+						})}
+					</div>
 
-				{/* Posts Tab */}
-				{profileTab === "posts" && (
-					<>
-						{posts.length === 0 ? (
-							<GlassCard className="flex flex-col items-center justify-center py-12 text-center shadow-sm">
-								<h4 className="text-sm font-bold text-white">
-									No posts yet
-								</h4>
-								<p className="mt-1 text-xs text-zinc-500 max-w-xs">
-									When this account posts, it will appear
-									here.
-								</p>
-							</GlassCard>
-						) : (
-							<div className="grid gap-3.5 sm:grid-cols-2">
-								<AnimatePresence>
-									{posts.map((post) => (
-										<GlassCard
-											key={post._id}
-											animate={true}
-											onClick={() => {
-												if (editPostId !== post._id)
-													onPostClick(post.slug);
-											}}
-											className="group relative flex flex-col justify-between overflow-hidden cursor-pointer p-4.5"
-											showMacControls={false}>
-											{editPostId === post._id ? (
-												<form
-													onSubmit={(e) =>
-														handleUpdatePost(
-															e,
-															post._id,
-														)
-													}
-													className="space-y-3 z-10 block w-full relative">
-													<input
-														type="text"
-														value={editPostTitle}
-														onChange={(e) =>
-															setEditPostTitle(
-																e.target.value,
+					{/* Posts Tab */}
+					{profileTab === "posts" && (
+						<>
+							{posts.length === 0 ? (
+								<GlassCard className="flex flex-col items-center justify-center py-12 text-center shadow-sm">
+									<h4 className="text-sm font-bold text-white">
+										No posts yet
+									</h4>
+									<p className="mt-1 text-xs text-zinc-500 max-w-xs">
+										When this account posts, it will appear
+										here.
+									</p>
+								</GlassCard>
+							) : (
+								<div className="grid gap-3.5 sm:grid-cols-2">
+									<AnimatePresence>
+										{posts.map((post) => (
+											<GlassCard
+												key={post._id}
+												animate={true}
+												onClick={() => {
+													if (editPostId !== post._id)
+														onPostClick(post.slug);
+												}}
+												className="group relative flex flex-col justify-between overflow-hidden cursor-pointer p-4.5"
+												showMacControls={false}>
+												{editPostId === post._id ? (
+													<form
+														onSubmit={(e) =>
+															handleUpdatePost(
+																e,
+																post._id,
 															)
 														}
-														onClick={(e) =>
-															e.stopPropagation()
-														}
-														className="w-full bg-zinc-900 border border-zinc-700 rounded-full py-2.5 px-4 text-sm text-white outline-none focus:border-zinc-600"
-													/>
-													<textarea
-														value={editPostContent}
-														onChange={(e) =>
-															setEditPostContent(
-																e.target.value,
-															)
-														}
-														onClick={(e) =>
-															e.stopPropagation()
-														}
-														rows={3}
-														className="w-full bg-zinc-900 border border-zinc-700 rounded-3xl py-3 px-4 text-xs text-white outline-none focus:border-zinc-600 resize-none"
-													/>
-													<div className="flex items-center gap-2">
-														<button
-															type="button"
-															onClick={(e) => {
-																e.stopPropagation();
-																setEditPostId(
-																	null,
-																);
-															}}
-															className="px-4 py-1.5 rounded-full border border-zinc-700 text-xs font-bold text-zinc-400">
-															Cancel
-														</button>
-														<button
-															type="submit"
+														className="space-y-3 z-10 block w-full relative">
+														<input
+															type="text"
+															value={editPostTitle}
+															onChange={(e) =>
+																setEditPostTitle(
+																	e.target.value,
+																)
+															}
 															onClick={(e) =>
 																e.stopPropagation()
 															}
-															className="px-4 py-1.5 rounded-full bg-white dark:text-black text-white text-xs font-bold">
-															Save
-														</button>
-													</div>
-												</form>
-											) : (
-												<>
-													{user?._id ===
-														profile?._id && (
-														<div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 z-20">
+															className="w-full bg-zinc-900 border border-zinc-700 rounded-full py-2.5 px-4 text-sm text-white outline-none focus:border-zinc-600"
+														/>
+														<textarea
+															value={editPostContent}
+															onChange={(e) =>
+																setEditPostContent(
+																	e.target.value,
+																)
+															}
+															onClick={(e) =>
+																e.stopPropagation()
+															}
+															rows={3}
+															className="w-full bg-zinc-900 border border-zinc-700 rounded-3xl py-3 px-4 text-xs text-white outline-none focus:border-zinc-600 resize-none"
+														/>
+														<div className="flex items-center gap-2">
 															<button
-																onClick={(
-																	e,
-																) => {
+																type="button"
+																onClick={(e) => {
 																	e.stopPropagation();
-																	setEditPostTitle(
-																		post.title,
-																	);
-																	setEditPostContent(
-																		post.content,
-																	);
 																	setEditPostId(
-																		post._id,
+																		null,
 																	);
 																}}
-																className="p-1.5 bg-zinc-800 border border-zinc-800 rounded-full text-zinc-400 hover:text-white shadow-sm cursor-pointer">
-																<Edit3 className="h-3 w-3" />
+																className="px-4 py-1.5 rounded-full border border-zinc-700 text-xs font-bold text-zinc-400">
+																Cancel
 															</button>
 															<button
+																type="submit"
 																onClick={(e) =>
-																	handleDeletePost(
-																		e,
-																		post._id,
-																	)
+																	e.stopPropagation()
 																}
-																className="p-1.5 bg-zinc-800 border border-zinc-800 rounded-full text-zinc-400 hover:text-red-500 shadow-sm cursor-pointer">
-																<X className="h-3 w-3" />
+																className="px-4 py-1.5 rounded-full bg-white dark:text-black text-white text-xs font-bold">
+																Save
 															</button>
 														</div>
-													)}
-													<div className="space-y-2 pr-8">
-														<h4 className="font-sans text-sm font-bold text-white leading-snug line-clamp-2 select-text group-hover:text-white transition-all bg-black/50 p-2 rounded-xl backdrop-blur-sm">
-															{post.title}
-														</h4>
-														<p className="text-xs text-zinc-300 line-clamp-4 leading-relaxed whitespace-pre-wrap select-text">
-															{post.content}
-														</p>
-													</div>
-													{post.image && (
-														<div className="mt-3.5 h-24 overflow-hidden rounded-3xl border border-zinc-800">
-															<img
-																src={
-																	post.image
-																		.url
-																}
-																alt="attachment"
-																className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-102"
-															/>
+													</form>
+												) : (
+													<>
+														{user?._id ===
+															profile?._id && (
+																<div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 z-20">
+																	<button
+																		onClick={(
+																			e,
+																		) => {
+																			e.stopPropagation();
+																			setEditPostTitle(
+																				post.title,
+																			);
+																			setEditPostContent(
+																				post.content,
+																			);
+																			setEditPostId(
+																				post._id,
+																			);
+																		}}
+																		className="p-1.5 bg-zinc-800 border border-zinc-800 rounded-full text-zinc-400 hover:text-white shadow-sm cursor-pointer">
+																		<Edit3 className="h-3 w-3" />
+																	</button>
+																	<button
+																		onClick={(e) =>
+																			handleDeletePost(
+																				e,
+																				post._id,
+																			)
+																		}
+																		className="p-1.5 bg-zinc-800 border border-zinc-800 rounded-full text-zinc-400 hover:text-red-500 shadow-sm cursor-pointer">
+																		<X className="h-3 w-3" />
+																	</button>
+																</div>
+															)}
+														<div className="space-y-2 pr-8">
+															<h4 className="font-sans text-sm font-bold text-white leading-snug line-clamp-2 select-text group-hover:text-white transition-all bg-black/50 p-2 rounded-xl backdrop-blur-sm">
+																{post.title}
+															</h4>
+															<p className="text-xs text-zinc-300 line-clamp-4 leading-relaxed whitespace-pre-wrap select-text">
+																{post.content}
+															</p>
 														</div>
-													)}
-													<div
-														className="mt-4 flex items-center justify-between pt-3 text-[10px] text-zinc-500"
-														onClick={(e) =>
-															e.stopPropagation()
-														}>
-														<span className="flex items-center gap-1 font-medium">
-															<Heart
-																className={`h-3 w-3 ${post.likedByMe ? "fill-red-500 text-red-500" : ""}`}
-															/>{" "}
-															{post.likesCount}
-														</span>
-														<span className="flex items-center gap-1 font-medium">
-															<MessageSquare className="h-3 w-3" />{" "}
-															{post.commentsCount}
-														</span>
-														<span className="flex items-center gap-1 font-medium">
-															<Bookmark
-																className={`h-3 w-3 ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : ""}`}
-															/>{" "}
-															{post.savesCount}
-														</span>
-													</div>
-												</>
-											)}
-										</GlassCard>
-									))}
-								</AnimatePresence>
-								{/* Pagination sentinel + skeleton for posts */}
-								{postsHasMore && (
-									<div ref={postsSentinelRef}>
-										{loadingMorePosts && (
-											<div className="grid gap-3.5 sm:grid-cols-2">
-												<div className="space-y-4">
-													<Skeleton variant="card" />
-													<Skeleton variant="card" />
-												</div>
-											</div>
-										)}
-									</div>
-								)}
-							</div>
-						)}
-					</>
-				)}
-
-				{/* Saved Tab (self only) */}
-				{profileTab === "saved" && isSelf && (
-					<>
-						{loadingSaved ? (
-							<div className="grid gap-3.5 sm:grid-cols-2">
-								{[1, 2].map((n) => (
-									<div key={n} className="animate-pulse rounded-3xl border border-zinc-800 bg-zinc-900/40 p-4.5 space-y-3">
-										<div className="flex items-center gap-2">
-											<div className="h-6 w-6 rounded-full bg-zinc-800" />
-											<div className="h-3 w-20 rounded bg-zinc-800" />
-										</div>
-										<div className="h-4 w-3/4 rounded bg-zinc-800" />
-										<div className="space-y-2">
-											<div className="h-3 w-full rounded bg-zinc-800" />
-											<div className="h-3 w-2/3 rounded bg-zinc-800" />
-										</div>
-									</div>
-								))}
-							</div>
-						) : savedPosts.length === 0 ? (
-							<GlassCard className="flex flex-col items-center justify-center py-12 text-center shadow-sm">
-								<Bookmark className="mx-auto h-8 w-8 text-zinc-600 mb-3" />
-								<h4 className="text-sm font-bold text-white">
-									No saved posts
-								</h4>
-								<p className="mt-1 text-xs text-zinc-500 max-w-xs">
-									Posts you save will appear here.
-								</p>
-							</GlassCard>
-						) : (
-							<div className="grid gap-3.5 sm:grid-cols-2">
-								{savedPosts.map((post) => (
-									<GlassCard
-										key={post._id}
-										animate={true}
-										onClick={() => onPostClick(post.slug)}
-										className="group relative flex flex-col justify-between overflow-hidden cursor-pointer p-4.5"
-										showMacControls={false}>
-										<div className="space-y-2">
-											<div className="flex items-center gap-2 mb-2">
-												<img
-													src={
-														(post as any).author
-															?.profilePic?.url ||
-														"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-													}
-													className="h-6 w-6 rounded-full object-cover border border-zinc-800"
-													alt=""
-												/>
-												<span className="text-[10px] font-bold text-zinc-400">
-													@
-													{
-														(post as any).author
-															?.username
-													}
-												</span>
-											</div>
-											<h4 className="font-sans text-sm font-bold text-white leading-snug line-clamp-2">
-												{post.title}
-											</h4>
-											<p className="text-xs text-zinc-300 line-clamp-3 leading-relaxed">
-												{post.content}
-											</p>
-										</div>														<div
+														{post.image && (
+															<div className="mt-3.5 h-24 overflow-hidden rounded-3xl border border-zinc-800">
+																<img
+																	src={
+																		post.image
+																			.url
+																	}
+																	alt="attachment"
+																	className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-102"
+																/>
+															</div>
+														)}
+														<div
 															className="mt-4 flex items-center justify-between pt-3 text-[10px] text-zinc-500"
 															onClick={(e) =>
 																e.stopPropagation()
 															}>
-															<button
-																onClick={(e) => {
-																	e.stopPropagation();
-																	handleProfileLikeToggle(post._id, !!post.likedByMe);
-																}}
-																className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+															<span className="flex items-center gap-1 font-medium">
 																<Heart
 																	className={`h-3 w-3 ${post.likedByMe ? "fill-red-500 text-red-500" : ""}`}
 																/>{" "}
 																{post.likesCount}
-															</button>
-															<span className="flex items-center gap-1">
+															</span>
+															<span className="flex items-center gap-1 font-medium">
 																<MessageSquare className="h-3 w-3" />{" "}
 																{post.commentsCount}
 															</span>
-															<button
-																onClick={(e) => {
-																	e.stopPropagation();
-																	handleProfileSaveToggle(post._id, !!post.savedByMe);
-																}}
-																className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+															<span className="flex items-center gap-1 font-medium">
 																<Bookmark
 																	className={`h-3 w-3 ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : ""}`}
 																/>{" "}
 																{post.savesCount}
-															</button>
+															</span>
 														</div>
-									</GlassCard>
-								))}
-							</div>
-						)}
-						{/* Pagination sentinel + skeleton for saved */}
-						{savedHasMore && (
-							<div ref={savedSentinelRef}>
-								{loadingMoreSaved && (
-									<div className="grid gap-3.5 sm:grid-cols-2">
-										<div className="space-y-4">
-											<Skeleton variant="card" />
-											<Skeleton variant="card" />
-										</div>
-									</div>
-								)}
-							</div>
-						)}
-					</>
-				)}
-
-				{/* Reposts Tab (self only) */}
-				{profileTab === "reposts" && isSelf && (
-					<>
-						{loadingReposts ? (
-							<div className="grid gap-3.5 sm:grid-cols-2">
-								{[1, 2].map((n) => (
-									<div key={n} className="animate-pulse rounded-3xl border border-zinc-800 bg-zinc-900/40 p-4.5 space-y-3">
-										<div className="flex items-center gap-2">
-											<div className="h-3 w-3 rounded bg-zinc-800" />
-											<div className="h-6 w-6 rounded-full bg-zinc-800" />
-											<div className="h-3 w-20 rounded bg-zinc-800" />
-										</div>
-										<div className="h-4 w-3/4 rounded bg-zinc-800" />
-										<div className="space-y-2">
-											<div className="h-3 w-full rounded bg-zinc-800" />
-											<div className="h-3 w-2/3 rounded bg-zinc-800" />
-										</div>
-									</div>
-								))}
-							</div>
-						) : repostedPosts.length === 0 ? (
-							<GlassCard className="flex flex-col items-center justify-center py-12 text-center shadow-sm">
-								<Repeat2 className="mx-auto h-8 w-8 text-zinc-600 mb-3" />
-								<h4 className="text-sm font-bold text-white">
-									No reposts yet
-								</h4>
-								<p className="mt-1 text-xs text-zinc-500 max-w-xs">
-									Posts you repost will appear here.
-								</p>
-							</GlassCard>
-						) : (
-							<div className="grid gap-3.5 sm:grid-cols-2">
-								{repostedPosts.map((post) => (
-									<GlassCard
-										key={post._id}
-										animate={true}
-										onClick={() => onPostClick(post.slug)}
-										className="group relative flex flex-col justify-between overflow-hidden cursor-pointer p-4.5"
-										showMacControls={false}>
-										<div className="space-y-2">
-											<div className="flex items-center gap-2 mb-2">
-												<Repeat2 className="h-3 w-3 text-zinc-500 shrink-0" />
-												<img
-													src={
-														(post as any).author
-															?.profilePic?.url ||
-														"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-													}
-													className="h-6 w-6 rounded-full object-cover border border-zinc-800"
-													alt=""
-												/>
-												<span className="text-[10px] font-bold text-zinc-400">
-													@
-													{
-														(post as any).author
-															?.username
-													}
-												</span>
-											</div>
-											<h4 className="font-sans text-sm font-bold text-white leading-snug line-clamp-2">
-												{post.title}
-											</h4>
-											<p className="text-xs text-zinc-300 line-clamp-3 leading-relaxed">
-												{post.content}
-											</p>
-										</div>													<div
-														className="mt-4 flex items-center justify-between pt-3 text-[10px] text-zinc-500"
-														onClick={(e) =>
-															e.stopPropagation()
-														}>
-														<button
-															onClick={(e) => {
-																e.stopPropagation();
-																handleProfileLikeToggle(post._id, !!post.likedByMe);
-															}}
-															className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
-															<Heart
-																className={`h-3 w-3 ${post.likedByMe ? "fill-red-500 text-red-500" : ""}`}
-															/>{" "}
-															{post.likesCount}
-														</button>
-														<span className="flex items-center gap-1">
-															<MessageSquare className="h-3 w-3" />{" "}
-															{post.commentsCount}
-														</span>
-														<button
-															onClick={(e) => {
-																e.stopPropagation();
-																handleProfileRepostToggle(post._id, !!post.repostedByMe);
-															}}
-															className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
-															<Repeat2
-																className={`h-3 w-3 ${post.repostedByMe ? "text-green-500" : ""}`}
-															/>{" "}
-															{post.repostsCount}
-														</button>
+													</>
+												)}
+											</GlassCard>
+										))}
+									</AnimatePresence>
+									{/* Pagination sentinel + skeleton for posts */}
+									{postsHasMore && (
+										<div ref={postsSentinelRef}>
+											{loadingMorePosts && (
+												<div className="grid gap-3.5 sm:grid-cols-2">
+													<div className="space-y-4">
+														<Skeleton variant="card" />
+														<Skeleton variant="card" />
 													</div>
-									</GlassCard>
-								))}
-							</div>
-						)}
-						{/* Pagination sentinel + skeleton for reposts */}
-						{repostsHasMore && (
-							<div ref={repostsSentinelRef}>
-								{loadingMoreReposts && (
-									<div className="grid gap-3.5 sm:grid-cols-2">
-										<div className="space-y-4">
-											<Skeleton variant="card" />
-											<Skeleton variant="card" />
+												</div>
+											)}
 										</div>
-									</div>
-								)}
-							</div>
-						)}
-					</>
-				)}
-			</div>
-
-			{/* Slide-Up macOS Panel for Profile Settings Edit */}
-			<AnimatePresence>
-				{editOpen && (
-					<div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm">
-						{/* Click-out backdrop */}
-						<div
-							className="absolute inset-0"
-							onClick={() => setEditOpen(false)}
-						/>
-
-						<motion.div
-							initial={{ y: "100%" }}
-							animate={{ y: 0 }}
-							exit={{ y: "100%" }}
-							transition={{
-								type: "spring",
-								damping: 28,
-								stiffness: 220,
-							}}
-							className="relative z-10 w-full max-w-xl rounded-4xl border border-white/10 bg-zinc-950/90 backdrop-blur-2xl p-6 shadow-[0_-25px_60px_-15px_rgba(0,0,0,0.9),0_25px_60px_-15px_rgba(0,0,0,0.5)]">
-							{/* Drag handle bar */}
-							<div className="absolute top-3 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-white/20" />
-							<div className="mb-5 pb-5 flex items-center justify-between">
-								<div>
-									<h3 className="text-xl font-semibold text-white">
-										Edit Profile
-									</h3>
-									<p className="text-sm text-zinc-400 mt-1">
-										Update your profile information
-									</p>
-								</div>
-								<button
-									onClick={() => setEditOpen(false)}
-									className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-black dark:hover:text-white transition-colors cursor-pointer">
-									<X className="h-4 w-4" />
-								</button>
-							</div>
-
-							{error && (
-								<div className="mb-6 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
-									<AlertCircle className="h-4 w-4 shrink-0" />
-									<span>{error}</span>
+									)}
 								</div>
 							)}
+						</>
+					)}
 
-							<form
-								onSubmit={handleUpdateSubmit}
-								className="space-y-4">
-								<div className="grid grid-cols-2 gap-4">
-									{/* Avatar Upload */}
-									<div className="space-y-1.5">
-										<label className="text-xs font-medium text-zinc-400 pl-3">
-											Avatar
-										</label>
-										<div className="relative flex h-24 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 transition-colors">
-											<input
-												type="file"
-												accept="image/*"
-												onChange={(e) => {
-													const file =
-														e.target.files?.[0];
-													if (file) {
-														setCropImageSrc(
-															URL.createObjectURL(
-																file,
-															),
-														);
-														setCropType("profile");
-														setCropModalOpen(true);
-													}
-													e.target.value = "";
-												}}
-												className="absolute inset-0 opacity-0 cursor-pointer animate-none"
-											/>
-											<div className="text-center space-y-1">
-												<Camera className="mx-auto h-5 w-5 text-zinc-500" />
+					{/* Saved Tab (self only) */}
+					{profileTab === "saved" && isSelf && (
+						<>
+							{loadingSaved ? (
+								<div className="grid gap-3.5 sm:grid-cols-2">
+									{[1, 2].map((n) => (
+										<div key={n} className="animate-pulse rounded-3xl border border-zinc-800 bg-zinc-900/40 p-4.5 space-y-3">
+											<div className="flex items-center gap-2">
+												<div className="h-6 w-6 rounded-full bg-zinc-800" />
+												<div className="h-3 w-20 rounded bg-zinc-800" />
+											</div>
+											<div className="h-4 w-3/4 rounded bg-zinc-800" />
+											<div className="space-y-2">
+												<div className="h-3 w-full rounded bg-zinc-800" />
+												<div className="h-3 w-2/3 rounded bg-zinc-800" />
 											</div>
 										</div>
-									</div>
-
-									{/* Banner Upload */}
-									<div className="space-y-1.5">
-										<label className="text-xs font-medium text-zinc-400 pl-3">
-											Banner
-										</label>
-										<div className="relative flex h-24 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 transition-colors">
-											<input
-												type="file"
-												accept="image/*"
-												onChange={(e) => {
-													const file =
-														e.target.files?.[0];
-													if (file) {
-														setCropImageSrc(
-															URL.createObjectURL(
-																file,
-															),
-														);
-														setCropType("banner");
-														setCropModalOpen(true);
-													}
-													e.target.value = "";
-												}}
-												className="absolute inset-0 opacity-0 cursor-pointer animate-none"
-											/>
-											<div className="text-center space-y-1">
-												<Camera className="mx-auto h-5 w-5 text-zinc-500" />
-											</div>
-										</div>
-									</div>
+									))}
 								</div>
-
-								<div className="space-y-4">
-									<div className="space-y-1.5 font-sans">
-										<label className="text-sm font-medium text-zinc-400 pl-4">
-											Name
-										</label>
-										<input
-											type="text"
-											required
-											value={fullName}
-											onChange={(e) =>
-												setFullName(e.target.value)
-											}
-											className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3.5 px-5 text-sm text-white focus:outline-none focus:border-zinc-600 focus:bg-zinc-900 transition-all font-medium"
-										/>
-									</div>
-
-									<div className="space-y-1.5 font-sans">
-										<label className="text-sm font-medium text-zinc-400 pl-4">
-											About
-										</label>
-										<textarea
-											rows={3}
-											value={bio}
-											onChange={(e) =>
-												setBio(e.target.value)
-											}
-											placeholder="Write something about yourself..."
-											className="w-full rounded-xl border border-zinc-800 bg-zinc-900/50 py-3.5 px-5 text-sm text-white focus:outline-none focus:border-zinc-600 focus:bg-zinc-900 transition-all resize-none font-medium"
-											maxLength={150}
-										/>
-									</div>
-								</div>
-
-								<div className="flex gap-3.5 pt-2 font-sans">
-									<button
-										type="button"
-										onClick={() => setEditOpen(false)}
-										className="flex-1 rounded-full border border-zinc-800 py-3.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-white shadow-sm cursor-pointer">
-										Cancel
-									</button>
-									<button
-										type="submit"
-										disabled={saving}
-										className="flex-1 rounded-full bg-white py-3.5 text-sm font-semibold text-black hover:bg-zinc-200 disabled:opacity-50 transition-all shadow-md cursor-pointer">
-										{saving ? "Saving..." : "Save"}
-									</button>
-								</div>
-							</form>
-						</motion.div>
-					</div>
-				)}
-			</AnimatePresence>
-
-			<ImageCropModal
-				isOpen={cropModalOpen}
-				onClose={() => setCropModalOpen(false)}
-				imageSrc={cropImageSrc}
-				aspectRatio={cropType === "profile" ? 1 : 16 / 9}
-				title={`Adjust ${cropType === "profile" ? "Avatar" : "Banner"} crop`}
-				onCropComplete={(blob) => {
-					const file = new File([blob], `${cropType}_cropped.jpg`, {
-						type: "image/jpeg",
-					});
-					if (cropType === "profile") {
-						setProfilePicFile(file);
-						setProfilePicPreview(URL.createObjectURL(blob));
-					} else {
-						setBannerPicFile(file);
-						setBannerPicPreview(URL.createObjectURL(blob));
-					}
-				}}
-			/>
-
-			<ConfirmDialog
-				isOpen={deleteConfirmPostId !== null}
-				title="Delete Post"
-				message="Are you sure you want to delete this post? This action cannot be undone."
-				confirmLabel="Delete"
-				cancelLabel="Cancel"
-				variant="danger"
-				onConfirm={confirmDeletePost}
-				onCancel={() => setDeleteConfirmPostId(null)}
-			/>
-
-			<AnimatePresence>
-				{activeList && (
-					<div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-						<motion.div
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							exit={{ opacity: 0 }}
-							onClick={() => setActiveList(null)}
-							className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-						/>
-						<motion.div
-							initial={{ opacity: 0, scale: 0.95, y: 20 }}
-							animate={{ opacity: 1, scale: 1, y: 0 }}
-							exit={{ opacity: 0, scale: 0.95, y: 20 }}
-							className="relative w-full max-w-sm bg-zinc-950 rounded-4xl shadow-2xl overflow-hidden border border-zinc-800/50 flex flex-col max-h-[80vh]">
-							<div className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-900 sticky top-0 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md z-10">
-								<h3 className="font-bold text-white capitalize">
-									{activeList}
-								</h3>
-								<button
-									onClick={() => setActiveList(null)}
-									className="rounded-full p-2 text-slate-400 hover:bg-zinc-800 transition">
-									<X className="h-4 w-4" />
-								</button>
-							</div>
-
-							<div className="overflow-y-auto p-4 space-y-4">
-								{listLoading ? (
-									<div className="py-8 text-center text-zinc-500 text-sm">
-										Loading...
-									</div>
-								) : listItems.length === 0 ? (
-									<div className="py-8 text-center text-zinc-500 text-sm">
-										No {activeList} found.
-									</div>
-								) : activeList === "reposts" ? (
-									listItems.map((post) => (
-										<div
+							) : savedPosts.length === 0 ? (
+								<GlassCard className="flex flex-col items-center justify-center py-12 text-center shadow-sm">
+									<Bookmark className="mx-auto h-8 w-8 text-zinc-600 mb-3" />
+									<h4 className="text-sm font-bold text-white">
+										No saved posts
+									</h4>
+									<p className="mt-1 text-xs text-zinc-500 max-w-xs">
+										Posts you save will appear here.
+									</p>
+								</GlassCard>
+							) : (
+								<div className="grid gap-3.5 sm:grid-cols-2">
+									{savedPosts.map((post) => (
+										<GlassCard
 											key={post._id}
-											className="cursor-pointer group flex gap-3 text-left p-3.5 rounded-3xl hover:bg-zinc-900 shadow-sm transition-all border border-zinc-800/40 mb-2 last:mb-0"
-											onClick={() => {
-												setActiveList(null);
-												onPostClick(post.slug);
-											}}>
-											<img
-												src={
-													post.author?.profilePic
-														?.url ||
-													"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-												}
-												className="w-10 h-10 rounded-full object-cover shrink-0"
-											/>
-											<div>
-												<div className="font-bold text-sm text-white">
-													{post.author?.fullName}
+											animate={true}
+											onClick={() => onPostClick(post.slug)}
+											className="group relative flex flex-col justify-between overflow-hidden cursor-pointer p-4.5"
+											showMacControls={false}>
+											<div className="space-y-2">
+												<div className="flex items-center gap-2 mb-2">
+													<img
+														src={
+															(post as any).author
+																?.profilePic?.url ||
+															"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
+														}
+														className="h-6 w-6 rounded-full object-cover border border-zinc-800"
+														alt=""
+													/>
+													<span className="text-[10px] font-bold text-zinc-400">
+														@
+														{
+															(post as any).author
+																?.username
+														}
+													</span>
 												</div>
-												<div className="text-xs font-semibold text-zinc-500">
-													@{post.author?.username}
-												</div>
-												<p className="text-sm mt-1 text-zinc-400 line-clamp-2">
+												<h4 className="font-sans text-sm font-bold text-white leading-snug line-clamp-2">
 													{post.title}
+												</h4>
+												<p className="text-xs text-zinc-300 line-clamp-3 leading-relaxed">
+													{post.content}
 												</p>
+											</div>														<div
+												className="mt-4 flex items-center justify-between pt-3 text-[10px] text-zinc-500"
+												onClick={(e) =>
+													e.stopPropagation()
+												}>
+												<button
+													onClick={(e) => {
+														e.stopPropagation();
+														handleProfileLikeToggle(post._id, !!post.likedByMe);
+													}}
+													className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+													<Heart
+														className={`h-3 w-3 ${post.likedByMe ? "fill-red-500 text-red-500" : ""}`}
+													/>{" "}
+													{post.likesCount}
+												</button>
+												<span className="flex items-center gap-1">
+													<MessageSquare className="h-3 w-3" />{" "}
+													{post.commentsCount}
+												</span>
+												<button
+													onClick={(e) => {
+														e.stopPropagation();
+														handleProfileSaveToggle(post._id, !!post.savedByMe);
+													}}
+													className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+													<Bookmark
+														className={`h-3 w-3 ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : ""}`}
+													/>{" "}
+													{post.savesCount}
+												</button>
+											</div>
+										</GlassCard>
+									))}
+								</div>
+							)}
+							{/* Pagination sentinel + skeleton for saved */}
+							{savedHasMore && (
+								<div ref={savedSentinelRef}>
+									{loadingMoreSaved && (
+										<div className="grid gap-3.5 sm:grid-cols-2">
+											<div className="space-y-4">
+												<Skeleton variant="card" />
+												<Skeleton variant="card" />
 											</div>
 										</div>
-									))
-								) : (
-									listItems.map((u) => (
-										<div
-											key={u._id}
-											className="cursor-pointer flex items-center gap-3 p-3 rounded-2xl hover:bg-zinc-900 border border-zinc-800/30 transition-colors mb-2 last:mb-0"
-											onClick={() => {
-												setActiveList(null);
-												onUserClick(u.username);
-											}}>
-											<img
-												src={
-													u.profilePic?.url ||
-													"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-												}
-												className="w-10 h-10 rounded-full object-cover shrink-0"
-											/>
-											<div className="flex flex-col text-left flex-1">
-												<span className="font-bold text-sm text-white">
-													{u.fullName}
-												</span>
-												<span className="text-xs font-semibold text-zinc-500">
-													@{u.username}
-												</span>
-											</div>
-											{user &&
-												user._id !== u._id &&
-												(() => {
-													const isUserFollowing =
-														followingStates[
-															u._id
-														] ??
-														u.isFollowing ??
-														false;
-													return (
-														<button
-															onClick={async (
-																e,
-															) => {
-																e.stopPropagation();
-																await onToggleFollow(
-																	u._id,
-																);
-															}}
-															className={`ml-auto text-xs font-bold px-3.5 py-1.5 rounded-full border transition-all cursor-pointer ${
-																isUserFollowing? "bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-zinc-200"
-																			: "bg-black text-white dark:bg-white dark:text-black border-transparent hover:bg-zinc-200"
-															}`}>
-															{isUserFollowing
-																? "Following"
-																: "Follow"}
-														</button>
-													);
-												})()}
-										</div>
-									))
-								)}
-							</div>
-						</motion.div>
-					</div>
-				)}
-			</AnimatePresence>
-		</div>
+									)}
+								</div>
+							)}
+						</>
+					)}
 
-		{/* Pull-to-refresh indicator */}
-		{(pullDistance > 0 || isRefreshing) && (
-			<div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center">
-				<div className={`flex items-center gap-2 text-[10px] text-zinc-400 ${isRefreshing ? "" : ""}`}>
-					<svg className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} style={!isRefreshing ? { transform: `rotate(${pullDistance * 3}deg)` } : undefined} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-						<path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 0 1 9-9" />
-					</svg>
-					<span>{isRefreshing ? "Refreshing..." : "Pull to refresh"}</span>
+					{/* Reposts Tab (self only) */}
+					{profileTab === "reposts" && isSelf && (
+						<>
+							{loadingReposts ? (
+								<div className="grid gap-3.5 sm:grid-cols-2">
+									{[1, 2].map((n) => (
+										<div key={n} className="animate-pulse rounded-3xl border border-zinc-800 bg-zinc-900/40 p-4.5 space-y-3">
+											<div className="flex items-center gap-2">
+												<div className="h-3 w-3 rounded bg-zinc-800" />
+												<div className="h-6 w-6 rounded-full bg-zinc-800" />
+												<div className="h-3 w-20 rounded bg-zinc-800" />
+											</div>
+											<div className="h-4 w-3/4 rounded bg-zinc-800" />
+											<div className="space-y-2">
+												<div className="h-3 w-full rounded bg-zinc-800" />
+												<div className="h-3 w-2/3 rounded bg-zinc-800" />
+											</div>
+										</div>
+									))}
+								</div>
+							) : repostedPosts.length === 0 ? (
+								<GlassCard className="flex flex-col items-center justify-center py-12 text-center shadow-sm">
+									<Repeat2 className="mx-auto h-8 w-8 text-zinc-600 mb-3" />
+									<h4 className="text-sm font-bold text-white">
+										No reposts yet
+									</h4>
+									<p className="mt-1 text-xs text-zinc-500 max-w-xs">
+										Posts you repost will appear here.
+									</p>
+								</GlassCard>
+							) : (
+								<div className="grid gap-3.5 sm:grid-cols-2">
+									{repostedPosts.map((post) => (
+										<GlassCard
+											key={post._id}
+											animate={true}
+											onClick={() => onPostClick(post.slug)}
+											className="group relative flex flex-col justify-between overflow-hidden cursor-pointer p-4.5"
+											showMacControls={false}>
+											<div className="space-y-2">
+												<div className="flex items-center gap-2 mb-2">
+													<Repeat2 className="h-3 w-3 text-zinc-500 shrink-0" />
+													<img
+														src={
+															(post as any).author
+																?.profilePic?.url ||
+															"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
+														}
+														className="h-6 w-6 rounded-full object-cover border border-zinc-800"
+														alt=""
+													/>
+													<span className="text-[10px] font-bold text-zinc-400">
+														@
+														{
+															(post as any).author
+																?.username
+														}
+													</span>
+												</div>
+												<h4 className="font-sans text-sm font-bold text-white leading-snug line-clamp-2">
+													{post.title}
+												</h4>
+												<p className="text-xs text-zinc-300 line-clamp-3 leading-relaxed">
+													{post.content}
+												</p>
+											</div>													<div
+												className="mt-4 flex items-center justify-between pt-3 text-[10px] text-zinc-500"
+												onClick={(e) =>
+													e.stopPropagation()
+												}>
+												<button
+													onClick={(e) => {
+														e.stopPropagation();
+														handleProfileLikeToggle(post._id, !!post.likedByMe);
+													}}
+													className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+													<Heart
+														className={`h-3 w-3 ${post.likedByMe ? "fill-red-500 text-red-500" : ""}`}
+													/>{" "}
+													{post.likesCount}
+												</button>
+												<span className="flex items-center gap-1">
+													<MessageSquare className="h-3 w-3" />{" "}
+													{post.commentsCount}
+												</span>
+												<button
+													onClick={(e) => {
+														e.stopPropagation();
+														handleProfileRepostToggle(post._id, !!post.repostedByMe);
+													}}
+													className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+													<Repeat2
+														className={`h-3 w-3 ${post.repostedByMe ? "text-green-500" : ""}`}
+													/>{" "}
+													{post.repostsCount}
+												</button>
+											</div>
+										</GlassCard>
+									))}
+								</div>
+							)}
+							{/* Pagination sentinel + skeleton for reposts */}
+							{repostsHasMore && (
+								<div ref={repostsSentinelRef}>
+									{loadingMoreReposts && (
+										<div className="grid gap-3.5 sm:grid-cols-2">
+											<div className="space-y-4">
+												<Skeleton variant="card" />
+												<Skeleton variant="card" />
+											</div>
+										</div>
+									)}
+								</div>
+							)}
+						</>
+					)}
 				</div>
+
+				{/* Slide-Up macOS Panel for Profile Settings Edit */}
+				<AnimatePresence>
+					{editOpen && (
+						<div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm">
+							{/* Click-out backdrop */}
+							<div
+								className="absolute inset-0"
+								onClick={() => setEditOpen(false)}
+							/>
+
+							<motion.div
+								initial={{ y: "100%" }}
+								animate={{ y: 0 }}
+								exit={{ y: "100%" }}
+								transition={{
+									type: "spring",
+									damping: 28,
+									stiffness: 220,
+								}}
+								className="relative z-10 w-full max-w-xl rounded-4xl border border-white/10 bg-zinc-950/90 backdrop-blur-2xl p-6 shadow-[0_-25px_60px_-15px_rgba(0,0,0,0.9),0_25px_60px_-15px_rgba(0,0,0,0.5)]">
+								{/* Drag handle bar */}
+								<div className="absolute top-3 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-white/20" />
+								<div className="mb-5 pb-5 flex items-center justify-between">
+									<div>
+										<h3 className="text-xl font-semibold text-white">
+											Edit Profile
+										</h3>
+										<p className="text-sm text-zinc-400 mt-1">
+											Update your profile information
+										</p>
+									</div>
+									<button
+										onClick={() => setEditOpen(false)}
+										className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-black dark:hover:text-white transition-colors cursor-pointer">
+										<X className="h-4 w-4" />
+									</button>
+								</div>
+
+								{error && (
+									<div className="mb-6 flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+										<AlertCircle className="h-4 w-4 shrink-0" />
+										<span>{error}</span>
+									</div>
+								)}
+
+								<form
+									onSubmit={handleUpdateSubmit}
+									className="space-y-4">
+									<div className="grid grid-cols-2 gap-4">
+										{/* Avatar Upload */}
+										<div className="space-y-1.5">
+											<label className="text-xs font-medium text-zinc-400 pl-3">
+												Avatar
+											</label>
+											<div className="relative flex h-24 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 transition-colors">
+												<input
+													type="file"
+													accept="image/*"
+													onChange={(e) => {
+														const file =
+															e.target.files?.[0];
+														if (file) {
+															setCropImageSrc(
+																URL.createObjectURL(
+																	file,
+																),
+															);
+															setCropType("profile");
+															setCropModalOpen(true);
+														}
+														e.target.value = "";
+													}}
+													className="absolute inset-0 opacity-0 cursor-pointer animate-none"
+												/>
+												<div className="text-center space-y-1">
+													<Camera className="mx-auto h-5 w-5 text-zinc-500" />
+												</div>
+											</div>
+										</div>
+
+										{/* Banner Upload */}
+										<div className="space-y-1.5">
+											<label className="text-xs font-medium text-zinc-400 pl-3">
+												Banner
+											</label>
+											<div className="relative flex h-24 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 transition-colors">
+												<input
+													type="file"
+													accept="image/*"
+													onChange={(e) => {
+														const file =
+															e.target.files?.[0];
+														if (file) {
+															setCropImageSrc(
+																URL.createObjectURL(
+																	file,
+																),
+															);
+															setCropType("banner");
+															setCropModalOpen(true);
+														}
+														e.target.value = "";
+													}}
+													className="absolute inset-0 opacity-0 cursor-pointer animate-none"
+												/>
+												<div className="text-center space-y-1">
+													<Camera className="mx-auto h-5 w-5 text-zinc-500" />
+												</div>
+											</div>
+										</div>
+									</div>
+
+									<div className="space-y-4">
+										<div className="space-y-1.5 font-sans">
+											<label className="text-sm font-medium text-zinc-400 pl-4">
+												Name
+											</label>
+											<input
+												type="text"
+												required
+												value={fullName}
+												onChange={(e) =>
+													setFullName(e.target.value)
+												}
+												className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3.5 px-5 text-sm text-white focus:outline-none focus:border-zinc-600 focus:bg-zinc-900 transition-all font-medium"
+											/>
+										</div>
+
+										<div className="space-y-1.5 font-sans">
+											<label className="text-sm font-medium text-zinc-400 pl-4">
+												About
+											</label>
+											<textarea
+												rows={3}
+												value={bio}
+												onChange={(e) =>
+													setBio(e.target.value)
+												}
+												placeholder="Write something about yourself..."
+												className="w-full rounded-xl border border-zinc-800 bg-zinc-900/50 py-3.5 px-5 text-sm text-white focus:outline-none focus:border-zinc-600 focus:bg-zinc-900 transition-all resize-none font-medium"
+												maxLength={150}
+											/>
+										</div>
+									</div>
+
+									<div className="flex gap-3.5 pt-2 font-sans">
+										<button
+											type="button"
+											onClick={() => setEditOpen(false)}
+											className="flex-1 rounded-full border border-zinc-800 py-3.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-white shadow-sm cursor-pointer">
+											Cancel
+										</button>
+										<button
+											type="submit"
+											disabled={saving}
+											className="flex-1 rounded-full bg-white py-3.5 text-sm font-semibold text-black hover:bg-zinc-200 disabled:opacity-50 transition-all shadow-md cursor-pointer">
+											{saving ? "Saving..." : "Save"}
+										</button>
+									</div>
+								</form>
+							</motion.div>
+						</div>
+					)}
+				</AnimatePresence>
+
+				<ImageCropModal
+					isOpen={cropModalOpen}
+					onClose={() => setCropModalOpen(false)}
+					imageSrc={cropImageSrc}
+					aspectRatio={cropType === "profile" ? 1 : 16 / 9}
+					title={`Adjust ${cropType === "profile" ? "Avatar" : "Banner"} crop`}
+					onCropComplete={(blob) => {
+						const file = new File([blob], `${cropType}_cropped.jpg`, {
+							type: "image/jpeg",
+						});
+						if (cropType === "profile") {
+							setProfilePicFile(file);
+							setProfilePicPreview(URL.createObjectURL(blob));
+						} else {
+							setBannerPicFile(file);
+							setBannerPicPreview(URL.createObjectURL(blob));
+						}
+					}}
+				/>
+
+				<ConfirmDialog
+					isOpen={deleteConfirmPostId !== null}
+					title="Delete Post"
+					message="Are you sure you want to delete this post? This action cannot be undone."
+					confirmLabel="Delete"
+					cancelLabel="Cancel"
+					variant="danger"
+					onConfirm={confirmDeletePost}
+					onCancel={() => setDeleteConfirmPostId(null)}
+				/>
+
+				<AnimatePresence>
+					{activeList && (
+						<div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+							<motion.div
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								onClick={() => setActiveList(null)}
+								className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+							/>
+							<motion.div
+								initial={{ opacity: 0, scale: 0.95, y: 20 }}
+								animate={{ opacity: 1, scale: 1, y: 0 }}
+								exit={{ opacity: 0, scale: 0.95, y: 20 }}
+								className="relative w-full max-w-sm bg-zinc-950 rounded-4xl shadow-2xl overflow-hidden border border-zinc-800/50 flex flex-col max-h-[80vh]">
+								<div className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-900 sticky top-0 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md z-10">
+									<h3 className="font-bold text-white capitalize">
+										{activeList}
+									</h3>
+									<button
+										onClick={() => setActiveList(null)}
+										className="rounded-full p-2 text-slate-400 hover:bg-zinc-800 transition">
+										<X className="h-4 w-4" />
+									</button>
+								</div>
+
+								<div className="overflow-y-auto p-4 space-y-4">
+									{listLoading ? (
+										<div className="py-8 text-center text-zinc-500 text-sm">
+											Loading...
+										</div>
+									) : listItems.length === 0 ? (
+										<div className="py-8 text-center text-zinc-500 text-sm">
+											No {activeList} found.
+										</div>
+									) : activeList === "reposts" ? (
+										listItems.map((post) => (
+											<div
+												key={post._id}
+												className="cursor-pointer group flex gap-3 text-left p-3.5 rounded-3xl hover:bg-zinc-900 shadow-sm transition-all border border-zinc-800/40 mb-2 last:mb-0"
+												onClick={() => {
+													setActiveList(null);
+													onPostClick(post.slug);
+												}}>
+												<img
+													src={
+														post.author?.profilePic
+															?.url ||
+														"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
+													}
+													className="w-10 h-10 rounded-full object-cover shrink-0"
+												/>
+												<div>
+													<div className="font-bold text-sm text-white">
+														{post.author?.fullName}
+													</div>
+													<div className="text-xs font-semibold text-zinc-500">
+														@{post.author?.username}
+													</div>
+													<p className="text-sm mt-1 text-zinc-400 line-clamp-2">
+														{post.title}
+													</p>
+												</div>
+											</div>
+										))
+									) : (
+										listItems.map((u) => (
+											<div
+												key={u._id}
+												className="cursor-pointer flex items-center gap-3 p-3 rounded-2xl hover:bg-zinc-900 border border-zinc-800/30 transition-colors mb-2 last:mb-0"
+												onClick={() => {
+													setActiveList(null);
+													onUserClick(u.username);
+												}}>
+												<img
+													src={
+														u.profilePic?.url ||
+														"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
+													}
+													className="w-10 h-10 rounded-full object-cover shrink-0"
+												/>
+												<div className="flex flex-col text-left flex-1">
+													<span className="font-bold text-sm text-white">
+														{u.fullName}
+													</span>
+													<span className="text-xs font-semibold text-zinc-500">
+														@{u.username}
+													</span>
+												</div>
+												{user &&
+													user._id !== u._id &&
+													(() => {
+														const isUserFollowing =
+															followingStates[
+															u._id
+															] ??
+															u.isFollowing ??
+															false;
+														return (
+															<button
+																onClick={async (
+																	e,
+																) => {
+																	e.stopPropagation();
+																	await onToggleFollow(
+																		u._id,
+																	);
+																}}
+																className={`ml-auto text-xs font-bold px-3.5 py-1.5 rounded-full border transition-all cursor-pointer ${isUserFollowing ? "bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-zinc-200"
+																		: "bg-black text-white dark:bg-white dark:text-black border-transparent hover:bg-zinc-200"
+																	}`}>
+																{isUserFollowing
+																	? "Following"
+																	: "Follow"}
+															</button>
+														);
+													})()}
+											</div>
+										))
+									)}
+								</div>
+							</motion.div>
+						</div>
+					)}
+				</AnimatePresence>
 			</div>
-		)}
-	</>
+
+			{/* Pull-to-refresh indicator */}
+			{(pullDistance > 0 || isRefreshing) && (
+				<div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center">
+					<div className={`flex items-center gap-2 text-[10px] text-zinc-400 ${isRefreshing ? "" : ""}`}>
+						<svg className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} style={!isRefreshing ? { transform: `rotate(${pullDistance * 3}deg)` } : undefined} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+							<path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 0 1 9-9" />
+						</svg>
+						<span>{isRefreshing ? "Refreshing..." : "Pull to refresh"}</span>
+					</div>
+				</div>
+			)}
+		</>
 	);
 }

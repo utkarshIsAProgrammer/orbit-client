@@ -76,6 +76,24 @@ export default function App() {
 	const [darkMode, setDarkMode] = useState(true);
 
 	useEffect(() => {
+		let timer: NodeJS.Timeout;
+		const handleShowToast = (e: any) => {
+			const { message, type } = e.detail;
+			setToastMessage(message);
+			setToastType(type || "success");
+			clearTimeout(timer);
+			timer = setTimeout(() => {
+				setToastMessage(null);
+			}, 3000);
+		};
+		window.addEventListener("showToast", handleShowToast as EventListener);
+		return () => {
+			window.removeEventListener("showToast", handleShowToast as EventListener);
+			clearTimeout(timer);
+		};
+	}, []);
+
+	useEffect(() => {
 		document.documentElement.classList.add("dark");
 		localStorage.setItem("orbit_theme", "dark");
 	}, []);
@@ -110,6 +128,10 @@ export default function App() {
 		Record<string, boolean>
 	>({});
 	const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+	// Global Toast Notification State
+	const [toastMessage, setToastMessage] = useState<string | null>(null);
+	const [toastType, setToastType] = useState<"success" | "error">("success");
 
 	// Callback for Profile to sync followingStates from server data
 	const handleProfileLoaded = (profileId: string, followingByMe: boolean) => {
@@ -196,12 +218,31 @@ export default function App() {
 
 	// Toggle follow
 	const onToggleFollow = async (userId: string) => {
+		const isCurrentlyFollowing = !!followingStates[userId];
+
+		// 1. Optimistic Update: Toggle state immediately
+		setFollowingStates((prev) => ({
+			...prev,
+			[userId]: !isCurrentlyFollowing,
+		}));
+		setUser((prev) =>
+			prev
+				? {
+					...prev,
+					followingCount: !isCurrentlyFollowing
+						? (prev.followingCount || 0) + 1
+						: Math.max(0, (prev.followingCount || 0) - 1),
+				}
+				: null
+		);
+
 		try {
 			const res = await apiFetch(`/api/follows/${userId}`, {
 				method: "POST",
 			});
 			const data = await res.json();
 			if (res.ok && data.success) {
+				// 2. Synchronize with backend response
 				setFollowingStates((prev) => ({
 					...prev,
 					[userId]: data.following,
@@ -212,16 +253,41 @@ export default function App() {
 							...prev,
 							followingCount: data.following
 								? (prev.followingCount || 0) + 1
-								: Math.max(
-									0,
-									(prev.followingCount || 0) - 1,
-								),
+								: Math.max(0, (prev.followingCount || 0) - 1),
 						}
-						: null,
+						: null
 				);
+			} else {
+				throw new Error(data.message || "Failed to update follow status");
 			}
-		} catch (err) {
+		} catch (err: any) {
 			logger.error("Failed to toggle follow", err);
+
+			// 3. Rollback on failure
+			setFollowingStates((prev) => ({
+				...prev,
+				[userId]: isCurrentlyFollowing,
+			}));
+			setUser((prev) =>
+				prev
+					? {
+						...prev,
+						followingCount: isCurrentlyFollowing
+							? (prev.followingCount || 0) + 1
+							: Math.max(0, (prev.followingCount || 0) - 1),
+					}
+					: null
+			);
+
+			// 4. Dispatch showToast event
+			window.dispatchEvent(
+				new CustomEvent("showToast", {
+					detail: {
+						message: err.message || "Follow request failed. Please try again.",
+						type: "error",
+					},
+				})
+			);
 			throw err;
 		}
 	};
@@ -526,19 +592,24 @@ export default function App() {
 					);
 				}
 			} else {
-				// Revert if failed
-				setFollowingStates((prev) => ({
-					...prev,
-					[userId]: currentState,
-				}));
+				throw new Error(data.message || "Failed to follow suggestion");
 			}
-		} catch (e) {
+		} catch (e: any) {
 			logger.error("Follow recommendation toggling difficulty", e);
 			// Revert on error
 			setFollowingStates((prev) => ({
 				...prev,
 				[userId]: currentState,
 			}));
+			// Show Toast
+			window.dispatchEvent(
+				new CustomEvent("showToast", {
+					detail: {
+						message: e.message || "Follow suggestion failed. Please try again.",
+						type: "error",
+					},
+				})
+			);
 		}
 	}, [followingStates]);
 
@@ -791,8 +862,8 @@ export default function App() {
 											{							/* Middle Main Content Pane: Tab content scales fluidly */}
 											<div
 												className={`${currentTab === "chat"
-														? "lg:col-span-9"
-														: "lg:col-span-6 xl:col-span-6"
+													? "lg:col-span-9"
+													: "lg:col-span-6 xl:col-span-6"
 													} w-full h-full overflow-y-auto pb-12`}>
 												<ErrorBoundary>
 													<Suspense fallback={<div className="h-32 animate-pulse rounded-3xl border border-zinc-800 bg-zinc-950/20" />}>
@@ -1118,11 +1189,11 @@ export default function App() {
 																					)
 																				}
 																				className={`rounded-full h-9 w-9 flex items-center justify-center transition-all cursor-pointer ${followingStates[
-																						sugUser
-																							._id
-																					]
-																						? "bg-zinc-900 text-zinc-400 border border-zinc-800"
-																						: "bg-zinc-900 text-white dark:bg-white dark:text-black hover:bg-zinc-850 dark:hover:bg-zinc-100"
+																					sugUser
+																						._id
+																				]
+																					? "bg-zinc-900 text-zinc-400 border border-zinc-800"
+																					: "bg-zinc-900 text-white dark:bg-white dark:text-black hover:bg-zinc-850 dark:hover:bg-zinc-100"
 																					}`}
 																				title={
 																					followingStates[
@@ -1224,6 +1295,25 @@ export default function App() {
 								chatBadgeCount={chatBadgeCount}
 								onLogout={handleLogout}
 							/>
+						</motion.div>
+					)}
+				</AnimatePresence>
+
+				{/* Global Toast Notification */}
+				<AnimatePresence>
+					{toastMessage && (
+						<motion.div
+							initial={{ opacity: 0, y: -50, scale: 0.9, x: "-50%" }}
+							animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
+							exit={{ opacity: 0, y: -20, scale: 0.9, x: "-50%" }}
+							className="fixed top-8 left-1/2 z-50 flex items-center gap-2 bg-zinc-950/90 border border-white/10 px-4 py-2.5 rounded-full shadow-2xl backdrop-blur-md text-xs text-white"
+						>
+							{toastType === "success" ? (
+								<Check className="h-4 w-4 text-emerald-400" />
+							) : (
+								<AlertCircle className="h-4 w-4 text-rose-400" />
+							)}
+							<span>{toastMessage}</span>
 						</motion.div>
 					)}
 				</AnimatePresence>
