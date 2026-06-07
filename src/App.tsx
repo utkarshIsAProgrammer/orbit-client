@@ -269,8 +269,12 @@ export default function App() {
 			socketRef.current.disconnect();
 		}
 
-		// Don't need to send token; socket will use jwt cookie automatically
-		const socket = io({
+		// Connect directly to the backend Render server in production
+		// in dev, connect to empty string (which Vite proxies)
+		const socketUrl = import.meta.env.PROD 
+			? "https://orbit-eh1b.onrender.com" 
+			: "";
+		const socket = io(socketUrl, {
 			transports: ["websocket", "polling"],
 		});
 
