@@ -115,7 +115,7 @@ export default function LandingPage({ onScrollToAuth, onExplorePreview, darkMode
         <div className="space-y-6">
           {/* Title letter reveal with ReactBits SplitText component */}
           <div className="overflow-hidden py-2 select-none">
-            <h1 className="text-7xl md:text-[9.5rem] font-black tracking-wider text-white leading-none relative uppercase select-none">
+            <h1 className="text-7xl md:text-[9.5rem] font-light tracking-wider text-white leading-none relative uppercase select-none">
               <SplitText text="ORBIT" delay={0.1} staggerDelay={0.08} />
             </h1>
           </div>

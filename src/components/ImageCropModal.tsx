@@ -148,55 +148,50 @@ export default function ImageCropModal({
             <button
               type="button"
               onClick={() => setAspect(originalAspect)}
-              className={`px-3 py-1 rounded-full text-xs font-bold tracking-tight transition cursor-pointer ${
-                aspect === originalAspect
+              className={`px-3 py-1 rounded-full text-xs font-bold tracking-tight transition cursor-pointer ${aspect === originalAspect
                   ? "bg-white text-black dark:bg-white dark:text-black"
                   : "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800"
-              }`}
+                }`}
             >
               Original
             </button>
             <button
               type="button"
               onClick={() => setAspect(1)}
-              className={`px-3 py-1 rounded-full text-xs font-bold tracking-tight transition cursor-pointer ${
-                aspect === 1
+              className={`px-3 py-1 rounded-full text-xs font-bold tracking-tight transition cursor-pointer ${aspect === 1
                   ? "bg-black text-white dark:bg-white dark:text-black"
                   : "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800"
-              }`}
+                }`}
             >
               1:1 Square
             </button>
             <button
               type="button"
               onClick={() => setAspect(4 / 5)}
-              className={`px-3 py-1 rounded-full text-xs font-bold tracking-tight transition cursor-pointer ${
-                aspect === 4 / 5
+              className={`px-3 py-1 rounded-full text-xs font-bold tracking-tight transition cursor-pointer ${aspect === 4 / 5
                   ? "bg-black text-white dark:bg-white dark:text-black"
                   : "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800"
-              }`}
+                }`}
             >
               4:5 Post (X Style)
             </button>
             <button
               type="button"
               onClick={() => setAspect(16 / 9)}
-              className={`px-3 py-1 rounded-full text-xs font-bold tracking-tight transition cursor-pointer ${
-                aspect === 16 / 9
+              className={`px-3 py-1 rounded-full text-xs font-bold tracking-tight transition cursor-pointer ${aspect === 16 / 9
                   ? "bg-black text-white dark:bg-white dark:text-black"
                   : "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800"
-              }`}
+                }`}
             >
               16:9 Landscape
             </button>
             <button
               type="button"
               onClick={() => setAspect(undefined)}
-              className={`px-3 py-1 rounded-full text-xs font-bold tracking-tight transition cursor-pointer ${
-                aspect === undefined
+              className={`px-3 py-1 rounded-full text-xs font-bold tracking-tight transition cursor-pointer ${aspect === undefined
                   ? "bg-black text-white dark:bg-white dark:text-black"
                   : "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800"
-              }`}
+                }`}
             >
               Free Crop
             </button>

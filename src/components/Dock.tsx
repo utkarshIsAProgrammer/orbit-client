@@ -136,47 +136,45 @@ export default React.memo(function Dock({
     <>
       <style>{shimmerStyle}</style>
       <div className="fixed bottom-4 left-1/2 z-40 w-full max-w-90 -translate-x-1/2 px-3 sm:max-w-lg xl:hidden">
-      <div
-        className="relative overflow-hidden flex items-center justify-between rounded-2xl sm:rounded-3xl border border-white/15 dark:border-zinc-800/50 bg-white/30 dark:bg-zinc-950/40 backdrop-blur-xl px-3 py-2.5 sm:px-5 sm:py-3 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] gap-1 sm:gap-1.5"
-      >
-        {/* Liquid glass shimmer overlay — slow animated gradient */}
-        <div className="absolute inset-0 opacity-30 dark:opacity-20 pointer-events-none z-0 animate-[liquidShimmer_8s_ease-in-out_infinite] bg-[length:200%_100%] bg-linear-to-r from-transparent via-white/20 to-transparent rounded-2xl sm:rounded-3xl" />
-
-        {/* Cylindrical edge-light sheen */}
-        <div className="absolute inset-x-0 top-0 h-[1.5px] bg-linear-to-r from-transparent via-white/40 dark:via-white/10 to-transparent pointer-events-none z-10" />
-
-        {/* Top light ambient glare */}
-        <div className="absolute inset-x-0 top-0 h-[35%] bg-linear-to-b from-white/25 dark:from-white/3 to-transparent pointer-events-none z-10 rounded-t-2xl sm:rounded-t-3xl" />
-
-        {/* Left items */}
-        <div className="flex items-center gap-1 sm:gap-1.5 z-20">
-          {leftItems.map((item, i) => renderDockItem(item, i))}
-        </div>
-
-        {/* Center: Create Post button — same size as other dock items, no hover animation */}
-        <button
-          onClick={() => setTab("compose")}
-          className={`group relative flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl gpu-accelerated ${
-            currentTab === "compose"
-              ? "bg-linear-to-br from-zinc-700 to-black dark:from-white dark:to-zinc-300 shadow-xl shadow-black/40 dark:shadow-white/30 border border-white/40 dark:border-zinc-800"
-              : "bg-linear-to-br from-zinc-800 to-black dark:from-white dark:to-zinc-200 shadow-xl shadow-black/30 dark:shadow-white/20 border border-zinc-700 dark:border-zinc-200"
-          } transition-all duration-200 hover:shadow-2xl cursor-pointer shrink-0 z-20`}
-          title="New Post"
+        <div
+          className="relative overflow-hidden flex items-center justify-between rounded-2xl sm:rounded-3xl border border-white/15 dark:border-zinc-800/50 bg-white/30 dark:bg-zinc-950/40 backdrop-blur-xl px-3 py-2.5 sm:px-5 sm:py-3 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] gap-1 sm:gap-1.5"
         >
-          <Plus          className={`h-5 w-5 sm:h-7 sm:w-7 gpu-accelerated ${
-            currentTab === "compose" ? "text-white scale-110 dark:text-black" : "text-white dark:text-black"
-          } transition-transform duration-200`} />
-          <span className="pointer-events-none absolute -top-11 scale-90 rounded-lg border border-zinc-700/30 bg-zinc-900/90 backdrop-blur-xl px-2.5 py-1 text-[9px] font-semibold text-white opacity-0 blur-sm transition-all duration-150 group-hover:scale-100 group-hover:opacity-100 group-hover:blur-0 whitespace-nowrap shadow-lg z-50">
-            New Post
-          </span>
-        </button>
+          {/* Liquid glass shimmer overlay — slow animated gradient */}
+          <div className="absolute inset-0 opacity-30 dark:opacity-20 pointer-events-none z-0 animate-[liquidShimmer_8s_ease-in-out_infinite] bg-[length:200%_100%] bg-linear-to-r from-transparent via-white/20 to-transparent rounded-2xl sm:rounded-3xl" />
 
-        {/* Right items */}
-        <div className="flex items-center gap-1 sm:gap-1.5 z-20">
-          {rightItems.map((item, i) => renderDockItem(item, leftItems.length + 1 + i))}
+          {/* Cylindrical edge-light sheen */}
+          <div className="absolute inset-x-0 top-0 h-[1.5px] bg-linear-to-r from-transparent via-white/40 dark:via-white/10 to-transparent pointer-events-none z-10" />
+
+          {/* Top light ambient glare */}
+          <div className="absolute inset-x-0 top-0 h-[35%] bg-linear-to-b from-white/25 dark:from-white/3 to-transparent pointer-events-none z-10 rounded-t-2xl sm:rounded-t-3xl" />
+
+          {/* Left items */}
+          <div className="flex items-center gap-1 sm:gap-1.5 z-20">
+            {leftItems.map((item, i) => renderDockItem(item, i))}
+          </div>
+
+          {/* Center: Create Post button — same size as other dock items, no hover animation */}
+          <button
+            onClick={() => setTab("compose")}
+            className={`group relative flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl gpu-accelerated ${currentTab === "compose"
+                ? "bg-linear-to-br from-zinc-700 to-black dark:from-white dark:to-zinc-300 shadow-xl shadow-black/40 dark:shadow-white/30 border border-white/40 dark:border-zinc-800"
+                : "bg-linear-to-br from-zinc-800 to-black dark:from-white dark:to-zinc-200 shadow-xl shadow-black/30 dark:shadow-white/20 border border-zinc-700 dark:border-zinc-200"
+              } transition-all duration-200 hover:shadow-2xl cursor-pointer shrink-0 z-20`}
+            title="New Post"
+          >
+            <Plus className={`h-5 w-5 sm:h-7 sm:w-7 gpu-accelerated ${currentTab === "compose" ? "text-white scale-110 dark:text-black" : "text-white dark:text-black"
+              } transition-transform duration-200`} />
+            <span className="pointer-events-none absolute -top-11 scale-90 rounded-lg border border-zinc-700/30 bg-zinc-900/90 backdrop-blur-xl px-2.5 py-1 text-[9px] font-semibold text-white opacity-0 blur-sm transition-all duration-150 group-hover:scale-100 group-hover:opacity-100 group-hover:blur-0 whitespace-nowrap shadow-lg z-50">
+              New Post
+            </span>
+          </button>
+
+          {/* Right items */}
+          <div className="flex items-center gap-1 sm:gap-1.5 z-20">
+            {rightItems.map((item, i) => renderDockItem(item, leftItems.length + 1 + i))}
+          </div>
         </div>
       </div>
-    </div>
     </>
   );
 });
