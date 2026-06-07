@@ -209,14 +209,14 @@ export default function App() {
 				setUser((prev) =>
 					prev
 						? {
-								...prev,
-								followingCount: data.following
-									? (prev.followingCount || 0) + 1
-									: Math.max(
-											0,
-											(prev.followingCount || 0) - 1,
-										),
-							}
+							...prev,
+							followingCount: data.following
+								? (prev.followingCount || 0) + 1
+								: Math.max(
+									0,
+									(prev.followingCount || 0) - 1,
+								),
+						}
 						: null,
 				);
 			}
@@ -271,8 +271,8 @@ export default function App() {
 
 		// Connect directly to the backend Render server in production
 		// in dev, connect to empty string (which Vite proxies)
-		const socketUrl = import.meta.env.PROD 
-			? "https://orbit-eh1b.onrender.com" 
+		const socketUrl = import.meta.env.PROD
+			? "https://orbit-eh1b.onrender.com"
 			: "";
 		const socket = io(socketUrl, {
 			transports: ["websocket", "polling"],
@@ -396,16 +396,16 @@ export default function App() {
 			if (data.userId === uid) return; // own reply, already handled locally
 			window.dispatchEvent(new CustomEvent("postCommentAdded", { detail: { postId: data.postId, commentsCount: data.commentsCount } }));
 		});    // ── Realtime comment edit sync ──
-    socket.on("comment:updated", (comment: any) => {
-      window.dispatchEvent(new CustomEvent("commentUpdated", { detail: { comment } }));
-    });
+		socket.on("comment:updated", (comment: any) => {
+			window.dispatchEvent(new CustomEvent("commentUpdated", { detail: { comment } }));
+		});
 
-    // ── Realtime comment deletion sync ──
-    // When a comment is deleted, update the post's commentsCount
-    socket.on("comment:deleted", (data: { postId: string; commentId: string; commentsCount: number }) => {
-      window.dispatchEvent(new CustomEvent("postCommentDeleted", { detail: { postId: data.postId, commentsCount: data.commentsCount } }));
-      window.dispatchEvent(new CustomEvent("commentDeleted", { detail: { commentId: data.commentId } }));
-    });
+		// ── Realtime comment deletion sync ──
+		// When a comment is deleted, update the post's commentsCount
+		socket.on("comment:deleted", (data: { postId: string; commentId: string; commentsCount: number }) => {
+			window.dispatchEvent(new CustomEvent("postCommentDeleted", { detail: { postId: data.postId, commentsCount: data.commentsCount } }));
+			window.dispatchEvent(new CustomEvent("commentDeleted", { detail: { commentId: data.commentId } }));
+		});
 
 		// ── Realtime comment emoji reactions ──
 		socket.on("comment:reaction", (data: { commentId: string; reaction: any; type: "add" | "remove" }) => {
@@ -544,692 +544,690 @@ export default function App() {
 
 	return (
 		<ErrorBoundary>
-		<div className="relative min-h-screen text-slate-800 dark:text-zinc-100 selection:bg-zinc-800/10 dark:selection:bg-white/10 antialiased font-ui flex flex-col justify-start bg-transparent transition-colors duration-500 overflow-x-hidden">
-			{/* Custom cursor */}
-			<CustomCursor />
+			<div className="relative min-h-screen text-slate-800 dark:text-zinc-100 selection:bg-zinc-800/10 dark:selection:bg-white/10 antialiased font-ui flex flex-col justify-start bg-transparent transition-colors duration-500 overflow-x-hidden">
+				{/* Custom cursor */}
+				<CustomCursor />
 
-			{/* Background Liquid Glob Dynamic Mesh Grid */}
-			<BackgroundGradients darkMode={darkMode} />
+				{/* Background Liquid Glob Dynamic Mesh Grid */}
+				<BackgroundGradients darkMode={darkMode} />
 
-			{/* Global Fullscreen Image Viewer Modal (lazy) */}
-			<Suspense fallback={null}>
-				<ImagePreviewRenderer />
-			</Suspense>
+				{/* Global Fullscreen Image Viewer Modal (lazy) */}
+				<Suspense fallback={null}>
+					<ImagePreviewRenderer />
+				</Suspense>
 
-			{/* Global Compose / Create Post Modal (lazy) */}
-			<Suspense fallback={null}>
-				<PostModal
-					isOpen={composeOpen}
-					onClose={() => setComposeOpen(false)}
-					onPostCreated={() => {
-						setComposeOpen(false);
-						setTab("home");
-						setSinglePostSlug(null);
-						window.dispatchEvent(new Event("forceFeedRefresh"));
-					}}
-				/>
-			</Suspense>
+				{/* Global Compose / Create Post Modal (lazy) */}
+				<Suspense fallback={null}>
+					<PostModal
+						isOpen={composeOpen}
+						onClose={() => setComposeOpen(false)}
+						onPostCreated={() => {
+							setComposeOpen(false);
+							setTab("home");
+							setSinglePostSlug(null);
+							window.dispatchEvent(new Event("forceFeedRefresh"));
+						}}
+					/>
+				</Suspense>
 
-			<AnimatePresence mode="wait">
-				{!user ? (
-					<Suspense fallback={<div className="min-h-screen" />}>
-					<motion.div
-						key="logged-out-section"
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.5 }}
-						className="w-full flex flex-col justify-start overflow-y-auto scroll-smooth">
-						{/* Heavily Animated Landing Page with 3D components */}
-						<LandingPage
-							onScrollToAuth={() => {
-								const target =
-									document.getElementById("auth-section");
-								if (target) {
-									target.scrollIntoView({
-										behavior: "smooth",
-									});
-								}
-							}}
-							darkMode={darkMode}
-							setDarkMode={setDarkMode}
-						/>
-
-						{/* Auth form area (the scroll target) - perfectly centered and integrated without side animations */}
-						<div
-							id="auth-section"
-							className="min-h-screen w-full flex flex-col items-center justify-center px-6 py-20 relative z-10 bg-transparent overflow-hidden">
-							<div className="absolute inset-0 w-full h-full pointer-events-none select-none z-0 opacity-40 mix-blend-screen">
-								<LiquidEther
-									colors={["#ffffff", "#a1a1aa", "#3f3f46"]}
-									mouseForce={20}
-									cursorSize={110}
-									isViscous={false}
-									viscous={30}
-									iterationsViscous={32}
-									iterationsPoisson={32}
-									resolution={0.5}
-									isBounce={false}
-									autoDemo={true}
-									autoSpeed={0.55}
-									autoIntensity={2.2}
-									takeoverDuration={0.25}
-									autoResumeDelay={2500}
-									autoRampDuration={0.6}
+				<AnimatePresence mode="wait">
+					{!user ? (
+						<Suspense fallback={<div className="min-h-screen" />}>
+							<motion.div
+								key="logged-out-section"
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								transition={{ duration: 0.5 }}
+								className="w-full flex flex-col justify-start overflow-y-auto scroll-smooth">
+								{/* Heavily Animated Landing Page with 3D components */}
+								<LandingPage
+									onScrollToAuth={() => {
+										const target =
+											document.getElementById("auth-section");
+										if (target) {
+											target.scrollIntoView({
+												behavior: "smooth",
+											});
+										}
+									}}
+									darkMode={darkMode}
+									setDarkMode={setDarkMode}
 								/>
-							</div>
-							{/* Center Auth Card with super clean backplate */}
-							<div className="w-full max-w-md my-6 relative z-10 shrink-0">
-								<AnimatePresence mode="wait">
-									{forgotPasswordOpen ? (
-										<motion.div
-											key="forgot"
-											initial={{
-												opacity: 0,
-												scale: 0.96,
-												y: 30,
-											}}
-											animate={{
-												opacity: 1,
-												scale: 1,
-												y: 0,
-											}}
-											exit={{
-												opacity: 0,
-												scale: 0.96,
-												y: -30,
-											}}
-											transition={{ duration: 0.25 }}>
-											<ForgotPassword
-												onBackToLogin={() =>
-													setForgotPasswordOpen(false)
-												}
-												onSuccess={() => {}}
-											/>
-										</motion.div>
-									) : (
-										<motion.div
-											key="auth"
-											initial={{
-												opacity: 0,
-												scale: 0.96,
-												y: 30,
-											}}
-											animate={{
-												opacity: 1,
-												scale: 1,
-												y: 0,
-											}}
-											exit={{
-												opacity: 0,
-												scale: 0.96,
-												y: -30,
-											}}
-											transition={{ duration: 0.25 }}>
-											<Auth
-												onAuthSuccess={
-													handleAuthSuccess
-												}
-												onForgotPasswordClick={() =>
-													setForgotPasswordOpen(true)
-												}
-											/>
-										</motion.div>
-									)}
-								</AnimatePresence>
-							</div>
-						</div>
-					</motion.div>
-					</Suspense>
-				) : (
-					<motion.div
-						key="logged-in-section"
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.5 }}
-						className="w-full h-screen overflow-hidden flex flex-col justify-between relative">
-						{/* Floating macOS notification stack (Top Right) */}
-						<div className="fixed top-6 right-6 z-50 flex flex-col gap-3.5 max-w-sm w-full pointer-events-none">
-							<AnimatePresence>
-								{floatingAlerts.map((alert) => (
-									<motion.div
-										key={alert.id}
-										initial={{
-											opacity: 0,
-											y: -20,
-											scale: 0.95,
-										}}
-										animate={{ opacity: 1, y: 0, scale: 1 }}
-										exit={{
-											opacity: 0,
-											y: -10,
-											scale: 0.95,
-										}}
-										className="pointer-events-auto flex items-start gap-3.5 rounded-2xl border border-zinc-800 bg-zinc-950 p-4.5 shadow-[0_8px_30px_rgba(15,23,42,0.08)] min-w-80 relative overflow-hidden">
-										{/* Reflected glow sweep inside alert box */}
-										<div className="absolute inset-0 bg-linear-to-tr from-zinc-500/5 via-zinc-800/2 to-transparent -z-10" />
 
-										<img loading="lazy"
-											src={
-												alert.sender?.profilePic?.url ||
-												"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-											}
-											alt=""
-											className="h-10 w-10 rounded-full object-cover border border-zinc-800 shrink-0 cursor-pointer shadow-sm"
-											onClick={() => {
-												if (alert.sender?.username) {
-													handleUserSelection(
-														alert.sender.username,
-													);
-												}
-											}}
+								{/* Auth form area (the scroll target) - perfectly centered and integrated without side animations */}
+								<div
+									id="auth-section"
+									className="min-h-screen w-full flex flex-col items-center justify-center px-6 py-20 relative z-10 bg-transparent overflow-hidden">
+									<div className="absolute inset-0 w-full h-full pointer-events-none select-none z-0 opacity-40 mix-blend-screen">
+										<LiquidEther
+											colors={["#ffffff", "#a1a1aa", "#3f3f46"]}
+											mouseForce={20}
+											cursorSize={110}
+											isViscous={false}
+											viscous={30}
+											iterationsViscous={32}
+											iterationsPoisson={32}
+											resolution={0.5}
+											isBounce={false}
+											autoDemo={true}
+											autoSpeed={0.55}
+											autoIntensity={2.2}
+											takeoverDuration={0.25}
+											autoResumeDelay={2500}
+											autoRampDuration={0.6}
 										/>
-
-										<div className="space-y-1">
-											<span className="text-[9px] font-extrabold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
-												⚡ INSTANT NOTIFICATION
-											</span><p className="text-xs text-zinc-200 leading-snug">
-												<span className="font-bold text-white">
-													{alert.sender?.fullName}
-												</span>{" "}
-											{getFloatingToastText(alert.type)}
-											</p>
-
-											{alert.post && (
-												<p className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-450 leading-none truncate max-w-50">
-													"{alert.post?.title}"
-												</p>
-											)}
-										</div>
-
-										<button
-											onClick={() =>
-												setFloatingAlerts((prev) =>
-													prev.filter(
-														(a) =>
-															a.id !== alert.id,
-													),
-												)
-											}
-											className="absolute top-2.5 right-2.5 h-6 w-6 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200">
-											<X className="h-3 w-3" />
-										</button>
-									</motion.div>
-								))}
-							</AnimatePresence>
-						</div>
-
-						{/* Main Content Area Routing with Global Full Widescreen Grid */}
-						<main className="grow h-[calc(100vh-7rem)] overflow-hidden flex items-start justify-center py-6 w-full">
-							{user && (
-								<div className="w-full h-full max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto overflow-hidden">
-									<div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-7 items-start w-full h-full">
-										<div className="hidden lg:block lg:col-span-3 h-full overflow-hidden shrink-0 pb-12">
-											<LeftSidebar
-												user={user}
-												currentTab={currentTab}
-												setTab={(tab) => {
-													if (tab === "home") {
-														setSinglePostSlug(null);
-													}
-													if (tab === "compose") {
-														setComposeOpen(true);
-														return;
-													}
-													setTab(tab);
-												}}
-												setSelectedUserUsername={
-													setSelectedUserUsername
-												}
-												badgeCount={badgeCount}
-												chatBadgeCount={chatBadgeCount}
-												darkMode={darkMode}
-												setDarkMode={setDarkMode}
-											/>
-										</div>
-										{							/* Middle Main Content Pane: Tab content scales fluidly */}
-										<div
-											className={`${
-												currentTab === "chat"
-													? "lg:col-span-9"
-													: "lg:col-span-6 xl:col-span-6"
-											} w-full h-full overflow-y-auto pb-12`}>
-											<ErrorBoundary>
-											<Suspense fallback={<div className="h-32 animate-pulse rounded-3xl border border-zinc-800 bg-zinc-950/20" />}>
-											<AnimatePresence mode="wait">
-												{currentTab === "home" && (
-													<motion.div
-														key="home"
-														className="relative min-h-[calc(100vh-2rem)]"
-														initial={false}
-														animate={{ opacity: 1 }}
-														exit={{ opacity: 0, y: -15 }}
-														transition={{ duration: 0.15 }}>
-														<div className="relative z-10 w-full h-full">
-															<Feed
-																user={user}
-																onUserSelected={
-																	handleUserSelection
-																}
-																onPostSelected={
-																	handlePostSelectionBySlug
-																}
-																singlePostSlug={
-																	singlePostSlug
-																}
-																onClearSinglePost={() =>
-																	setSinglePostSlug(
-																		null,
-																	)
-																}
-																followingStates={
-																	followingStates
-																}
-																onToggleFollow={
-																	onToggleFollow
-																}
-															/>
-														</div>
-													</motion.div>
-												)}
-
-												{currentTab === "explore" && (
-													<motion.div
-														key="explore"
-														initial={false}
-														animate={{ opacity: 1 }}
-														exit={{ opacity: 0, y: -15 }}
-														transition={{ duration: 0.15 }}>
-														<Explore
-															onUserSelected={
-																handleUserSelection
-															}
-															onPostSelected={
-																handlePostSelectionBySlug
-															}
-															user={user}
-															followingStates={
-																followingStates
-															}
-															onToggleFollow={
-																onToggleFollow
-															}
-														/>
-													</motion.div>
-												)}
-
-												{currentTab ===
-													"notifications" && (
-													<motion.div
-														key="notifications"
-														initial={false}
-														animate={{ opacity: 1 }}
-														exit={{ opacity: 0, y: -15 }}
-														transition={{ duration: 0.15 }}>
-														<Notifications
-															user={user}
-															onPostClick={
-																handlePostSelectionBySlug
-															}
-															onUserClick={
-																handleUserSelection
-															}
-															onBadgeReset={
-																handleBadgeReset
-															}
-														/>
-													</motion.div>
-												)}
-
-												{currentTab === "saved" && (
-													<motion.div
-														key="saved"
-														initial={false}
-														animate={{ opacity: 1 }}
-														exit={{ opacity: 0, y: -15 }}
-														transition={{ duration: 0.15 }}>
-														<Feed
-															user={user}
-															onUserSelected={
-																handleUserSelection
-															}
-															onPostSelected={
-																handlePostSelectionBySlug
-															}
-															searchQuery=""
-															onClearSinglePost={() => {}}
-															singlePostSlug={
-																null
-															}
-															showSavesOnly={true}
-															followingStates={
-																followingStates
-															}
-															onToggleFollow={
-																onToggleFollow
-															}
-														/>
-													</motion.div>
-												)}
-
-												{currentTab === "reposts" && (
-													<motion.div
-														key="reposts"
-														initial={false}
-														animate={{ opacity: 1 }}
-														exit={{ opacity: 0, y: -15 }}
-														transition={{ duration: 0.15 }}>
-														<Feed
-															user={user}
-															onUserSelected={
-																handleUserSelection
-															}
-															onPostSelected={
-																handlePostSelectionBySlug
-															}
-															searchQuery=""
-															onClearSinglePost={() => {}}
-															singlePostSlug={
-																null
-															}
-															showRepostsOnly={
-																true
-															}
-															followingStates={
-																followingStates
-															}
-															onToggleFollow={
-																onToggleFollow
-															}
-														/>
-													</motion.div>
-												)}
-
-												{currentTab === "profile" && (
-													<motion.div
-														key="profile"
-														initial={false}
-														animate={{ opacity: 1 }}
-														exit={{ opacity: 0, y: -15 }}
-														transition={{ duration: 0.15 }}>
-													<Profile
-														user={user}
-														targetUsername={
-															selectedUserUsername ||
-															user.username
+									</div>
+									{/* Center Auth Card with super clean backplate */}
+									<div className="w-full max-w-md my-6 relative z-10 shrink-0">
+										<AnimatePresence mode="wait">
+											{forgotPasswordOpen ? (
+												<motion.div
+													key="forgot"
+													initial={{
+														opacity: 0,
+														scale: 0.96,
+														y: 30,
+													}}
+													animate={{
+														opacity: 1,
+														scale: 1,
+														y: 0,
+													}}
+													exit={{
+														opacity: 0,
+														scale: 0.96,
+														y: -30,
+													}}
+													transition={{ duration: 0.25 }}>
+													<ForgotPassword
+														onBackToLogin={() =>
+															setForgotPasswordOpen(false)
 														}
-														onUserUpdate={(u) =>
-															setUser(u)
+														onSuccess={() => { }}
+													/>
+												</motion.div>
+											) : (
+												<motion.div
+													key="auth"
+													initial={{
+														opacity: 0,
+														scale: 0.96,
+														y: 30,
+													}}
+													animate={{
+														opacity: 1,
+														scale: 1,
+														y: 0,
+													}}
+													exit={{
+														opacity: 0,
+														scale: 0.96,
+														y: -30,
+													}}
+													transition={{ duration: 0.25 }}>
+													<Auth
+														onAuthSuccess={
+															handleAuthSuccess
 														}
-														onPostClick={
-															handlePostSelectionBySlug
-														}
-														onUserClick={
-															handleUserSelection
-														}
-														followingStates={
-															followingStates
-														}
-														onToggleFollow={
-															onToggleFollow
-														}
-														onProfileLoaded={
-															handleProfileLoaded
+														onForgotPasswordClick={() =>
+															setForgotPasswordOpen(true)
 														}
 													/>
-													</motion.div>
-												)}
-
-												{currentTab === "settings" && (
-													<motion.div
-														key="settings"
-														initial={false}
-														animate={{ opacity: 1 }}
-														exit={{ opacity: 0, y: -15 }}
-														transition={{ duration: 0.15 }}>
-														<Settings
-															user={user}
-															onUserUpdate={(u) =>
-																setUser(u)
-															}
-															onLogout={
-																handleLogout
-															}
-														/>
-													</motion.div>
-												)}
-
-												{currentTab === "chat" && (
-													<motion.div
-														key="chat"
-														initial={false}
-														animate={{ opacity: 1 }}
-														exit={{ opacity: 0, y: -15 }}
-														transition={{ duration: 0.15 }}>
-														<Chat
-															user={user}
-															socket={
-																socketRef.current
-															}
-															conversations={
-																conversations
-															}
-															setConversations={
-																setConversations
-															}
-															onUserSelected={
-																handleUserSelection
-															}
-															onBack={() =>
-																setTab("home")
-															}
-														/>
-													</motion.div>
-												)}
-											</AnimatePresence>
-											</Suspense>
-											</ErrorBoundary>
-										</div>{" "}
-										{/* Right Sidebar: Dual Liquid Glass Containers for Suggestions & Features */}
-										{currentTab !== "chat" && (
-											<div className="lg:col-span-3 w-full space-y-5 hidden lg:flex flex-col h-full overflow-hidden select-none shrink-0 pb-24">
-												{/* 1. People Recommendations Box with macOS spring animations */}
-												<GlassCard
-													animate={true}
-													className="p-6">
-													<h3 className="text-[10px] font-black tracking-widest text-zinc-400 dark:text-zinc-550 uppercase mb-4 pr-0.5">
-														RECOMMENDED USERS
-													</h3>
-
-													{loadingSuggestions ? (
-														<div className="space-y-4 py-2">
-															{[1, 2, 3].map(
-																(n) => (
-																	<div
-																		key={n}
-																		className="flex items-center gap-3 animate-pulse">
-																		<div className="h-9 w-9 rounded-full bg-zinc-200 dark:bg-zinc-800/60" />
-																		<div className="flex-1 space-y-1.5">
-																			<div className="h-3 w-2/3 bg-zinc-200 dark:bg-zinc-800/60 rounded" />
-																			<div className="h-2 w-1/3 bg-zinc-200 dark:bg-zinc-800/60 rounded" />
-																		</div>
-																	</div>
-																),
-															)}
-														</div>
-													) : suggestions.length ===
-													  0 ? (
-														<p className="text-[10px] text-zinc-400 dark:text-zinc-550 pl-0.5 py-4 leading-relaxed font-mono uppercase">
-															No new
-															recommendations at
-															this time
-														</p>
-													) : (
-														<div className="space-y-4">
-															{suggestions.map(
-																(sugUser) => (
-																	<div
-																		key={
-																			sugUser._id
-																		}
-																		className="flex items-center justify-between gap-3 group/item">
-																		<div
-																			onClick={() =>
-																				handleUserSelection(
-																					sugUser.username,
-																				)
-																			}
-																			className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity">
-																			<img
-																				src={
-																					sugUser
-																						.profilePic
-																						?.url ||
-																					"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-																				}
-																				alt=""
-																				className="h-9 w-9 rounded-full object-cover border border-zinc-800/60 shadow-sm shrink-0"
-																			/>
-																			<div className="flex flex-col text-left">
-																				<span className="text-xs font-extrabold text-black dark:text-white line-clamp-1 hover:underline">
-																					{
-																						sugUser.fullName
-																					}
-																				</span>
-																				<span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-550">
-																					@
-																					{
-																						sugUser.username
-																					}
-																				</span>
-																			</div>
-																		</div>
-
-																		<motion.button
-																			whileHover={{
-																				scale: 1.1,
-																			}}
-																			whileTap={{
-																				scale: 0.9,
-																			}}
-																			onClick={() =>
-																				handleFollowSuggestion(
-																					sugUser._id,
-																				)
-																			}
-																			className={`rounded-full h-9 w-9 flex items-center justify-center transition-all cursor-pointer ${
-																				followingStates[
-																					sugUser
-																						._id
-																				]
-																? "bg-zinc-900 text-zinc-400 border border-zinc-800"
-																: "bg-zinc-900 text-white dark:bg-white dark:text-black hover:bg-zinc-850 dark:hover:bg-zinc-100"
-																			}`}
-																			title={
-																				followingStates[
-																					sugUser
-																						._id
-																				]
-																					? "Unfollow"
-																					: "Follow"
-																			}>
-																			{followingStates[
-																				sugUser
-																					._id
-																			] ? (
-																				<Check className="h-4 w-4" />
-																			) : (
-																				<UserPlus className="h-4 w-4" />
-																			)}
-																		</motion.button>
-																	</div>
-																),
-															)}
-														</div>
-													)}
-													{suggestions.length > 0 && (
-														<button
-															onClick={() =>
-																setTab(
-																	"explore",
-																)
-															}
-															className="w-full mt-4 py-2 text-xs font-bold text-black dark:text-zinc-200 hover:underline transition-all cursor-pointer flex items-center justify-center gap-1">
-															Explore More{" "}
-															<ArrowRight className="h-3 w-3" />
-														</button>
-													)}
-												</GlassCard>
-
-												{/* 2. Upcoming Features Preview Card */}
-												<GlassCard
-													animate={true}
-													className="p-6">
-													<h3 className="text-sm font-semibold text-zinc-400 dark:text-zinc-550 mb-4">
-														Coming Soon
-													</h3>
-
-													<div className="space-y-4 text-left">
-														{/* Communities */}
-														<div className="p-3.5 rounded-xl border border-zinc-150/70 dark:border-zinc-800/50 bg-zinc-50/40 dark:bg-zinc-900/10 hover:bg-zinc-50/90 dark:hover:bg-zinc-900/30 transition-all duration-300">
-															<div className="flex items-center gap-2.5 mb-1.5">
-																<div className="flex h-6.5 w-6.5 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-350 shrink-0">
-																	<Users className="h-3.5 w-3.5" />
-																</div>
-																<span className="text-xs font-semibold text-black dark:text-white">
-																	Communities
-																</span>
-															</div>
-															<p className="text-xs text-zinc-450 dark:text-zinc-400 leading-relaxed pl-1">
-																Join and create
-																communities
-																around shared
-																interests and
-																topics.
-															</p>
-														</div>
-
-														{/* Marketplace */}
-														<div className="p-3.5 rounded-xl border border-zinc-150/70 dark:border-zinc-800/50 bg-zinc-50/40 dark:bg-zinc-900/10 hover:bg-zinc-50/90 dark:hover:bg-zinc-900/30 transition-all duration-300">
-															<div className="flex items-center gap-2.5 mb-1.5">
-																<div className="flex h-6.5 w-6.5 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-350 shrink-0">
-																	<ShoppingBag className="h-3.5 w-3.5" />
-																</div>
-																<span className="text-xs font-semibold text-black dark:text-white">
-																	Marketplace
-																</span>
-															</div>
-															<p className="text-xs text-zinc-450 dark:text-zinc-400 leading-relaxed pl-1">
-																Securely buy,
-																sell, and
-																exchange digital
-																assets within
-																the platform.
-															</p>
-														</div>
-													</div>
-												</GlassCard>
-											</div>
-										)}
+												</motion.div>
+											)}
+										</AnimatePresence>
 									</div>
 								</div>
-							)}
-						</main>
+							</motion.div>
+						</Suspense>
+					) : (
+						<motion.div
+							key="logged-in-section"
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ duration: 0.5 }}
+							className="w-full h-screen overflow-hidden flex flex-col justify-between relative">
+							{/* Floating macOS notification stack (Top Right) */}
+							<div className="fixed top-6 right-6 z-50 flex flex-col gap-3.5 max-w-sm w-full pointer-events-none">
+								<AnimatePresence>
+									{floatingAlerts.map((alert) => (
+										<motion.div
+											key={alert.id}
+											initial={{
+												opacity: 0,
+												y: -20,
+												scale: 0.95,
+											}}
+											animate={{ opacity: 1, y: 0, scale: 1 }}
+											exit={{
+												opacity: 0,
+												y: -10,
+												scale: 0.95,
+											}}
+											className="pointer-events-auto flex items-start gap-3.5 rounded-2xl border border-zinc-800 bg-zinc-950 p-4.5 shadow-[0_8px_30px_rgba(15,23,42,0.08)] min-w-80 relative overflow-hidden">
+											{/* Reflected glow sweep inside alert box */}
+											<div className="absolute inset-0 bg-linear-to-tr from-zinc-500/5 via-zinc-800/2 to-transparent -z-10" />
 
-						{/* Center Apple Dock (Fixed bottom overlay) */}
-						<Dock
-							currentTab={currentTab}
-							setTab={handleTabChange}
-							user={user}
-							badgeCount={badgeCount}
-							chatBadgeCount={chatBadgeCount}
-							onLogout={handleLogout}
-						/>
-					</motion.div>
-				)}
-			</AnimatePresence>
-		</div>
+											<img loading="lazy"
+												src={
+													alert.sender?.profilePic?.url ||
+													"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
+												}
+												alt=""
+												className="h-10 w-10 rounded-full object-cover border border-zinc-800 shrink-0 cursor-pointer shadow-sm"
+												onClick={() => {
+													if (alert.sender?.username) {
+														handleUserSelection(
+															alert.sender.username,
+														);
+													}
+												}}
+											/>
+
+											<div className="space-y-1">
+												<span className="text-[9px] font-extrabold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
+													⚡ INSTANT NOTIFICATION
+												</span><p className="text-xs text-zinc-200 leading-snug">
+													<span className="font-bold text-white">
+														{alert.sender?.fullName}
+													</span>{" "}
+													{getFloatingToastText(alert.type)}
+												</p>
+
+												{alert.post && (
+													<p className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-450 leading-none truncate max-w-50">
+														"{alert.post?.title}"
+													</p>
+												)}
+											</div>
+
+											<button
+												onClick={() =>
+													setFloatingAlerts((prev) =>
+														prev.filter(
+															(a) =>
+																a.id !== alert.id,
+														),
+													)
+												}
+												className="absolute top-2.5 right-2.5 h-6 w-6 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200">
+												<X className="h-3 w-3" />
+											</button>
+										</motion.div>
+									))}
+								</AnimatePresence>
+							</div>
+
+							{/* Main Content Area Routing with Global Full Widescreen Grid */}
+							<main className="grow h-[calc(100vh-7rem)] overflow-hidden flex items-start justify-center py-6 w-full">
+								{user && (
+									<div className="w-full h-full max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto overflow-hidden">
+										<div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-7 items-start w-full h-full">
+											<div className="hidden lg:block lg:col-span-3 h-full overflow-hidden shrink-0 pb-12">
+												<LeftSidebar
+													user={user}
+													currentTab={currentTab}
+													setTab={(tab) => {
+														if (tab === "home") {
+															setSinglePostSlug(null);
+														}
+														if (tab === "compose") {
+															setComposeOpen(true);
+															return;
+														}
+														setTab(tab);
+													}}
+													setSelectedUserUsername={
+														setSelectedUserUsername
+													}
+													badgeCount={badgeCount}
+													chatBadgeCount={chatBadgeCount}
+													darkMode={darkMode}
+													setDarkMode={setDarkMode}
+												/>
+											</div>
+											{							/* Middle Main Content Pane: Tab content scales fluidly */}
+											<div
+												className={`${currentTab === "chat"
+														? "lg:col-span-9"
+														: "lg:col-span-6 xl:col-span-6"
+													} w-full h-full overflow-y-auto pb-12`}>
+												<ErrorBoundary>
+													<Suspense fallback={<div className="h-32 animate-pulse rounded-3xl border border-zinc-800 bg-zinc-950/20" />}>
+														<AnimatePresence mode="wait">
+															{currentTab === "home" && (
+																<motion.div
+																	key="home"
+																	className="relative min-h-[calc(100vh-2rem)]"
+																	initial={false}
+																	animate={{ opacity: 1 }}
+																	exit={{ opacity: 0, y: -15 }}
+																	transition={{ duration: 0.15 }}>
+																	<div className="relative z-10 w-full h-full">
+																		<Feed
+																			user={user}
+																			onUserSelected={
+																				handleUserSelection
+																			}
+																			onPostSelected={
+																				handlePostSelectionBySlug
+																			}
+																			singlePostSlug={
+																				singlePostSlug
+																			}
+																			onClearSinglePost={() =>
+																				setSinglePostSlug(
+																					null,
+																				)
+																			}
+																			followingStates={
+																				followingStates
+																			}
+																			onToggleFollow={
+																				onToggleFollow
+																			}
+																		/>
+																	</div>
+																</motion.div>
+															)}
+
+															{currentTab === "explore" && (
+																<motion.div
+																	key="explore"
+																	initial={false}
+																	animate={{ opacity: 1 }}
+																	exit={{ opacity: 0, y: -15 }}
+																	transition={{ duration: 0.15 }}>
+																	<Explore
+																		onUserSelected={
+																			handleUserSelection
+																		}
+																		onPostSelected={
+																			handlePostSelectionBySlug
+																		}
+																		user={user}
+																		followingStates={
+																			followingStates
+																		}
+																		onToggleFollow={
+																			onToggleFollow
+																		}
+																	/>
+																</motion.div>
+															)}
+
+															{currentTab ===
+																"notifications" && (
+																	<motion.div
+																		key="notifications"
+																		initial={false}
+																		animate={{ opacity: 1 }}
+																		exit={{ opacity: 0, y: -15 }}
+																		transition={{ duration: 0.15 }}>
+																		<Notifications
+																			user={user}
+																			onPostClick={
+																				handlePostSelectionBySlug
+																			}
+																			onUserClick={
+																				handleUserSelection
+																			}
+																			onBadgeReset={
+																				handleBadgeReset
+																			}
+																		/>
+																	</motion.div>
+																)}
+
+															{currentTab === "saved" && (
+																<motion.div
+																	key="saved"
+																	initial={false}
+																	animate={{ opacity: 1 }}
+																	exit={{ opacity: 0, y: -15 }}
+																	transition={{ duration: 0.15 }}>
+																	<Feed
+																		user={user}
+																		onUserSelected={
+																			handleUserSelection
+																		}
+																		onPostSelected={
+																			handlePostSelectionBySlug
+																		}
+																		searchQuery=""
+																		onClearSinglePost={() => { }}
+																		singlePostSlug={
+																			null
+																		}
+																		showSavesOnly={true}
+																		followingStates={
+																			followingStates
+																		}
+																		onToggleFollow={
+																			onToggleFollow
+																		}
+																	/>
+																</motion.div>
+															)}
+
+															{currentTab === "reposts" && (
+																<motion.div
+																	key="reposts"
+																	initial={false}
+																	animate={{ opacity: 1 }}
+																	exit={{ opacity: 0, y: -15 }}
+																	transition={{ duration: 0.15 }}>
+																	<Feed
+																		user={user}
+																		onUserSelected={
+																			handleUserSelection
+																		}
+																		onPostSelected={
+																			handlePostSelectionBySlug
+																		}
+																		searchQuery=""
+																		onClearSinglePost={() => { }}
+																		singlePostSlug={
+																			null
+																		}
+																		showRepostsOnly={
+																			true
+																		}
+																		followingStates={
+																			followingStates
+																		}
+																		onToggleFollow={
+																			onToggleFollow
+																		}
+																	/>
+																</motion.div>
+															)}
+
+															{currentTab === "profile" && (
+																<motion.div
+																	key="profile"
+																	initial={false}
+																	animate={{ opacity: 1 }}
+																	exit={{ opacity: 0, y: -15 }}
+																	transition={{ duration: 0.15 }}>
+																	<Profile
+																		user={user}
+																		targetUsername={
+																			selectedUserUsername ||
+																			user.username
+																		}
+																		onUserUpdate={(u) =>
+																			setUser(u)
+																		}
+																		onPostClick={
+																			handlePostSelectionBySlug
+																		}
+																		onUserClick={
+																			handleUserSelection
+																		}
+																		followingStates={
+																			followingStates
+																		}
+																		onToggleFollow={
+																			onToggleFollow
+																		}
+																		onProfileLoaded={
+																			handleProfileLoaded
+																		}
+																	/>
+																</motion.div>
+															)}
+
+															{currentTab === "settings" && (
+																<motion.div
+																	key="settings"
+																	initial={false}
+																	animate={{ opacity: 1 }}
+																	exit={{ opacity: 0, y: -15 }}
+																	transition={{ duration: 0.15 }}>
+																	<Settings
+																		user={user}
+																		onUserUpdate={(u) =>
+																			setUser(u)
+																		}
+																		onLogout={
+																			handleLogout
+																		}
+																	/>
+																</motion.div>
+															)}
+
+															{currentTab === "chat" && (
+																<motion.div
+																	key="chat"
+																	initial={false}
+																	animate={{ opacity: 1 }}
+																	exit={{ opacity: 0, y: -15 }}
+																	transition={{ duration: 0.15 }}>
+																	<Chat
+																		user={user}
+																		socket={
+																			socketRef.current
+																		}
+																		conversations={
+																			conversations
+																		}
+																		setConversations={
+																			setConversations
+																		}
+																		onUserSelected={
+																			handleUserSelection
+																		}
+																		onBack={() =>
+																			setTab("home")
+																		}
+																	/>
+																</motion.div>
+															)}
+														</AnimatePresence>
+													</Suspense>
+												</ErrorBoundary>
+											</div>{" "}
+											{/* Right Sidebar: Dual Liquid Glass Containers for Suggestions & Features */}
+											{currentTab !== "chat" && (
+												<div className="lg:col-span-3 w-full space-y-5 hidden lg:flex flex-col h-full overflow-hidden select-none shrink-0 pb-24">
+													{/* 1. People Recommendations Box with macOS spring animations */}
+													<GlassCard
+														animate={true}
+														className="p-6">
+														<h3 className="text-[10px] font-black tracking-widest text-zinc-400 dark:text-zinc-550 uppercase mb-4 pr-0.5">
+															RECOMMENDED USERS
+														</h3>
+
+														{loadingSuggestions ? (
+															<div className="space-y-4 py-2">
+																{[1, 2, 3].map(
+																	(n) => (
+																		<div
+																			key={n}
+																			className="flex items-center gap-3 animate-pulse">
+																			<div className="h-9 w-9 rounded-full bg-zinc-200 dark:bg-zinc-800/60" />
+																			<div className="flex-1 space-y-1.5">
+																				<div className="h-3 w-2/3 bg-zinc-200 dark:bg-zinc-800/60 rounded" />
+																				<div className="h-2 w-1/3 bg-zinc-200 dark:bg-zinc-800/60 rounded" />
+																			</div>
+																		</div>
+																	),
+																)}
+															</div>
+														) : suggestions.length ===
+															0 ? (
+															<p className="text-[10px] text-zinc-400 dark:text-zinc-550 pl-0.5 py-4 leading-relaxed font-mono uppercase">
+																No new
+																recommendations at
+																this time
+															</p>
+														) : (
+															<div className="space-y-4">
+																{suggestions.map(
+																	(sugUser) => (
+																		<div
+																			key={
+																				sugUser._id
+																			}
+																			className="flex items-center justify-between gap-3 group/item">
+																			<div
+																				onClick={() =>
+																					handleUserSelection(
+																						sugUser.username,
+																					)
+																				}
+																				className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity">
+																				<img
+																					src={
+																						sugUser
+																							.profilePic
+																							?.url ||
+																						"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
+																					}
+																					alt=""
+																					className="h-9 w-9 rounded-full object-cover border border-zinc-800/60 shadow-sm shrink-0"
+																				/>
+																				<div className="flex flex-col text-left">
+																					<span className="text-xs font-extrabold text-black dark:text-white line-clamp-1 hover:underline">
+																						{
+																							sugUser.fullName
+																						}
+																					</span>
+																					<span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-550">
+																						@
+																						{
+																							sugUser.username
+																						}
+																					</span>
+																				</div>
+																			</div>
+
+																			<motion.button
+																				whileHover={{
+																					scale: 1.1,
+																				}}
+																				whileTap={{
+																					scale: 0.9,
+																				}}
+																				onClick={() =>
+																					handleFollowSuggestion(
+																						sugUser._id,
+																					)
+																				}
+																				className={`rounded-full h-9 w-9 flex items-center justify-center transition-all cursor-pointer ${followingStates[
+																						sugUser
+																							._id
+																					]
+																						? "bg-zinc-900 text-zinc-400 border border-zinc-800"
+																						: "bg-zinc-900 text-white dark:bg-white dark:text-black hover:bg-zinc-850 dark:hover:bg-zinc-100"
+																					}`}
+																				title={
+																					followingStates[
+																						sugUser
+																							._id
+																					]
+																						? "Unfollow"
+																						: "Follow"
+																				}>
+																				{followingStates[
+																					sugUser
+																						._id
+																				] ? (
+																					<Check className="h-4 w-4" />
+																				) : (
+																					<UserPlus className="h-4 w-4" />
+																				)}
+																			</motion.button>
+																		</div>
+																	),
+																)}
+															</div>
+														)}
+														{suggestions.length > 0 && (
+															<button
+																onClick={() =>
+																	setTab(
+																		"explore",
+																	)
+																}
+																className="w-full mt-4 py-2 text-xs font-bold text-black dark:text-zinc-200 hover:underline transition-all cursor-pointer flex items-center justify-center gap-1">
+																Explore More{" "}
+																<ArrowRight className="h-3 w-3" />
+															</button>
+														)}
+													</GlassCard>
+
+													{/* 2. Upcoming Features Preview Card */}
+													<GlassCard
+														animate={true}
+														className="p-6">
+														<h3 className="text-sm font-semibold text-zinc-400 dark:text-zinc-550 mb-4">
+															Coming Soon
+														</h3>
+
+														<div className="space-y-4 text-left">
+															{/* Communities */}
+															<div className="p-3.5 rounded-xl border border-zinc-150/70 dark:border-zinc-800/50 bg-zinc-50/40 dark:bg-zinc-900/10 hover:bg-zinc-50/90 dark:hover:bg-zinc-900/30 transition-all duration-300">
+																<div className="flex items-center gap-2.5 mb-1.5">
+																	<div className="flex h-6.5 w-6.5 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-350 shrink-0">
+																		<Users className="h-3.5 w-3.5" />
+																	</div>
+																	<span className="text-xs font-semibold text-black dark:text-white">
+																		Communities
+																	</span>
+																</div>
+																<p className="text-xs text-zinc-450 dark:text-zinc-400 leading-relaxed pl-1">
+																	Join and create
+																	communities
+																	around shared
+																	interests and
+																	topics.
+																</p>
+															</div>
+
+															{/* Marketplace */}
+															<div className="p-3.5 rounded-xl border border-zinc-150/70 dark:border-zinc-800/50 bg-zinc-50/40 dark:bg-zinc-900/10 hover:bg-zinc-50/90 dark:hover:bg-zinc-900/30 transition-all duration-300">
+																<div className="flex items-center gap-2.5 mb-1.5">
+																	<div className="flex h-6.5 w-6.5 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-350 shrink-0">
+																		<ShoppingBag className="h-3.5 w-3.5" />
+																	</div>
+																	<span className="text-xs font-semibold text-black dark:text-white">
+																		Marketplace
+																	</span>
+																</div>
+																<p className="text-xs text-zinc-450 dark:text-zinc-400 leading-relaxed pl-1">
+																	Securely buy,
+																	sell, and
+																	exchange digital
+																	assets within
+																	the platform.
+																</p>
+															</div>
+														</div>
+													</GlassCard>
+												</div>
+											)}
+										</div>
+									</div>
+								)}
+							</main>
+
+							{/* Center Apple Dock (Fixed bottom overlay) */}
+							<Dock
+								currentTab={currentTab}
+								setTab={handleTabChange}
+								user={user}
+								badgeCount={badgeCount}
+								chatBadgeCount={chatBadgeCount}
+								onLogout={handleLogout}
+							/>
+						</motion.div>
+					)}
+				</AnimatePresence>
+			</div>
 		</ErrorBoundary>
 	);
 }

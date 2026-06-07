@@ -57,7 +57,7 @@ export default function BackgroundGradients({ darkMode = true }: BackgroundGradi
     const cols = 48;
     const rows = 36;
     const geometry = new THREE.PlaneGeometry(60, 42, cols, rows);
-    
+
     // Premium glossy space-liquid material using MeshPhysicalMaterial for outstanding liquid glass feel
     const material = new THREE.MeshPhysicalMaterial({
       color: 0x050508, // Obsidian black core

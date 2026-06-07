@@ -1006,96 +1006,96 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         )}
                       </div>
                     )}
-                  {messages.map((msg, index) => {
-                    const isMe = msg.sender._id === user._id;
-                    const editable = isMe && isEditable(msg.createdAt) && !msg.isDeleted;
-                    const groupedReactions = getGroupedReactions(msg.reactions);
+                    {messages.map((msg, index) => {
+                      const isMe = msg.sender._id === user._id;
+                      const editable = isMe && isEditable(msg.createdAt) && !msg.isDeleted;
+                      const groupedReactions = getGroupedReactions(msg.reactions);
 
-                    return (
-                      <div
-                        key={msg._id}
-                        className={`flex gap-3 max-w-[85%] ${isMe ? "ml-auto flex-row-reverse" : "mr-auto"}`}
-                        onContextMenu={(e) => handleContextMenu(e, msg)}
-                      >
-                        {!isMe && (
-                          <div className="w-8 shrink-0 flex items-end">
-                            <img loading="lazy"
-                              src={msg.sender.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-                              alt=""
-                              className="h-7 w-7 rounded-full object-cover border border-zinc-800"
-                            />
-                          </div>
-                        )}
-
-                        <div className="space-y-1 text-left flex flex-col items-end">
-                          <div
-                            className={`rounded-2xl px-3.5 py-2 text-xs border relative group/bubble select-text ${isMe
-                              ? "bg-zinc-800 text-white border-zinc-700 rounded-tr-none"
-                              : "bg-zinc-900/80 text-zinc-100 border-zinc-800 rounded-tl-none"
-                              }`}
-                          >
-                            {msg.isDeleted ? (
-                              <span className="italic text-zinc-500 text-[11px]">This message was deleted</span>
-                            ) : (
-                              <>
-                                <p className="leading-relaxed whitespace-pre-wrap select-text break-word pr-1.5">{msg.text}</p>
-                                {msg.attachments && msg.attachments.length > 0 && (
-                                  <div className="mt-2 space-y-1.5 max-w-sm rounded-xl overflow-hidden border border-zinc-800">
-                                    {msg.attachments.map((att, aIdx) => (
-                                      <img
-                                        key={aIdx}
-                                        src={att.url}
-                                        alt=""
-                                        className="w-full h-auto max-h-60 object-cover cursor-pointer hover:opacity-90"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          window.dispatchEvent(new CustomEvent("openImagePreview", { detail: att.url }));
-                                        }}
-                                      />
-                                    ))}
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-
-                          {Object.keys(groupedReactions).length > 0 && (
-                            <div className="flex gap-1 mt-1">
-                              {Object.entries(groupedReactions).map(([emoji, data]) => (
-                                <button
-                                  key={emoji}
-                                  onClick={() => handleReaction(msg, emoji)}
-                                  className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${data.hasReacted
-                                    ? "bg-blue-500/20 border-blue-400/30"
-                                    : "bg-zinc-800/50 border-zinc-700/50"
-                                    }`}
-                                >
-                                  <span>{emoji}</span>
-                                  <span className="text-[10px]">{data.count}</span>
-                                </button>
-                              ))}
+                      return (
+                        <div
+                          key={msg._id}
+                          className={`flex gap-3 max-w-[85%] ${isMe ? "ml-auto flex-row-reverse" : "mr-auto"}`}
+                          onContextMenu={(e) => handleContextMenu(e, msg)}
+                        >
+                          {!isMe && (
+                            <div className="w-8 shrink-0 flex items-end">
+                              <img loading="lazy"
+                                src={msg.sender.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                                alt=""
+                                className="h-7 w-7 rounded-full object-cover border border-zinc-800"
+                              />
                             </div>
                           )}
 
-                          <div className="flex items-center gap-1.5 px-1.5 text-[9px] font-bold text-zinc-550 select-none">
-                            {msg.isEdited && !msg.isDeleted && <span>edited</span>}
-                            <span>{formatMessageTime(msg.createdAt)}</span>
-                            {isMe && (
-                              <span>
-                                {msg.seen ? (
-                                  <CheckCheck className="h-3 w-3 text-white" />
-                                ) : (
-                                  <Check className="h-3 w-3 text-zinc-650" />
-                                )}
-                              </span>
+                          <div className="space-y-1 text-left flex flex-col items-end">
+                            <div
+                              className={`rounded-2xl px-3.5 py-2 text-xs border relative group/bubble select-text ${isMe
+                                ? "bg-zinc-800 text-white border-zinc-700 rounded-tr-none"
+                                : "bg-zinc-900/80 text-zinc-100 border-zinc-800 rounded-tl-none"
+                                }`}
+                            >
+                              {msg.isDeleted ? (
+                                <span className="italic text-zinc-500 text-[11px]">This message was deleted</span>
+                              ) : (
+                                <>
+                                  <p className="leading-relaxed whitespace-pre-wrap select-text break-word pr-1.5">{msg.text}</p>
+                                  {msg.attachments && msg.attachments.length > 0 && (
+                                    <div className="mt-2 space-y-1.5 max-w-sm rounded-xl overflow-hidden border border-zinc-800">
+                                      {msg.attachments.map((att, aIdx) => (
+                                        <img
+                                          key={aIdx}
+                                          src={att.url}
+                                          alt=""
+                                          className="w-full h-auto max-h-60 object-cover cursor-pointer hover:opacity-90"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            window.dispatchEvent(new CustomEvent("openImagePreview", { detail: att.url }));
+                                          }}
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+
+                            {Object.keys(groupedReactions).length > 0 && (
+                              <div className="flex gap-1 mt-1">
+                                {Object.entries(groupedReactions).map(([emoji, data]) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => handleReaction(msg, emoji)}
+                                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${data.hasReacted
+                                      ? "bg-blue-500/20 border-blue-400/30"
+                                      : "bg-zinc-800/50 border-zinc-700/50"
+                                      }`}
+                                  >
+                                    <span>{emoji}</span>
+                                    <span className="text-[10px]">{data.count}</span>
+                                  </button>
+                                ))}
+                              </div>
                             )}
+
+                            <div className="flex items-center gap-1.5 px-1.5 text-[9px] font-bold text-zinc-550 select-none">
+                              {msg.isEdited && !msg.isDeleted && <span>edited</span>}
+                              <span>{formatMessageTime(msg.createdAt)}</span>
+                              {isMe && (
+                                <span>
+                                  {msg.seen ? (
+                                    <CheckCheck className="h-3 w-3 text-white" />
+                                  ) : (
+                                    <Check className="h-3 w-3 text-zinc-650" />
+                                  )}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
-                  }
-                </>
+                      );
+                    })
+                    }
+                  </>
                 )}
                 <div ref={messagesEndRef} />
               </div>
@@ -1179,19 +1179,19 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         <ImageIcon className="h-4.5 w-4.5" />
                       </button>
                     </div>                    <div className="grow relative">
-                    <input
-                      type="text"
-                      placeholder="Type a message..."
-                      value={inputText}
-                      onInvalid={(e) => e.preventDefault()}
-                      onChange={(e) => {
-                        setInputText(e.target.value);
-                        clearFieldError("message");
-                        handleTyping();
-                      }}
-                      className="w-full rounded-full border border-zinc-800 bg-zinc-950/40 py-3 px-5 text-xs text-slate-100 placeholder-zinc-500 outline-none focus:border-white focus:bg-zinc-900/80 transition-all focus:ring-1 focus:ring-zinc-700"
-                    />
-                    <ValidationMessage message={fieldErrors.message} />
+                      <input
+                        type="text"
+                        placeholder="Type a message..."
+                        value={inputText}
+                        onInvalid={(e) => e.preventDefault()}
+                        onChange={(e) => {
+                          setInputText(e.target.value);
+                          clearFieldError("message");
+                          handleTyping();
+                        }}
+                        className="w-full rounded-full border border-zinc-800 bg-zinc-950/40 py-3 px-5 text-xs text-slate-100 placeholder-zinc-500 outline-none focus:border-white focus:bg-zinc-900/80 transition-all focus:ring-1 focus:ring-zinc-700"
+                      />
+                      <ValidationMessage message={fieldErrors.message} />
 
                       <span className="absolute right-4 top-3 text-[9px] text-zinc-650 hidden md:flex items-center gap-0.5 border border-zinc-800 px-1 rounded bg-zinc-950 select-none">
                         <CornerDownLeft className="h-2 w-2" /> Enter

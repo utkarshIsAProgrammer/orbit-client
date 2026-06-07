@@ -387,11 +387,10 @@ export default function CommentNode({
               <button
                 key={emoji}
                 onClick={() => handleReaction(emoji)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                  data.hasReacted
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors ${data.hasReacted
                     ? "bg-indigo-500/20 border-indigo-400/30 text-indigo-300"
                     : "bg-zinc-800/50 border-zinc-700/50 text-zinc-400 hover:bg-zinc-700/50"
-                }`}
+                  }`}
               >
                 <span>{emoji}</span>
                 <span className="text-[10px] font-medium">{data.count}</span>
@@ -408,11 +407,10 @@ export default function CommentNode({
               className="flex items-center gap-1.5 text-xs font-medium transition-colors group"
             >
               <Heart
-                className={`h-3.5 w-3.5 transition-colors ${
-                  likedByMe
+                className={`h-3.5 w-3.5 transition-colors ${likedByMe
                     ? "fill-red-500 text-red-500"
                     : "text-slate-500 dark:text-zinc-400 group-hover:text-red-400"
-                }`}
+                  }`}
               />
               <span className={`${likedByMe ? "text-red-400 font-semibold" : "text-slate-500 dark:text-zinc-400 group-hover:text-red-400"}`}>
                 {likesCount}
@@ -457,11 +455,10 @@ export default function CommentNode({
           {(showReplies || hasReplies) && (
             <button
               onClick={() => setShowReplies(!showReplies)}
-              className={`text-xs font-medium transition-colors ${
-                showReplies
+              className={`text-xs font-medium transition-colors ${showReplies
                   ? "text-indigo-400"
                   : "text-slate-500 dark:text-zinc-400 hover:text-indigo-650 dark:hover:text-indigo-400"
-              }`}
+                }`}
             >
               {showReplies ? "Hide Replies" : `View ${effectiveRepliesCount} ${effectiveRepliesCount === 1 ? "Reply" : "Replies"}`}
             </button>
