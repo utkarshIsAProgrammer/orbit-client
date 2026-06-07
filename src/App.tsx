@@ -69,6 +69,7 @@ export default function App() {
 
 	// Memoize socket connection to prevent unnecessary reconnections
 	const socketRef = useRef<ReturnType<typeof io> | null>(null);
+	const [socket, setSocket] = useState<ReturnType<typeof io> | null>(null);
 	const [conversations, setConversations] = useState<Conversation[]>([]);
 	const [composeOpen, setComposeOpen] = useState(false);
 
@@ -311,6 +312,7 @@ export default function App() {
 			if (socketRef.current?.connected) {
 				socketRef.current.disconnect();
 				socketRef.current = null;
+				setSocket(null);
 			}
 		};
 	}, []);
@@ -346,6 +348,7 @@ export default function App() {
 		});
 
 		socketRef.current = socket;
+		setSocket(socket);
 
 		socket.on("connect_error", (error) => {
 			logger.error("Socket connection error:", error);
@@ -524,6 +527,7 @@ export default function App() {
 				socketRef.current.disconnect();
 				socketRef.current = null;
 			}
+			setSocket(null);
 		} catch (e) {
 			logger.error(e);
 		}
@@ -1080,7 +1084,7 @@ export default function App() {
 																	<Chat
 																		user={user}
 																		socket={
-																			socketRef.current
+																			socket
 																		}
 																		conversations={
 																			conversations

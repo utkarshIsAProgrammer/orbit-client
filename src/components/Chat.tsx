@@ -98,18 +98,12 @@ export default function Chat({ user, socket, conversations, setConversations, on
   const messagesTopSentinelRef = useRef<HTMLDivElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<Socket | null>(null);
-
-  // Sync socket ref
-  useEffect(() => {
-    socketRef.current = socket;
-  }, [socket]);
 
 
 
 
 
-  // Fetch messages when conversation is selected
+  // Fetch messages when conversation is selected or socket becomes available
   useEffect(() => {
     if (!selectedConv) {
       setMessages([]);
@@ -140,17 +134,17 @@ export default function Chat({ user, socket, conversations, setConversations, on
     fetchMessages();
 
     // Socket: Join room
-    if (socketRef.current) {
-      socketRef.current.emit("chat:join", { conversationId: selectedConv._id });
+    if (socket) {
+      socket.emit("chat:join", { conversationId: selectedConv._id });
     }
 
     return () => {
       // Socket: Leave room
-      if (socketRef.current && selectedConv) {
-        socketRef.current.emit("chat:leave", { conversationId: selectedConv._id });
+      if (socket && selectedConv) {
+        socket.emit("chat:leave", { conversationId: selectedConv._id });
       }
     };
-  }, [selectedConv]);
+  }, [selectedConv, socket]);
 
   // Close context menu when clicking outside
   useEffect(() => {
@@ -385,19 +379,19 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
   // Trigger typing notification
   const handleTyping = () => {
-    if (!socketRef.current || !selectedConv) return;
+    if (!socket || !selectedConv) return;
 
     if (!isTyping) {
       setIsTyping(true);
-      socketRef.current.emit("chat:typing", { conversationId: selectedConv._id, isTyping: true });
+      socket.emit("chat:typing", { conversationId: selectedConv._id, isTyping: true });
     }
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      if (socketRef.current && selectedConv) {
-        socketRef.current.emit("chat:typing", { conversationId: selectedConv._id, isTyping: false });
+      if (socket && selectedConv) {
+        socket.emit("chat:typing", { conversationId: selectedConv._id, isTyping: false });
       }
     }, 2000);
   };
@@ -464,8 +458,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     setIsTyping(false);
 
-    if (socketRef.current) {
-      socketRef.current.emit("chat:typing", { conversationId: selectedConv._id, isTyping: false });
+    if (socket) {
+      socket.emit("chat:typing", { conversationId: selectedConv._id, isTyping: false });
     }
 
     try {
