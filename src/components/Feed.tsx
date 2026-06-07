@@ -605,7 +605,37 @@ export default function Feed({
       const data = await res.json();
       if (!res.ok || !data.success) {
         // Rollback
-        fetchPosts(true);
+        if (showSavesOnly && savedByMe) {
+          fetchPosts(true);
+        } else {
+          setPosts((prev) =>
+            prev.map((p) => {
+              if (p._id === postId) {
+                const shift = savedByMe ? 1 : -1;
+                return {
+                  ...p,
+                  savedByMe: savedByMe,
+                  savesCount: Math.max(0, (p.savesCount || 0) + shift),
+                };
+              }
+              return p;
+            })
+          );
+        }
+        if (selectedPost && selectedPost._id === postId) {
+          const shift = savedByMe ? 1 : -1;
+          setSelectedPost((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  savedByMe: savedByMe,
+                  savesCount: Math.max(0, (prev.savesCount || 0) + shift),
+                }
+              : null
+          );
+        }
+        setToastMessage(data.message || "Failed to save post");
+        setTimeout(() => setToastMessage(null), 2500);
       } else {
         // Broadcast to other components
         window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "save", value: !savedByMe } }));
@@ -615,7 +645,37 @@ export default function Feed({
     } catch (e) {
       logger.error(e);
       // Rollback on error
-      fetchPosts(true);
+      if (showSavesOnly && savedByMe) {
+        fetchPosts(true);
+      } else {
+        setPosts((prev) =>
+          prev.map((p) => {
+            if (p._id === postId) {
+              const shift = savedByMe ? 1 : -1;
+              return {
+                ...p,
+                savedByMe: savedByMe,
+                savesCount: Math.max(0, (p.savesCount || 0) + shift),
+              };
+            }
+            return p;
+          })
+        );
+      }
+      if (selectedPost && selectedPost._id === postId) {
+        const shift = savedByMe ? 1 : -1;
+        setSelectedPost((prev) =>
+          prev
+            ? {
+                ...prev,
+                savedByMe: savedByMe,
+                savesCount: Math.max(0, (prev.savesCount || 0) + shift),
+              }
+            : null
+        );
+      }
+      setToastMessage("Network connection error");
+      setTimeout(() => setToastMessage(null), 2500);
     }
   };
 
@@ -646,7 +706,37 @@ export default function Feed({
       const data = await res.json();
       if (!res.ok || !data.success) {
         // Rollback
-        fetchPosts(true);
+        if (showRepostsOnly && repostedByMe) {
+          fetchPosts(true);
+        } else {
+          setPosts((prev) =>
+            prev.map((p) => {
+              if (p._id === postId) {
+                const shift = repostedByMe ? 1 : -1;
+                return {
+                  ...p,
+                  repostedByMe: repostedByMe,
+                  repostsCount: Math.max(0, (p.repostsCount || 0) + shift),
+                };
+              }
+              return p;
+            })
+          );
+        }
+        if (selectedPost && selectedPost._id === postId) {
+          const shift = repostedByMe ? 1 : -1;
+          setSelectedPost((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  repostedByMe: repostedByMe,
+                  repostsCount: Math.max(0, (prev.repostsCount || 0) + shift),
+                }
+              : null
+          );
+        }
+        setToastMessage(data.message || "Failed to repost");
+        setTimeout(() => setToastMessage(null), 2500);
       } else {
         // Broadcast to other components
         window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "repost", value: !repostedByMe } }));
@@ -654,7 +744,37 @@ export default function Feed({
     } catch (e) {
       logger.error(e);
       // Rollback on error
-      fetchPosts(true);
+      if (showRepostsOnly && repostedByMe) {
+        fetchPosts(true);
+      } else {
+        setPosts((prev) =>
+          prev.map((p) => {
+            if (p._id === postId) {
+              const shift = repostedByMe ? 1 : -1;
+              return {
+                ...p,
+                repostedByMe: repostedByMe,
+                repostsCount: Math.max(0, (p.repostsCount || 0) + shift),
+              };
+            }
+            return p;
+          })
+        );
+      }
+      if (selectedPost && selectedPost._id === postId) {
+        const shift = repostedByMe ? 1 : -1;
+        setSelectedPost((prev) =>
+          prev
+            ? {
+                ...prev,
+                repostedByMe: repostedByMe,
+                repostsCount: Math.max(0, (prev.repostsCount || 0) + shift),
+              }
+            : null
+        );
+      }
+      setToastMessage("Network connection error");
+      setTimeout(() => setToastMessage(null), 2500);
     }
   };
 

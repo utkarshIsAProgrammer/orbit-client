@@ -169,6 +169,22 @@ export default function Chat({ user, socket, conversations, setConversations, on
     const s = socket;
     if (!s) return;
 
+    // Listen for presence updates
+    s.on("user:presence", ({ userId: presenceUserId, status }: { userId: string; status: "online" | "offline" }) => {
+      setConversations((prev) =>
+        prev.map((c) => {
+          const other = c.participants.find((p) => p && p._id === presenceUserId);
+          if (other) {
+            return {
+              ...c,
+              presence: status as "online" | "offline",
+            };
+          }
+          return c;
+        })
+      );
+    });
+
     // Listen for new messages
     s.on("message:new", (message: Message) => {
       // If message is for the current conversation, append it
@@ -226,6 +242,23 @@ export default function Chat({ user, socket, conversations, setConversations, on
             : m
         )
       );
+      // Also update conversations list to reflect deletion
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c._id === selectedConv?._id && c.lastMessage?._id === messageId) {
+            return {
+              ...c,
+              lastMessage: {
+                ...c.lastMessage,
+                isDeleted: true,
+                text: "This message was deleted",
+                attachments: []
+              }
+            };
+          }
+          return c;
+        })
+      );
     });
 
     // Listen for message reactions
@@ -280,12 +313,15 @@ export default function Chat({ user, socket, conversations, setConversations, on
     });
 
     // Listen for read receipts
-    s.on("messages:seen", ({ conversationId, seenBy }: { conversationId: string; seenBy: string }) => {
+    s.on("messages:seen", ({ conversationId, seenBy, seenAt }: { conversationId: string; seenBy: string; seenAt?: Date }) => {
       if (selectedConv && selectedConv._id === conversationId && seenBy !== user._id) {
         setMessages((prev) =>
           prev.map((m) => {
             const senderId = typeof m.sender === "string" ? m.sender : m.sender?._id;
-            return senderId === user._id ? { ...m, seen: true } : m;
+            if (senderId === user._id) {
+              return { ...m, seen: true, seenAt: seenAt ? seenAt.toISOString() : new Date().toISOString() };
+            }
+            return m;
           })
         );
       }
@@ -299,6 +335,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
     });
 
     return () => {
+      s.off("user:presence");
       s.off("message:new");
       s.off("message:edit");
       s.off("message:delete");
@@ -723,7 +760,12 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
   const handleContextMenu = (e: React.MouseEvent, message: Message) => {
     e.preventDefault();
-    setContextMenu({ message, x: e.clientX, y: e.clientY });
+    // Calculate safe position for mobile to prevent menu from being cut off
+    const x = e.clientX;
+    const y = e.clientY;
+    const safeX = Math.min(Math.max(10, x), window.innerWidth - 10);
+    const safeY = Math.min(Math.max(10, y), window.innerHeight - 10);
+    setContextMenu({ message, x: safeX, y: safeY });
   };
 
   // Attachments handlers

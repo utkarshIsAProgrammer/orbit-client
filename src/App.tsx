@@ -389,6 +389,8 @@ export default function App() {
 					return c;
 				})
 			);
+			// Also refresh conversations to get latest presence status
+			fetchConversations();
 		});
 
 		// ── Realtime chat notifications & badge increments ──
@@ -441,6 +443,9 @@ export default function App() {
 					prev.filter((a) => a.id !== newAlert.id),
 				);
 			}, 5000);
+
+			// 4. Refresh unread count from server to ensure accuracy
+			fetchBadgeCounts();
 		});
 
 		// ── Realtime post interaction sync (likes, saves, reposts) ──
@@ -1038,6 +1043,7 @@ export default function App() {
 																		transition={{ duration: 0.15 }}>
 																		<Notifications
 																			user={user}
+																			socket={socket}
 																			onPostClick={
 																				handlePostSelectionBySlug
 																			}
@@ -1146,6 +1152,7 @@ export default function App() {
 																		onProfileLoaded={
 																			handleProfileLoaded
 																		}
+																		onBack={canGoBack ? handleGoBack : undefined}
 																	/>
 																</motion.div>
 															)}

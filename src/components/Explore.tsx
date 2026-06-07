@@ -28,6 +28,7 @@ export default function Explore({
   const [postCandidates, setPostCandidates] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
   const [followError, setFollowError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Listen for realtime comment count updates from other users
   useEffect(() => {
@@ -121,6 +122,111 @@ export default function Explore({
     return () => window.removeEventListener("postInteractionChanged", handleInteraction as EventListener);
   }, []);
 
+  // Toggle like from search results
+  const handleLikeToggle = async (postId: string, likedByMe: boolean) => {
+    const prevLiked = likedByMe;
+    const prevCount = (() => { const p = postCandidates.find(x => x._id === postId); return p?.likesCount ?? 0; })();
+
+    setPostCandidates((prev) =>
+      prev.map((p) =>
+        p._id === postId
+          ? { ...p, likedByMe: !prevLiked, likesCount: Math.max(0, (p.likesCount || 0) + (prevLiked ? -1 : 1)) }
+          : p,
+      ),
+    );
+    try {
+      const res = await apiFetch(`/api/likes/post/${postId}`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setPostCandidates((prev) =>
+          prev.map((p) =>
+            p._id === postId ? { ...p, likedByMe: prevLiked, likesCount: prevCount } : p
+          )
+        );
+      } else {
+        window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "like", value: !likedByMe } }));
+      }
+    } catch (e) {
+      logger.error(e);
+      setPostCandidates((prev) =>
+        prev.map((p) =>
+          p._id === postId ? { ...p, likedByMe: prevLiked, likesCount: prevCount } : p
+        )
+      );
+    }
+  };
+
+  // Toggle save from search results
+  const handleSaveToggle = async (postId: string, savedByMe: boolean) => {
+    const prevSaved = savedByMe;
+    const prevCount = (() => { const p = postCandidates.find(x => x._id === postId); return p?.savesCount ?? 0; })();
+
+    setPostCandidates((prev) =>
+      prev.map((p) =>
+        p._id === postId
+          ? { ...p, savedByMe: !prevSaved, savesCount: Math.max(0, (p.savesCount || 0) + (prevSaved ? -1 : 1)) }
+          : p,
+      ),
+    );
+    try {
+      const res = await apiFetch(`/api/saves/${postId}`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setPostCandidates((prev) =>
+          prev.map((p) =>
+            p._id === postId ? { ...p, savedByMe: prevSaved, savesCount: prevCount } : p
+          )
+        );
+      } else {
+        window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "save", value: !savedByMe } }));
+      }
+    } catch (e) {
+      logger.error(e);
+      setPostCandidates((prev) =>
+        prev.map((p) =>
+          p._id === postId ? { ...p, savedByMe: prevSaved, savesCount: prevCount } : p
+        )
+      );
+    }
+  };
+
+  // Toggle repost from search results
+  const handleRepostToggle = async (postId: string, repostedByMe: boolean) => {
+    const prevReposted = repostedByMe;
+    const prevCount = (() => { const p = postCandidates.find(x => x._id === postId); return p?.repostsCount ?? 0; })();
+
+    setPostCandidates((prev) =>
+      prev.map((p) =>
+        p._id === postId
+          ? { ...p, repostedByMe: !prevReposted, repostsCount: Math.max(0, (p.repostsCount || 0) + (prevReposted ? -1 : 1)) }
+          : p,
+      ),
+    );
+    try {
+      const res = await apiFetch(`/api/reposts/${postId}`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setPostCandidates((prev) =>
+          prev.map((p) =>
+            p._id === postId ? { ...p, repostedByMe: prevReposted, repostsCount: prevCount } : p
+          )
+        );
+        setToastMessage(data.message || "Failed to repost");
+        setTimeout(() => setToastMessage(null), 2500);
+      } else {
+        window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "repost", value: !repostedByMe } }));
+      }
+    } catch (e) {
+      logger.error(e);
+      setPostCandidates((prev) =>
+        prev.map((p) =>
+          p._id === postId ? { ...p, repostedByMe: prevReposted, repostsCount: prevCount } : p
+        )
+      );
+      setToastMessage("Network connection error");
+      setTimeout(() => setToastMessage(null), 2500);
+    }
+  };
 
   const performSearch = async (query: string) => {
     if (!query.trim()) {
@@ -347,11 +453,31 @@ export default function Explore({
                       </div>
                     )}
                     {/* Post stats like in feed */}
-                    <div className="mt-4 flex items-center justify-between pt-3 text-sm text-zinc-400">
-                      <span className="flex items-center gap-1 font-medium"><Heart className={`h-4 w-4 ${(pst as any).likedByMe ? "fill-red-500 text-red-500" : ""}`} /> {pst.likesCount || 0}</span>
-                      <span className="flex items-center gap-1 font-medium"><MessageSquare className="h-4 w-4" /> {pst.commentsCount || 0}</span>
-                      <span className="flex items-center gap-1 font-medium"><Bookmark className={`h-4 w-4 ${(pst as any).savedByMe ? "fill-yellow-500 text-yellow-500" : ""}`} /> {pst.savesCount || 0}</span>
-                      <span className="flex items-center gap-1 font-medium"><Repeat2 className={`h-4 w-4 ${(pst as any).repostedByMe ? "text-green-500" : ""}`} /> {pst.repostsCount || 0}</span>
+                    <div onClick={(e) => e.stopPropagation()} className="mt-4 flex items-center justify-between pt-3 text-sm text-zinc-400">
+                      <button
+                        onClick={() => handleLikeToggle(pst._id, !!(pst as any).likedByMe)}
+                        className="flex items-center gap-1 font-medium cursor-pointer hover:text-red-500 transition-colors"
+                      >
+                        <Heart className={`h-4 w-4 ${(pst as any).likedByMe ? "fill-red-500 text-red-500" : "text-zinc-550"}`} /> {pst.likesCount || 0}
+                      </button>
+                      <button
+                        onClick={() => onPostSelected(pst.slug)}
+                        className="flex items-center gap-1 font-medium cursor-pointer hover:text-white transition-colors"
+                      >
+                        <MessageSquare className="h-4 w-4 text-zinc-550" /> {pst.commentsCount || 0}
+                      </button>
+                      <button
+                        onClick={() => handleSaveToggle(pst._id, !!(pst as any).savedByMe)}
+                        className="flex items-center gap-1 font-medium cursor-pointer hover:text-yellow-500 transition-colors"
+                      >
+                        <Bookmark className={`h-4 w-4 ${(pst as any).savedByMe ? "fill-yellow-500 text-yellow-500" : "text-zinc-550"}`} /> {pst.savesCount || 0}
+                      </button>
+                      <button
+                        onClick={() => handleRepostToggle(pst._id, !!(pst as any).repostedByMe)}
+                        className="flex items-center gap-1 font-medium cursor-pointer hover:text-green-500 transition-colors"
+                      >
+                        <Repeat2 className={`h-4 w-4 ${(pst as any).repostedByMe ? "text-green-500" : "text-zinc-550"}`} /> {pst.repostsCount || 0}
+                      </button>
                     </div>
                   </div>
                 </GlassCard>
@@ -373,6 +499,13 @@ export default function Explore({
           )}
         </div>
       </div>
+
+      {/* Floating Toast warning for user interactions */}
+      {toastMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-full bg-zinc-900 border border-zinc-700 px-4 py-2 text-xs text-white shadow-2xl animate-bounce">
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }

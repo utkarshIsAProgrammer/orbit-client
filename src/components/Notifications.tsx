@@ -13,6 +13,7 @@ import {
   Clock,
   X,
 } from "lucide-react";
+import { Socket } from "socket.io-client";
 import { Notification, User } from "../types";
 import GlassCard from "./GlassCard";
 import { apiFetch } from "../utils/api";
@@ -20,6 +21,7 @@ import { logger } from "../utils/logger";
 
 interface NotificationsProps {
   user: User | null;
+  socket: Socket | null;
   onPostClick: (slug: string) => void;
   onUserClick: (username: string) => void;
   onBadgeReset: () => void;
@@ -27,6 +29,7 @@ interface NotificationsProps {
 
 export default function Notifications({
   user,
+  socket,
   onPostClick,
   onUserClick,
   onBadgeReset,
@@ -56,6 +59,25 @@ export default function Notifications({
   useEffect(() => {
     fetchNotifications();
   }, [user]);
+
+  // Listen for real-time notifications via socket
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewNotification = (notification: Notification) => {
+      setNotifications((prev) => {
+        // Prevent duplicates
+        if (prev.some((n) => n._id === notification._id)) return prev;
+        return [notification, ...prev];
+      });
+    };
+
+    socket.on("notification", handleNewNotification);
+
+    return () => {
+      socket.off("notification", handleNewNotification);
+    };
+  }, [socket]);
 
   // Mark all notifications as read
   const handleMarkAllRead = async () => {

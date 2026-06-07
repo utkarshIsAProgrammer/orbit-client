@@ -18,6 +18,7 @@ import {
 	Repeat2,
 	FileText,
 	Loader2,
+	ArrowLeft,
 } from "lucide-react";
 import { User as UserType, Post } from "../types";
 import GlassCard from "./GlassCard";
@@ -36,6 +37,7 @@ interface ProfileProps {
 	followingStates: Record<string, boolean>;
 	onToggleFollow: (userId: string) => Promise<void>;
 	onProfileLoaded?: (profileId: string, followingByMe: boolean) => void;
+	onBack?: () => void;
 }
 
 export default function Profile({
@@ -47,6 +49,7 @@ export default function Profile({
 	followingStates,
 	onToggleFollow,
 	onProfileLoaded,
+	onBack,
 }: ProfileProps) {
 	const [profile, setProfile] = useState<UserType | null>(null);
 	const [posts, setPosts] = useState<Post[]>([]);
@@ -983,6 +986,15 @@ export default function Profile({
 
 	return (
 		<>
+			{onBack && (
+				<button
+					onClick={onBack}
+					className="fixed top-4 left-4 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200/10 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer shadow-sm backdrop-blur-md"
+					title="Back"
+				>
+					<ArrowLeft className="h-4 w-4" />
+				</button>
+			)}
 			<div
 				ref={containerRef}
 				onTouchStart={handleTouchStart}
