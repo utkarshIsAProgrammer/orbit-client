@@ -477,7 +477,14 @@ export default function Chat({ user, socket, conversations, setConversations, on
         body: formData,
       });
       const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (res.ok && data.success && data.sentMessage) {
+        setMessages((prev) => {
+          // Prevent duplicates in case the socket event is also received
+          if (prev.some((m) => m._id === data.sentMessage._id)) return prev;
+          return [...prev, data.sentMessage];
+        });
+        scrollToBottom();
+      } else {
         logger.error("Message send failed", data.message);
       }
     } catch (err) {
