@@ -152,7 +152,7 @@ export default function App() {
 	const fetchFollowing = async (userId: string) => {
 		try {
 			const res = await apiFetch(
-				`/api/follows/following/${userId}?limit=100`,
+				`/api/follows/${userId}/following?limit=100`,
 			);
 			const data = await res.json();
 			if (res.ok && data.success) {
@@ -276,6 +276,7 @@ export default function App() {
 			: "";
 		const socket = io(socketUrl, {
 			transports: ["websocket", "polling"],
+			withCredentials: true,
 		});
 
 		socketRef.current = socket;

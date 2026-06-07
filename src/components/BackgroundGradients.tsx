@@ -190,6 +190,7 @@ export default function BackgroundGradients({ darkMode = true }: BackgroundGradi
       window.removeEventListener("resize", handleResize);
       cancelAnimationFrame(animationFrameId);
       renderer.dispose();
+      renderer.forceContextLoss();
       geometry.dispose();
       material.dispose();
       timer.dispose();

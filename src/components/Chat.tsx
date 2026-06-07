@@ -587,6 +587,37 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
   // Handle reaction
   const handleReaction = async (message: Message, emoji: string) => {
+    // 1. Optimistic UI update
+    const userId = user._id;
+    const existingIndex = (message.reactions || []).findIndex(
+      (r) => r.sender._id === userId && r.emoji === emoji
+    );
+
+    let nextReactions = [...(message.reactions || [])];
+    if (existingIndex >= 0) {
+      // Toggle off
+      nextReactions.splice(existingIndex, 1);
+    } else {
+      // Toggle off any other reaction by this sender first
+      nextReactions = nextReactions.filter((r) => r.sender._id !== userId);
+      // Add new reaction
+      nextReactions.push({
+        _id: Date.now().toString(), // temp ID
+        emoji,
+        sender: {
+          _id: user._id,
+          username: user.username,
+          fullName: user.fullName,
+          profilePic: user.profilePic
+        },
+        createdAt: new Date()
+      } as any);
+    }
+
+    setMessages((prev) =>
+      prev.map((m) => (m._id === message._id ? { ...m, reactions: nextReactions } : m))
+    );
+
     try {
       const res = await apiFetch(`/api/chats/messages/${message._id}/reactions`, {
         method: "POST",
@@ -594,11 +625,24 @@ export default function Chat({ user, socket, conversations, setConversations, on
         body: JSON.stringify({ emoji }),
       });
       const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (res.ok && data.success && data.reactions) {
+        // 2. Synchronize with exact backend response
+        setMessages((prev) =>
+          prev.map((m) => (m._id === message._id ? { ...m, reactions: data.reactions } : m))
+        );
+      } else {
         logger.error("Reaction failed");
+        // Revert to original
+        setMessages((prev) =>
+          prev.map((m) => (m._id === message._id ? message : m))
+        );
       }
     } catch (err) {
       logger.error(err);
+      // Revert to original
+      setMessages((prev) =>
+        prev.map((m) => (m._id === message._id ? message : m))
+      );
     }
   };
 

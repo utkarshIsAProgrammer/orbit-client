@@ -174,16 +174,57 @@ export default function CommentNode({
 
   const handleReaction = async (emoji: string) => {
     if (!user) return;
+
+    // 1. Optimistic UI update
+    const userId = user._id;
+    const existingIndex = (reactions || []).findIndex(
+      (r) => r.sender._id === userId && r.emoji === emoji
+    );
+
+    let nextReactions = [...(reactions || [])];
+    if (existingIndex >= 0) {
+      // Toggle off
+      nextReactions.splice(existingIndex, 1);
+    } else {
+      // Toggle off any other reaction by this sender first
+      nextReactions = nextReactions.filter((r) => r.sender._id !== userId);
+      // Add new reaction
+      nextReactions.push({
+        _id: Date.now().toString(), // temp ID
+        emoji,
+        sender: {
+          _id: user._id,
+          username: user.username,
+          fullName: user.fullName,
+          profilePic: user.profilePic
+        },
+        createdAt: new Date().toISOString()
+      } as any);
+    }
+
+    setReactions(nextReactions);
+    setShowEmojiPicker(false);
+
     try {
-      await apiFetch(`/api/comments/${comment._id}/reactions`, {
+      const res = await apiFetch(`/api/comments/${comment._id}/reactions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emoji }),
       });
+      const data = await res.json();
+      if (res.ok && data.success && data.reactions) {
+        // 2. Sync with backend source of truth
+        setReactions(data.reactions);
+      } else {
+        logger.error("Failed to react to comment");
+        // Revert
+        setReactions(reactions);
+      }
     } catch (e) {
       logger.error("Failed to react to comment", e);
+      // Revert
+      setReactions(reactions);
     }
-    setShowEmojiPicker(false);
   };
 
   const handleEdit = async () => {

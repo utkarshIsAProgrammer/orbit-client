@@ -290,6 +290,7 @@ export default function LandingSpaceBackdrop() {
       starsGeom.dispose();
       starsMaterial.dispose();
       renderer.dispose();
+      renderer.forceContextLoss();
       timer.dispose();
     };
   }, []);
