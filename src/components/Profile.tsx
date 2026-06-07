@@ -780,7 +780,7 @@ export default function Profile({
 			setLoadingSaved(true);
 		}
 		try {
-			let endpoint = "/api/saves/?limit=10";
+			let endpoint = "/api/saves?limit=10";
 			if (cursor) {
 				endpoint += `&cursor=${cursor}`;
 			}
@@ -817,7 +817,7 @@ export default function Profile({
 			setLoadingReposts(true);
 		}
 		try {
-			let endpoint = "/api/reposts/?limit=10";
+			let endpoint = "/api/reposts?limit=10";
 			if (cursor) {
 				endpoint += `&cursor=${cursor}`;
 			}
