@@ -1,0 +1,169 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&display=swap");
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans:
+    "Space Grotesk", "Sora", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  --font-logo:
+    "Syne", "Unbounded", ui-sans-serif, sans-serif;
+  --font-ui:
+    "Inter", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  --font-button:
+    "Manrope", "Geist", ui-sans-serif, sans-serif;
+  --font-display:
+    "Space Grotesk", "Sora", ui-sans-serif, sans-serif;
+}
+
+/* Apply button font to all buttons */
+button {
+  font-family: "Manrope", "Geist", ui-sans-serif, sans-serif;
+}
+
+@layer utilities {
+  /* Disable selections in buttons or icons */
+  .select-none {
+    user-select: none;
+  }
+}
+
+/* Custom globally applied styles on HTML root - completely hide any scrollbars */
+*::-webkit-scrollbar {
+  display: none !important;
+}
+
+* {
+  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important; /* Firefox */
+}
+
+html {
+  scrollbar-width: none;
+  background-color: transparent;
+  color: #000000;
+  overflow-x: hidden;
+  transition: color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html.dark {
+  background-color: transparent;
+  color: #ffffff;
+  scrollbar-color: rgba(255, 255, 255, 0.15) rgba(0, 0, 0, 0.3);
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  background-color: transparent;
+}
+
+html.dark body {
+  background-color: transparent;
+}
+
+/* Ensure intuitive interactive pointer cursor feedback on all clickable entities across the application */
+button,
+[role="button"],
+a,
+select,
+input[type="submit"],
+input[type="button"],
+input[type="checkbox"],
+input[type="radio"],
+input[type="file"],
+[onClick],
+.cursor-pointer,
+nav div,
+.clickable-item {
+  cursor: pointer !important;
+}
+
+/* Improve typography and spacing for better readability */
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+p, span, div {
+  letter-spacing: -0.01em;
+}
+
+/* Improve button hover states and transitions */
+button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Improve focus states for accessibility */
+*:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.5);
+  outline-offset: 2px;
+}
+
+/* Smooth scrolling for better UX */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Improve glass morphism effects */
+.glass-effect {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* GPU acceleration for smooth animations */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Content visibility for large scrollable areas to reduce paint cost */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 500px;
+}
+
+/* Hide native browser validation tooltips — we use custom validation */
+input:invalid,
+textarea:invalid,
+select:invalid {
+  box-shadow: none;
+}
+
+/* Remove browser default red glow on invalid inputs */
+input:focus:invalid,
+textarea:focus:invalid {
+  box-shadow: none;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Reusable surface border for consistent dark theme */
+.border-surface {
+  border-color: #27272a;
+}
+
+.border-surface/50 {
+  border-color: rgba(39, 39, 42, 0.5);
+}
+
+.border-surface/30 {
+  border-color: rgba(39, 39, 42, 0.3);
+}
