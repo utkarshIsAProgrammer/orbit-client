@@ -116,7 +116,7 @@ export default function LiquidEther({
         this.renderer.domElement.style.width = '100%';
         this.renderer.domElement.style.height = '100%';
         this.renderer.domElement.style.display = 'block';
-        
+
         // Explicitly enable EXT_float_blend extension to silence WebGL warning
         const gl = this.renderer.getContext();
         if (gl) gl.getExtension('EXT_float_blend');
@@ -851,7 +851,8 @@ export default function LiquidEther({
           minFilter: THREE.LinearFilter,
           magFilter: THREE.LinearFilter,
           wrapS: THREE.ClampToEdgeWrapping,
-          wrapT: THREE.ClampToEdgeWrapping
+          wrapT: THREE.ClampToEdgeWrapping,
+          generateMipmaps: false
         };
         for (let key in this.fbos) {
           this.fbos[key] = new THREE.WebGLRenderTarget(this.fboSize.x, this.fboSize.y, opts);

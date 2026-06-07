@@ -88,7 +88,7 @@ export default function LandingSpaceBackdrop() {
 
     // Create a gorgeous deforming metallic low-poly wireframe sphere representing the hollow core
     const geometry = new THREE.IcosahedronGeometry(6.5, 4); // Spacious size to perfectly frame text
-    
+
     // Metallic wireframe material
     const wireMaterial = new THREE.MeshPhysicalMaterial({
       color: 0xdddddd,
@@ -139,7 +139,7 @@ export default function LandingSpaceBackdrop() {
       starCoords[i * 3 + 2] = (Math.random() - 0.5) * 12;
     }
     starsGeom.setAttribute("position", new THREE.BufferAttribute(starCoords, 3));
-    
+
     // Soft particle point map texture
     const makeDot = () => {
       const pCanvas = document.createElement("canvas");
@@ -175,12 +175,12 @@ export default function LandingSpaceBackdrop() {
       if (!canvasRef.current || !etherCanvasRef.current) return;
       width = window.innerWidth;
       height = window.innerHeight;
-      
+
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
-      
+
       renderer.setSize(width, height);
-      
+
       etherCanvasRef.current.width = width;
       etherCanvasRef.current.height = height;
 
@@ -303,10 +303,10 @@ export default function LandingSpaceBackdrop() {
       <div className="absolute inset-x-0 top-0 h-[65vh] z-0 opacity-40 pointer-events-none overflow-hidden">
         {/* Soft white shifting aurora curtain at the top */}
         <div className="absolute top-[-5%] left-[10%] w-[85vw] h-[45vh] rounded-full bg-linear-to-b from-white/10 via-zinc-100/4 to-transparent blur-[110px] animate-aurora-top" />
-        
+
         {/* Secondary silver glow drifting slowly */}
         <div className="absolute top-[2%] right-[15%] w-[65vw] h-[35vh] rounded-full bg-linear-to-b from-zinc-200/6 via-zinc-400/2 to-transparent blur-[120px] animate-aurora-top-delayed" />
-        
+
         {/* Radial ambient chrome dark spot in inner center */}
         <div className="absolute left-[50%] -translate-x-1/2 top-0 w-[50vw] h-[50vw] bg-radial-gradient from-white/4 to-transparent blur-[130px] opacity-60" />
       </div>
