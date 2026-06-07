@@ -91,6 +91,17 @@ export default function Chat({ user, socket, conversations, setConversations, on
     y: number;
   } | null>(null);
 
+  // Mobile detection state
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Messages pagination
   const [messagesCursor, setMessagesCursor] = useState<string | null>(null);
   const [messagesHasMore, setMessagesHasMore] = useState(false);
@@ -271,7 +282,12 @@ export default function Chat({ user, socket, conversations, setConversations, on
     // Listen for read receipts
     s.on("messages:seen", ({ conversationId, seenBy }: { conversationId: string; seenBy: string }) => {
       if (selectedConv && selectedConv._id === conversationId && seenBy !== user._id) {
-        setMessages((prev) => prev.map((m) => (m.sender._id === user._id ? { ...m, seen: true } : m)));
+        setMessages((prev) =>
+          prev.map((m) => {
+            const senderId = typeof m.sender === "string" ? m.sender : m.sender?._id;
+            return senderId === user._id ? { ...m, seen: true } : m;
+          })
+        );
       }
     });
 
@@ -280,22 +296,6 @@ export default function Chat({ user, socket, conversations, setConversations, on
       if (selectedConv && selectedConv._id === conversationId && typingUserId !== user._id) {
         setPartnerTyping(partnerIsTyping);
       }
-    });
-
-    // Listen for online presence status changes
-    s.on("user:presence", ({ userId: presenceUserId, status }: { userId: string; status: "online" | "offline" }) => {
-      setConversations((prev) =>
-        prev.map((c) => {
-          const other = c.participants.find((p) => p && p._id === presenceUserId);
-          if (other) {
-            return {
-              ...c,
-              presence: status as "online" | "offline",
-            };
-          }
-          return c;
-        })
-      );
     });
 
     return () => {
@@ -307,7 +307,6 @@ export default function Chat({ user, socket, conversations, setConversations, on
       s.off("conversation:clear");
       s.off("messages:seen");
       s.off("chat:typing");
-      s.off("user:presence");
     };
   }, [socket, selectedConv, user]);
 
@@ -529,6 +528,15 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
   // Delete message
   const handleDeleteMessage = async (messageId: string) => {
+    // 1. Optimistic UI update
+    setMessages((prev) =>
+      prev.map((m) =>
+        m._id === messageId
+          ? { ...m, isDeleted: true, text: "This message was deleted", attachments: [] }
+          : m
+      )
+    );
+
     try {
       const res = await apiFetch(`/api/chats/messages/${messageId}`, {
         method: "DELETE",
@@ -536,9 +544,25 @@ export default function Chat({ user, socket, conversations, setConversations, on
       const data = await res.json();
       if (!res.ok || !data.success) {
         logger.error("Message deletion failed");
+        window.dispatchEvent(
+          new CustomEvent("showToast", {
+            detail: {
+              message: data.message || "Failed to delete message.",
+              type: "error",
+            },
+          })
+        );
       }
     } catch (e) {
       logger.error(e);
+      window.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: {
+            message: "Error deleting message.",
+            type: "error",
+          },
+        })
+      );
     }
   };
 
@@ -1090,9 +1114,9 @@ export default function Chat({ user, socket, conversations, setConversations, on
                               {isMe && (
                                 <span>
                                   {msg.seen ? (
-                                    <CheckCheck className="h-3 w-3 text-white" />
+                                    <CheckCheck className="h-3.5 w-3.5 text-sky-400" />
                                   ) : (
-                                    <Check className="h-3 w-3 text-zinc-650" />
+                                    <Check className="h-3.5 w-3.5 text-zinc-550" />
                                   )}
                                 </span>
                               )}
@@ -1221,102 +1245,214 @@ export default function Chat({ user, socket, conversations, setConversations, on
       </GlassCard>
 
       {contextMenu && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          style={{
-            position: "fixed",
-            left: contextMenu.x,
-            top: contextMenu.y,
-            transform: "translate(-50%, -100%)",
-            zIndex: 1000,
-          }}
-          className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden"
-        >
-          <div className="flex flex-wrap gap-1 p-2 border-b border-zinc-800">
-            {["👍", "❤️", "😂", "😮", "😢", "😠"].map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => {
-                  handleReaction(contextMenu.message, emoji);
-                  setContextMenu(null);
-                }}
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-xl hover:bg-zinc-800 transition-all"
+        <>
+          {isMobile ? (
+            <>
+              {/* Mobile Backdrop */}
+              <div 
+                className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 pointer-events-auto" 
+                onClick={() => setContextMenu(null)} 
+              />
+              {/* Mobile Bottom Sheet Menu */}
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 250 }}
+                className="fixed bottom-0 inset-x-0 bg-zinc-900/95 backdrop-blur-xl border-t border-zinc-800 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-50 overflow-hidden pb-8 max-w-md mx-auto pointer-events-auto"
               >
-                {emoji}
-              </button>
-            ))}
-            <button
-              onClick={() => {
-                setShowEmojiPicker(contextMenu.message._id);
-                setContextMenu(null);
-              }}
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-xl hover:bg-zinc-800 transition-all"
-            >
-              <Smile className="h-4 w-4" />
-            </button>
-          </div>
+                {/* Drag Handle */}
+                <div className="w-12 h-1 bg-zinc-700 rounded-full mx-auto my-3" />
+                
+                {/* Emoji reactions row */}
+                <div className="flex justify-between px-6 py-2 border-b border-zinc-800/60 overflow-x-auto gap-2 scrollbar-none">
+                  {["👍", "❤️", "😂", "😮", "😢", "😠"].map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => {
+                        handleReaction(contextMenu.message, emoji);
+                        setContextMenu(null);
+                      }}
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-2xl hover:bg-zinc-800 active:scale-90 transition-all shrink-0 cursor-pointer"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => {
+                      setShowEmojiPicker(contextMenu.message._id);
+                      setContextMenu(null);
+                    }}
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl hover:bg-zinc-800 active:scale-90 transition-all shrink-0 bg-zinc-800/40 border border-zinc-700/30 cursor-pointer"
+                  >
+                    <Smile className="h-5 w-5 text-zinc-300" />
+                  </button>
+                </div>
 
-          <div className="p-1">
-            {!contextMenu.message.isDeleted && (
-              <>
-                <button
-                  onClick={() => handleCopyMessage(contextMenu.message)}
-                  className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  Copy Message
-                </button>
+                {/* Actions list */}
+                <div className="p-4 space-y-1">
+                  {!contextMenu.message.isDeleted && (
+                    <>
+                      <button
+                        onClick={() => {
+                          handleCopyMessage(contextMenu.message);
+                          setContextMenu(null);
+                        }}
+                        className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                      >
+                        <Copy className="h-4 w-4 text-zinc-400" />
+                        Copy Message
+                      </button>
+                      <button
+                        onClick={() => {
+                          setForwardModal({
+                            message: contextMenu.message,
+                            x: window.innerWidth / 2,
+                            y: window.innerHeight / 2,
+                          });
+                          setContextMenu(null);
+                        }}
+                        className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                      >
+                        <Share2 className="h-4 w-4 text-zinc-400" />
+                        Forward Message
+                      </button>
+                      {contextMenu.message.sender._id === user._id && isEditable(contextMenu.message.createdAt) && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setEditingMessage(contextMenu.message);
+                              setEditText(contextMenu.message.text);
+                              setContextMenu(null);
+                            }}
+                            className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                          >
+                            <Edit2 className="h-4 w-4 text-zinc-400" />
+                            Edit Message
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleDeleteMessage(contextMenu.message._id);
+                              setContextMenu(null);
+                            }}
+                            className="w-full px-4 py-3 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-3 cursor-pointer"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-400" />
+                            Delete Message
+                          </button>
+                        </>
+                      )}
+                    </>
+                  )}
+                  <button
+                    onClick={() => setContextMenu(null)}
+                    className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-400 hover:bg-zinc-850 rounded-xl flex items-center gap-3 border border-zinc-800/50 mt-2 cursor-pointer"
+                  >
+                    <X className="h-4 w-4 text-zinc-400" />
+                    Cancel
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          ) : (
+            /* Desktop Context Menu with Bounded Position to prevent off-screen cuts */
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              style={{
+                position: "fixed",
+                left: Math.min(Math.max(20, contextMenu.x), window.innerWidth - 340),
+                top: Math.min(Math.max(20, contextMenu.y - 120), window.innerHeight - 260),
+                zIndex: 1000,
+              }}
+              className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto"
+            >
+              <div className="flex flex-wrap gap-1 p-2 border-b border-zinc-800">
+                {["👍", "❤️", "😂", "😮", "😢", "😠"].map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => {
+                      handleReaction(contextMenu.message, emoji);
+                      setContextMenu(null);
+                    }}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-xl hover:bg-zinc-800 transition-all cursor-pointer"
+                  >
+                    {emoji}
+                  </button>
+                ))}
                 <button
                   onClick={() => {
-                    setForwardModal({
-                      message: contextMenu.message,
-                      x: contextMenu.x,
-                      y: contextMenu.y,
-                    });
+                    setShowEmojiPicker(contextMenu.message._id);
                     setContextMenu(null);
                   }}
-                  className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-xl hover:bg-zinc-800 transition-all cursor-pointer"
                 >
-                  <Share2 className="h-3.5 w-3.5" />
-                  Forward Message
+                  <Smile className="h-4 w-4" />
                 </button>
-                {contextMenu.message.sender._id === user._id && isEditable(contextMenu.message.createdAt) && (
+              </div>
+
+              <div className="p-1">
+                {!contextMenu.message.isDeleted && (
                   <>
                     <button
-                      onClick={() => {
-                        setEditingMessage(contextMenu.message);
-                        setEditText(contextMenu.message.text);
-                        setContextMenu(null);
-                      }}
-                      className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2"
+                      onClick={() => handleCopyMessage(contextMenu.message)}
+                      className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2 cursor-pointer"
                     >
-                      <Edit2 className="h-3.5 w-3.5" />
-                      Edit Message
+                      <Copy className="h-3.5 w-3.5" />
+                      Copy Message
                     </button>
                     <button
                       onClick={() => {
-                        handleDeleteMessage(contextMenu.message._id);
+                        setForwardModal({
+                          message: contextMenu.message,
+                          x: contextMenu.x,
+                          y: contextMenu.y,
+                        });
                         setContextMenu(null);
                       }}
-                      className="w-full px-3 py-2.5 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-2"
+                      className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2 cursor-pointer"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Delete Message
+                      <Share2 className="h-3.5 w-3.5" />
+                      Forward Message
                     </button>
+                    {contextMenu.message.sender._id === user._id && isEditable(contextMenu.message.createdAt) && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditingMessage(contextMenu.message);
+                            setEditText(contextMenu.message.text);
+                            setContextMenu(null);
+                          }}
+                          className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2 cursor-pointer"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                          Edit Message
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleDeleteMessage(contextMenu.message._id);
+                            setContextMenu(null);
+                          }}
+                          className="w-full px-3 py-2.5 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-2 cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete Message
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
-              </>
-            )}
-            <button
-              onClick={() => setContextMenu(null)}
-              className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-400 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2"
-            >
-              <X className="h-3.5 w-3.5" />
-              Cancel
-            </button>
-          </div>
-        </motion.div>
+                <button
+                  onClick={() => setContextMenu(null)}
+                  className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-400 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2 cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </>
       )}
 
       {/* Custom Emoji Picker Modal */}

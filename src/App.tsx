@@ -19,6 +19,7 @@ import {
 	Users,
 	ShoppingBag,
 	ArrowRight,
+	ArrowLeft,
 } from "lucide-react";
 import type { User, Notification, Conversation } from "./types";
 import BackgroundGradients from "./components/BackgroundGradients";
@@ -133,6 +134,18 @@ export default function App() {
 	// Global Toast Notification State
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
 	const [toastType, setToastType] = useState<"success" | "error">("success");
+
+	// Navigation history tracker
+	const [tabHistory, setTabHistory] = useState<string[]>([]);
+
+	const navigateToTab = useCallback((newTab: string) => {
+		setTab((prev) => {
+			if (prev !== newTab) {
+				setTabHistory((h) => [...h, prev]);
+			}
+			return newTab;
+		});
+	}, []);
 
 	// Callback for Profile to sync followingStates from server data
 	const handleProfileLoaded = (profileId: string, followingByMe: boolean) => {
@@ -362,6 +375,51 @@ export default function App() {
 			}
 		};
 
+		// ── Realtime user presence status changes ──
+		socket.on("user:presence", ({ userId: presenceUserId, status }: { userId: string; status: "online" | "offline" }) => {
+			setConversations((prev) =>
+				prev.map((c) => {
+					const other = c.participants.find((p) => p && p._id === presenceUserId);
+					if (other) {
+						return {
+							...c,
+							presence: status as "online" | "offline",
+						};
+					}
+					return c;
+				})
+			);
+		});
+
+		// ── Realtime chat notifications & badge increments ──
+		socket.on("chat:notification", (payload: { conversationId: string; message: any; unreadCount: number }) => {
+			setConversations((prev) => {
+				const updated = prev.map((c) => {
+					if (c._id === payload.conversationId) {
+						return {
+							...c,
+							lastMessage: payload.message,
+							unreadCounts: {
+								...c.unreadCounts,
+								[userId]: payload.unreadCount
+							}
+						};
+					}
+					return c;
+				});
+				return updated.sort((a, b) => new Date(b.lastMessage?.createdAt || b.updatedAt).getTime() - new Date(a.lastMessage?.createdAt || a.updatedAt).getTime());
+			});
+
+			window.dispatchEvent(
+				new CustomEvent("showToast", {
+					detail: {
+						message: `New message from ${payload.message.sender.fullName}: "${payload.message.text}"`,
+						type: "success",
+					},
+				})
+			);
+		});
+
 		// Listen for WebSocket events from server
 		socket.on("notification", (payload: Notification) => {
 			// 1. Increment inbox badge counter instantly
@@ -541,8 +599,8 @@ export default function App() {
 	// Helper selectors
 	const handleUserSelection = useCallback((username: string) => {
 		setSelectedUserUsername(username);
-		setTab("profile");
-	}, []);
+		navigateToTab("profile");
+	}, [navigateToTab]);
 
 	// Intercept compose tab → open PostModal instead
 	const handleTabChange = useCallback((tab: string) => {
@@ -556,13 +614,13 @@ export default function App() {
 		if (tab === "home") {
 			setSinglePostSlug(null);
 		}
-		setTab(tab);
-	}, [user?.username]);
+		navigateToTab(tab);
+	}, [user?.username, navigateToTab]);
 
 	const handlePostSelectionBySlug = useCallback((slug: string) => {
 		setSinglePostSlug(slug);
-		setTab("home");
-	}, []);
+		navigateToTab("home");
+	}, [navigateToTab]);
 
 	const handleTagSelection = useCallback((tag: string) => {
 		if (tag.startsWith("post-") || tag.includes("-")) {
@@ -571,9 +629,9 @@ export default function App() {
 		} else {
 			// It's a search tag
 			setSinglePostSlug(null);
-			setTab("home");
+			navigateToTab("home");
 		}
-	}, [handlePostSelectionBySlug]);
+	}, [handlePostSelectionBySlug, navigateToTab]);
 
 	const handleFollowSuggestion = useCallback(async (userId: string) => {
 		// Optimistic update
@@ -616,6 +674,31 @@ export default function App() {
 			);
 		}
 	}, [followingStates]);
+
+	const canGoBack = tabHistory.length > 0 || !!singlePostSlug || !!selectedUserUsername;
+
+	const handleGoBack = useCallback(() => {
+		if (singlePostSlug) {
+			setSinglePostSlug(null);
+			return;
+		}
+		if (selectedUserUsername && selectedUserUsername !== user?.username) {
+			setSelectedUserUsername("");
+			return;
+		}
+		if (tabHistory.length > 0) {
+			setTabHistory((prev) => {
+				const nextHistory = [...prev];
+				const lastTab = nextHistory.pop()!;
+				setTab(lastTab);
+				if (lastTab === "home") {
+					setSinglePostSlug(null);
+					setSelectedUserUsername("");
+				}
+				return nextHistory;
+			});
+		}
+	}, [tabHistory, singlePostSlug, selectedUserUsername, user?.username]);
 
 	return (
 		<ErrorBoundary>
@@ -863,12 +946,24 @@ export default function App() {
 													setDarkMode={setDarkMode}
 												/>
 											</div>
-											{							/* Middle Main Content Pane: Tab content scales fluidly */}
+											{/* Middle Main Content Pane: Tab content scales fluidly */}
 											<div
 												className={`${currentTab === "chat"
-													? "lg:col-span-9"
-													: "lg:col-span-6 xl:col-span-6"
+														? "lg:col-span-9"
+														: "lg:col-span-6 xl:col-span-6"
 													} w-full h-full overflow-y-auto pb-12`}>
+												{canGoBack && (
+													<motion.button
+														initial={{ opacity: 0, x: -10 }}
+														animate={{ opacity: 1, x: 0 }}
+														exit={{ opacity: 0, x: -10 }}
+														onClick={handleGoBack}
+														className="mb-4 flex h-8 items-center gap-1.5 rounded-full border border-zinc-200/10 bg-white/5 hover:bg-white/10 px-3 text-zinc-400 hover:text-white transition-all cursor-pointer shadow-sm text-xs font-bold uppercase tracking-wider select-none shrink-0"
+													>
+														<ArrowLeft className="h-3.5 w-3.5" />
+														<span>Back</span>
+													</motion.button>
+												)}
 												<ErrorBoundary>
 													<Suspense fallback={<div className="h-32 animate-pulse rounded-3xl border border-zinc-800 bg-zinc-950/20" />}>
 														<AnimatePresence mode="wait">
