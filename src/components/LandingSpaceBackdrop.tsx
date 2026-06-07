@@ -57,6 +57,9 @@ export default function LandingSpaceBackdrop() {
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
+    const gl = renderer.getContext();
+    if (gl) gl.getExtension("EXT_float_blend");
+
     // 4. White & Silver Specular Lights (Strict Monochromatic Theme)
     const ambientLight = new THREE.AmbientLight(0x1a1a1a, 1.5);
     scene.add(ambientLight);
@@ -150,7 +153,10 @@ export default function LandingSpaceBackdrop() {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, 16, 16);
       }
-      return new THREE.CanvasTexture(pCanvas);
+      const tex = new THREE.CanvasTexture(pCanvas);
+      tex.minFilter = THREE.LinearFilter;
+      tex.generateMipmaps = false;
+      return tex;
     };
 
     const starsMaterial = new THREE.PointsMaterial({
@@ -186,13 +192,15 @@ export default function LandingSpaceBackdrop() {
 
     // 8. Animation loop with organic metallic paint swaying deforms
     let animationFrameId: number;
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
+    timer.connect(document);
 
-    const animate = () => {
+    const animate = (timestamp?: number) => {
       animationFrameId = requestAnimationFrame(animate);
 
-      const delta = clock.getDelta();
-      const elapsedTime = clock.getElapsedTime();
+      timer.update(timestamp);
+      const delta = timer.getDelta();
+      const elapsedTime = timer.getElapsed();
 
       // Mouse Parallax displacement (extremely damped for subtle elegance)
       mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * 1.5 * delta;
@@ -282,6 +290,7 @@ export default function LandingSpaceBackdrop() {
       starsGeom.dispose();
       starsMaterial.dispose();
       renderer.dispose();
+      timer.dispose();
     };
   }, []);
 

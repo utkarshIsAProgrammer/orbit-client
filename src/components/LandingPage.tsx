@@ -40,36 +40,27 @@ export default function LandingPage({ onScrollToAuth, onExplorePreview, darkMode
   const infoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // GSAP Entrance timing
-    const tl = gsap.timeline();
+    if (subtitleRef.current && ctaRef.current) {
+      // GSAP Entrance timing
+      const tl = gsap.timeline();
 
-    tl.fromTo(
-      ".letter-reveal",
-      { opacity: 0, y: 80, rotateX: -60, filter: "blur(15px)" },
-      { 
-        opacity: 1, 
-        y: 0, 
-        rotateX: 0, 
-        filter: "blur(0px)", 
-        duration: 1.4, 
-        stagger: 0.12, 
-        ease: "power4.out" 
-      }
-    );
+      tl.fromTo(
+        subtitleRef.current,
+        { opacity: 0, y: 30, filter: "blur(8px)" },
+        { opacity: 1, y: 0, filter: "blur(0px)", duration: 1.0, ease: "power3.out" }
+      );
 
-    tl.fromTo(
-      subtitleRef.current,
-      { opacity: 0, y: 30, filter: "blur(8px)" },
-      { opacity: 1, y: 0, filter: "blur(0px)", duration: 1.0, ease: "power3.out" },
-      "-=0.9"
-    );
+      tl.fromTo(
+        ctaRef.current,
+        { opacity: 0, y: 25, scale: 0.96 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "back.out(1.6)" },
+        "-=0.7"
+      );
 
-    tl.fromTo(
-      ctaRef.current,
-      { opacity: 0, y: 25, scale: 0.96 },
-      { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "back.out(1.6)" },
-      "-=0.7"
-    );
+      return () => {
+        tl.kill();
+      };
+    }
   }, []);
 
   return (

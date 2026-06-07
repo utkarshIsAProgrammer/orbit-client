@@ -102,7 +102,7 @@ export default function LiquidEther({
       delta: number = 0;
       container: HTMLDivElement | null = null;
       renderer: THREE.WebGLRenderer | null = null;
-      clock: THREE.Clock | null = null;
+      timer: THREE.Timer | null = null;
 
       init(container: HTMLDivElement) {
         this.container = container;
@@ -116,8 +116,13 @@ export default function LiquidEther({
         this.renderer.domElement.style.width = '100%';
         this.renderer.domElement.style.height = '100%';
         this.renderer.domElement.style.display = 'block';
-        this.clock = new THREE.Clock();
-        this.clock.start();
+        
+        // Explicitly enable EXT_float_blend extension to silence WebGL warning
+        const gl = this.renderer.getContext();
+        if (gl) gl.getExtension('EXT_float_blend');
+
+        this.timer = new THREE.Timer();
+        this.timer.connect(document);
       }
       resize() {
         if (!this.container) return;
@@ -127,9 +132,10 @@ export default function LiquidEther({
         this.aspect = this.width / this.height;
         if (this.renderer) this.renderer.setSize(this.width, this.height, false);
       }
-      update() {
-        if (this.clock) {
-          this.delta = this.clock.getDelta();
+      update(timestamp?: number) {
+        if (this.timer) {
+          this.timer.update(timestamp);
+          this.delta = this.timer.getDelta();
           this.time += this.delta;
         }
       }
@@ -1049,15 +1055,15 @@ export default function LiquidEther({
         Common.resize();
         if (this.output) this.output.resize();
       }
-      render() {
+      render(timestamp?: number) {
         if (this.autoDriver) this.autoDriver.update();
         Mouse.update();
-        Common.update();
+        Common.update(timestamp);
         if (this.output) this.output.update();
       }
-      loop() {
+      loop(timestamp?: number) {
         if (!this.running) return;
-        this.render();
+        this.render(timestamp);
         rafRef.current = requestAnimationFrame(this._loop);
       }
       start() {
@@ -1077,6 +1083,10 @@ export default function LiquidEther({
           window.removeEventListener('resize', this._resize);
           document.removeEventListener('visibilitychange', this._onVisibility);
           Mouse.dispose();
+          if (Common.timer) {
+            Common.timer.dispose();
+            Common.timer = null;
+          }
           if (Common.renderer) {
             const canvas = Common.renderer.domElement;
             if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);

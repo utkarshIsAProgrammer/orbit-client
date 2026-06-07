@@ -49,6 +49,9 @@ export default function BackgroundGradients({ darkMode = true }: BackgroundGradi
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
+    const gl = renderer.getContext();
+    if (gl) gl.getExtension("EXT_float_blend");
+
     // 4. Create Liquid Glass Organic Wave Mesh
     // Large plane stretching across the viewport
     const cols = 48;
@@ -92,8 +95,9 @@ export default function BackgroundGradients({ darkMode = true }: BackgroundGradi
     purpleLight.position.set(5, 5, 12);
     scene.add(purpleLight);
 
-    // 6. Clock for smooth time-based animation increments
-    const clock = new THREE.Clock();
+    // 6. Timer for smooth time-based animation increments
+    const timer = new THREE.Timer();
+    timer.connect(document);
 
     // 7. Handle Window Resize
     const handleResize = () => {
@@ -118,7 +122,7 @@ export default function BackgroundGradients({ darkMode = true }: BackgroundGradi
     // 9. Main Render & Fluid Dynamics Simulation Loop
     let animationFrameId: number;
 
-    const animateScene = () => {
+    const animateScene = (timestamp?: number) => {
       // Pause entirely when tab is hidden — saves GPU + CPU
       if (tabHidden) {
         animationFrameId = requestAnimationFrame(animateScene);
@@ -132,7 +136,8 @@ export default function BackgroundGradients({ darkMode = true }: BackgroundGradi
         return;
       }
 
-      const timeVal = clock.getElapsedTime() * 0.45;
+      timer.update(timestamp);
+      const timeVal = timer.getElapsed() * 0.45;
 
       // Smooth mouse coordinate interpolation for organic response dynamics
       interpMouseRef.current.x += (mouseCoordsRef.current.x - interpMouseRef.current.x) * 0.05;
@@ -187,6 +192,7 @@ export default function BackgroundGradients({ darkMode = true }: BackgroundGradi
       renderer.dispose();
       geometry.dispose();
       material.dispose();
+      timer.dispose();
     };
   }, []);
 
