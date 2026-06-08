@@ -6,6 +6,7 @@ export const initSentry = () => {
     Sentry.init({
       dsn: import.meta.env.VITE_SENTRY_DSN,
       environment: import.meta.env.MODE,
+      tracesSampleRate: import.meta.env.PROD ? 0.1 : 0,
       beforeSend(event, hint) {
         // Filter out certain errors if needed
         if (event.exception) {

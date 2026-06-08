@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { hasWebGL } from '../utils/hasWebGL';
 import './LiquidEther.css';
 
 interface LiquidEtherProps {
@@ -54,7 +55,7 @@ export default function LiquidEther({
   const resizeRafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!mountRef.current) return;
+    if (!mountRef.current || !hasWebGL()) return;
 
     function makePaletteTexture(stops: string[]) {
       let arr: string[];
@@ -552,7 +553,7 @@ export default function LiquidEther({
         this.props = props || {};
         this.uniforms = this.props.material?.uniforms;
       }
-      init(...args: any[]) {
+      init(_args?: any) {
         this.scene = new THREE.Scene();
         this.camera = new THREE.Camera();
         if (this.uniforms) {
@@ -562,7 +563,7 @@ export default function LiquidEther({
           this.scene.add(this.plane);
         }
       }
-      update(...args: any[]) {
+      update(_args?: any) {
         if (Common.renderer && this.scene && this.camera) {
           Common.renderer.setRenderTarget(this.props.output || null);
           Common.renderer.render(this.scene, this.camera);
@@ -1104,15 +1105,21 @@ export default function LiquidEther({
     container.style.position = container.style.position || 'relative';
     container.style.overflow = container.style.overflow || 'hidden';
 
-    const webgl = new WebGLManager({
-      $wrapper: container,
-      autoDemo,
-      autoSpeed,
-      autoIntensity,
-      takeoverDuration,
-      autoResumeDelay,
-      autoRampDuration
-    });
+    let webgl: WebGLManager | null = null;
+    try {
+      webgl = new WebGLManager({
+        $wrapper: container,
+        autoDemo,
+        autoSpeed,
+        autoIntensity,
+        takeoverDuration,
+        autoResumeDelay,
+        autoRampDuration
+      });
+    } catch (e) {
+      // WebGL not fully available (headless Chromium with SwiftShader limitations)
+      return;
+    }
     webglRef.current = webgl;
 
     const applyOptionsFromProps = () => {

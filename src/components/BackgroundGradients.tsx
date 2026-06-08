@@ -1,17 +1,32 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { hasWebGL } from "../utils/hasWebGL";
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface BackgroundGradientsProps {
-  darkMode?: boolean;
 }
 
-export default function BackgroundGradients({ darkMode = true }: BackgroundGradientsProps) {
+export default function BackgroundGradients({}: BackgroundGradientsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseCoordsRef = useRef({ x: 0, y: 0 });
   const interpMouseRef = useRef({ x: 0, y: 0 });
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(
+        window.innerWidth < 768 ||
+        window.matchMedia("(pointer: coarse)").matches
+      );
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (isMobile) return;
     const handleMouseMove = (e: MouseEvent) => {
       // Normalize coordinate drift (-1 to 1)
       const x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -27,7 +42,7 @@ export default function BackgroundGradients({ darkMode = true }: BackgroundGradi
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || isMobile || !hasWebGL()) return;
 
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -39,13 +54,19 @@ export default function BackgroundGradients({ darkMode = true }: BackgroundGradi
     const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000);
     camera.position.set(0, 0, 24);
 
-    // 3. WebGL Renderer with High-Reflectivity Glass configurations
-    const renderer = new THREE.WebGLRenderer({
-      canvas: canvas,
-      alpha: true,
-      antialias: true,
-      powerPreference: "high-performance",
-    });
+    // 3. WebGL Renderer with High-Reflectivity Glass configurations (wrapped in try-catch for headless compat)
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        alpha: true,
+        antialias: true,
+        powerPreference: "high-performance",
+      });
+    } catch {
+      // WebGL not available (e.g. headless Chromium)
+      return;
+    }
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
@@ -210,7 +231,7 @@ export default function BackgroundGradients({ darkMode = true }: BackgroundGradi
       <div className="absolute w-[50vw] h-[50vw] max-w-125 max-h-125 rounded-full filter blur-[120px] opacity-10 bg-linear-to-br from-zinc-900 to-black right-[15%] bottom-[10%] animate-pulse" />
 
       {/* WebGL ThreeJS Liquid Canvas */}
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
+      {!isMobile && <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />}
     </div>
   );
 }

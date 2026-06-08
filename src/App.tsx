@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import type { User, Notification, Conversation } from "./types";
 import BackgroundGradients from "./components/BackgroundGradients";
-import Dock from "./components/Dock";
 import LeftSidebar from "./components/LeftSidebar";
 import GlassCard from "./components/GlassCard";
 import CustomCursor from "./components/CustomCursor";
@@ -34,6 +33,7 @@ const Profile = React.lazy(() => import("./components/Profile"));
 const Settings = React.lazy(() => import("./components/Settings"));
 const Chat = React.lazy(() => import("./components/Chat"));
 const ImagePreviewRenderer = React.lazy(() => import("./components/ImagePreviewRenderer"));
+const Dock = React.lazy(() => import("./components/Dock"));
 const PostModal = React.lazy(() => import("./components/PostModal"));
 
 export default function App() {
@@ -60,12 +60,10 @@ export default function App() {
 
 	// Memoize socket connection to prevent unnecessary reconnections
 	const socketRef = useRef<ReturnType<typeof io> | null>(null);
+	const socketUserIdRef = useRef<string | null>(null);
 	const [socket, setSocket] = useState<ReturnType<typeof io> | null>(null);
 	const [conversations, setConversations] = useState<Conversation[]>([]);
 	const [composeOpen, setComposeOpen] = useState(false);
-
-	// Dark mode state - forced to dark space theme
-	const [darkMode, setDarkMode] = useState(true);
 
 	useEffect(() => {
 		let timer: NodeJS.Timeout;
@@ -105,6 +103,7 @@ export default function App() {
 	// Deep Link States
 	const [selectedUserUsername, setSelectedUserUsername] = useState("");
 	const [singlePostSlug, setSinglePostSlug] = useState<string | null>(null);
+	const [autoOpenComments, setAutoOpenComments] = useState(false);
 
 	// Security Form View Controller
 	const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
@@ -329,25 +328,30 @@ export default function App() {
 	}, [user]);
 
 	// Set up socket connections
-	const connectSockets = (userId: string) => {
-		// Prevent multiple socket connections
-		if (socketRef.current?.connected) {
-			logger.info("Socket already connected, skipping reconnection");
+	const connectSockets = (userId: string, token?: string) => {
+		// Prevent multiple socket connections for the SAME user
+		if (socketRef.current?.connected && socketUserIdRef.current === userId) {
+			logger.info("Socket already connected for this user, skipping reconnection");
 			return;
 		}
 
 		// Disconnect existing socket if any
 		if (socketRef.current) {
 			socketRef.current.disconnect();
+			socketRef.current = null;
+			setSocket(null);
 		}
 
-		// Connect directly to the backend Render server in production
-		// in dev, connect to empty string (which Vite proxies)
+		socketUserIdRef.current = userId;
+
+		// In production, connect directly to the backend server
+		// In dev, connect to empty string (which Vite proxies)
 		const socketUrl = import.meta.env.PROD
-			? "https://orbit-eh1b.onrender.com"
+			? (import.meta.env.VITE_SOCKET_URL || "")
 			: "";
 		const socket = io(socketUrl, {
-			transports: ["websocket", "polling"],
+			auth: token ? { token } : undefined,
+			transports: ["polling", "websocket"],
 			withCredentials: true,
 			reconnection: true,
 			reconnectionAttempts: 5,
@@ -502,11 +506,17 @@ export default function App() {
 		// ── Realtime follow/unfollow sync ──
 		socket.on("user:follow", (data: { targetUserId: string; followerId: string; followersCount: number }) => {
 			logger.info("Received user:follow event", data);
-			setFollowingStates((prev) => ({ ...prev, [data.targetUserId]: true }));
+			if (data.followerId === uid) {
+				setFollowingStates((prev) => ({ ...prev, [data.targetUserId]: true }));
+			}
+			window.dispatchEvent(new CustomEvent("userFollowersCountChanged", { detail: data }));
 		});
 		socket.on("user:unfollow", (data: { targetUserId: string; followerId: string; followersCount: number }) => {
 			logger.info("Received user:unfollow event", data);
-			setFollowingStates((prev) => ({ ...prev, [data.targetUserId]: false }));
+			if (data.followerId === uid) {
+				setFollowingStates((prev) => ({ ...prev, [data.targetUserId]: false }));
+			}
+			window.dispatchEvent(new CustomEvent("userFollowersCountChanged", { detail: data }));
 		});
 
 		// ── Realtime new posts in feed (prepend to home feed) ──
@@ -629,6 +639,7 @@ export default function App() {
 				socketRef.current = null;
 			}
 			setSocket(null);
+			socketUserIdRef.current = null;
 		} catch (e) {
 			logger.error(e);
 		}
@@ -660,8 +671,9 @@ export default function App() {
 		navigateToTab(tab);
 	}, [user?.username, navigateToTab]);
 
-	const handlePostSelectionBySlug = useCallback((slug: string) => {
+	const handlePostSelectionBySlug = useCallback((slug: string, openComments?: boolean) => {
 		setSinglePostSlug(slug);
+		setAutoOpenComments(!!openComments);
 		navigateToTab("home");
 	}, [navigateToTab]);
 
@@ -712,6 +724,7 @@ export default function App() {
 	const handleGoBack = useCallback(() => {
 		if (singlePostSlug) {
 			setSinglePostSlug(null);
+			setAutoOpenComments(false);
 			return;
 		}
 		if (selectedUserUsername && selectedUserUsername !== user?.username) {
@@ -725,6 +738,7 @@ export default function App() {
 				setTab(lastTab);
 				if (lastTab === "home") {
 					setSinglePostSlug(null);
+					setAutoOpenComments(false);
 					setSelectedUserUsername("");
 				}
 				return nextHistory;
@@ -739,7 +753,7 @@ export default function App() {
 				<CustomCursor />
 
 				{/* Background Liquid Glob Dynamic Mesh Grid */}
-				<BackgroundGradients darkMode={darkMode} />
+				<BackgroundGradients />
 
 				{/* Global Fullscreen Image Viewer Modal (lazy) */}
 				<Suspense fallback={null}>
@@ -770,20 +784,17 @@ export default function App() {
 								exit={{ opacity: 0 }}
 								transition={{ duration: 0.5 }}
 								className="w-full flex flex-col justify-start overflow-y-auto scroll-smooth">
-								{/* Heavily Animated Landing Page with 3D components */}
-								<LandingPage
-									onScrollToAuth={() => {
-										const target =
-											document.getElementById("auth-section");
-										if (target) {
-											target.scrollIntoView({
-												behavior: "smooth",
-											});
-										}
-									}}
-									darkMode={darkMode}
-									setDarkMode={setDarkMode}
-								/>
+								{/* Heavily Animated Landing Page with 3D components */}															<LandingPage
+																onScrollToAuth={() => {
+																	const target =
+																		document.getElementById("auth-section");
+																	if (target) {
+																		target.scrollIntoView({
+																			behavior: "smooth",
+																		});
+																	}
+																}}
+															/>
 
 								{/* Auth form area (the scroll target) - perfectly centered and integrated without side animations */}
 								<div
@@ -974,16 +985,14 @@ export default function App() {
 													}
 													badgeCount={badgeCount}
 													chatBadgeCount={chatBadgeCount}
-													darkMode={darkMode}
-													setDarkMode={setDarkMode}
 												/>
 											</div>
 											{/* Middle Main Content Pane: Tab content scales fluidly */}
 											<div
 												className={`${currentTab === "chat"
-														? "lg:col-span-9"
-														: "lg:col-span-6 xl:col-span-6"
-													} w-full h-full overflow-y-auto pb-12`}>
+														? "lg:col-span-9 overflow-hidden"
+														: "lg:col-span-6 xl:col-span-6 overflow-y-auto"
+													} w-full h-full pb-32 xl:pb-12`}>
 												{canGoBack && (
 													<motion.button
 														initial={{ opacity: 0, x: -10 }}
@@ -1013,22 +1022,27 @@ export default function App() {
 																			onUserSelected={
 																				handleUserSelection
 																			}
-																			onPostSelected={
-																				handlePostSelectionBySlug
-																			}
 																			singlePostSlug={
 																				singlePostSlug
 																			}
-																			onClearSinglePost={() =>
+																			autoOpenComments={
+																				autoOpenComments
+																			}
+																			onClearAutoOpenComments={() => {
+																				setAutoOpenComments(
+																					false,
+																				);
+																			}}
+																			onClearSinglePost={() => {
 																				setSinglePostSlug(
 																					null,
-																				)
-																			}
+																				);
+																				setAutoOpenComments(
+																					false,
+																				);
+																			}}
 																			followingStates={
 																				followingStates
-																			}
-																			onToggleFollow={
-																				onToggleFollow
 																			}
 																		/>
 																	</div>
@@ -1096,9 +1110,6 @@ export default function App() {
 																		onUserSelected={
 																			handleUserSelection
 																		}
-																		onPostSelected={
-																			handlePostSelectionBySlug
-																		}
 																		searchQuery=""
 																		onClearSinglePost={() => { }}
 																		singlePostSlug={
@@ -1107,9 +1118,6 @@ export default function App() {
 																		showSavesOnly={true}
 																		followingStates={
 																			followingStates
-																		}
-																		onToggleFollow={
-																			onToggleFollow
 																		}
 																	/>
 																</motion.div>
@@ -1127,9 +1135,6 @@ export default function App() {
 																		onUserSelected={
 																			handleUserSelection
 																		}
-																		onPostSelected={
-																			handlePostSelectionBySlug
-																		}
 																		searchQuery=""
 																		onClearSinglePost={() => { }}
 																		singlePostSlug={
@@ -1140,9 +1145,6 @@ export default function App() {
 																		}
 																		followingStates={
 																			followingStates
-																		}
-																		onToggleFollow={
-																			onToggleFollow
 																		}
 																	/>
 																</motion.div>
@@ -1419,15 +1421,16 @@ export default function App() {
 								)}
 							</main>
 
-							{/* Center Apple Dock (Fixed bottom overlay) */}
-							<Dock
-								currentTab={currentTab}
-								setTab={handleTabChange}
-								user={user}
-								badgeCount={badgeCount}
-								chatBadgeCount={chatBadgeCount}
-								onLogout={handleLogout}
-							/>
+			{/* Center Apple Dock (Fixed bottom overlay) */}
+							<Suspense fallback={null}>
+								<Dock
+									currentTab={currentTab}
+									setTab={handleTabChange}
+									user={user}
+									badgeCount={badgeCount}
+									chatBadgeCount={chatBadgeCount}
+								/>
+							</Suspense>
 						</motion.div>
 					)}
 				</AnimatePresence>
@@ -1439,6 +1442,7 @@ export default function App() {
 							initial={{ opacity: 0, y: -50, scale: 0.9, x: "-50%" }}
 							animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
 							exit={{ opacity: 0, y: -20, scale: 0.9, x: "-50%" }}
+							role="status" aria-live="polite"
 							className="fixed top-8 left-1/2 z-50 flex items-center gap-2 bg-zinc-950/90 border border-white/10 px-4 py-2.5 rounded-full shadow-2xl backdrop-blur-md text-xs text-white"
 						>
 							{toastType === "success" ? (

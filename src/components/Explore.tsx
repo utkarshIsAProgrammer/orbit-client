@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { motion } from "motion/react";
+import React, { useState, useEffect } from "react";
+
 import { Search, Hash, Users, Compass, Heart, MessageSquare, Bookmark, Repeat2, AlertCircle } from "lucide-react";
 import { User, Post } from "../types";
 import GlassCard from "./GlassCard";
@@ -28,7 +28,7 @@ export default function Explore({
   const [postCandidates, setPostCandidates] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
   const [followError, setFollowError] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
 
   // Listen for realtime comment count updates from other users
   useEffect(() => {
@@ -205,14 +205,14 @@ export default function Explore({
     try {
       const res = await apiFetch(`/api/reposts/${postId}`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok || !data.success) {
-        setPostCandidates((prev) =>
-          prev.map((p) =>
-            p._id === postId ? { ...p, repostedByMe: prevReposted, repostsCount: prevCount } : p
-          )
-        );
-        setToastMessage(data.message || "Failed to repost");
-        setTimeout(() => setToastMessage(null), 2500);
+      if (!res.ok || !data.success) {      setPostCandidates((prev) =>
+        prev.map((p) =>
+          p._id === postId ? { ...p, repostedByMe: prevReposted, repostsCount: prevCount } : p
+        )
+      );
+      window.dispatchEvent(new CustomEvent("showToast", {
+        detail: { message: data.message || "Failed to repost", type: "error" },
+      }));
       } else {
         window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "repost", value: !repostedByMe } }));
       }
@@ -223,8 +223,9 @@ export default function Explore({
           p._id === postId ? { ...p, repostedByMe: prevReposted, repostsCount: prevCount } : p
         )
       );
-      setToastMessage("Network connection error");
-      setTimeout(() => setToastMessage(null), 2500);
+      window.dispatchEvent(new CustomEvent("showToast", {
+        detail: { message: "Network connection error", type: "error" },
+      }));
     }
   };
 
@@ -363,14 +364,14 @@ export default function Explore({
                       <div className="flex items-center gap-3 min-w-0">
                         <img loading="lazy"
                           src={usr.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-                          alt=""
+                          alt={usr.fullName}
                           className="h-8 w-8 shrink-0 rounded-full object-cover border border-zinc-800 shadow-sm cursor-pointer"
                           onClick={() => onUserSelected(usr.username)}
                         />
                         <div className="text-left min-w-0">
                           <h4
                             onClick={() => onUserSelected(usr.username)}
-                            className="text-sm font-semibold text-slate-900 dark:text-zinc-100 cursor-pointer hover:underline hover:text-indigo-650 dark:hover:text-indigo-400 truncate"
+                            className="text-sm font-semibold text-slate-900 dark:text-zinc-100 cursor-pointer hover:underline hover:text-indigo-600 dark:hover:text-indigo-400 truncate"
                           >
                             {usr.fullName}
                           </h4>
@@ -500,12 +501,7 @@ export default function Explore({
         </div>
       </div>
 
-      {/* Floating Toast warning for user interactions */}
-      {toastMessage && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-full bg-zinc-900 border border-zinc-700 px-4 py-2 text-xs text-white shadow-2xl animate-bounce">
-          {toastMessage}
-        </div>
-      )}
+
     </div>
   );
 }

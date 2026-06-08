@@ -323,7 +323,7 @@ export default function CommentNode({
             <div>
               <h5
                 onClick={() => onUserSelected(comment.author.username)}
-                className="font-sans text-xs font-semibold text-slate-900 dark:text-zinc-100 leading-none cursor-pointer hover:text-indigo-650 dark:hover:text-indigo-400 transition-colors"
+                className="font-sans text-xs font-semibold text-slate-900 dark:text-zinc-100 leading-none cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
               >
                 {comment.author.fullName}
               </h5>
@@ -467,7 +467,7 @@ export default function CommentNode({
               onClick={() => setShowReplies(!showReplies)}
               className={`text-xs font-medium transition-colors ${showReplies
                 ? "text-indigo-400"
-                : "text-slate-500 dark:text-zinc-400 hover:text-indigo-650 dark:hover:text-indigo-400"
+                : "text-slate-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400"
                 }`}
             >
               {showReplies ? "Hide Replies" : `View ${effectiveRepliesCount} ${effectiveRepliesCount === 1 ? "Reply" : "Replies"}`}

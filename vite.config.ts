@@ -1,25 +1,45 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import path from 'path';
 import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      sentryVitePlugin({
+        org: process.env.SENTRY_ORG || "orbit-app",
+        project: process.env.SENTRY_PROJECT || "orbit-frontend",
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        disable: !process.env.SENTRY_AUTH_TOKEN,
+        sourcemaps: {
+          assets: "./dist/assets/**",
+        },
+      }),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
     },
     build: {
+      sourcemap: true,
       rollupOptions: {
         output: {
           manualChunks: {
             vendor: ['react', 'react-dom', 'motion/react'],
+            icons: ['lucide-react'],
             socket: ['socket.io-client'],
+            three: ['three'],
+            gsap: ['gsap'],
+            cropper: ['react-easy-crop'],
             chat: ['./src/components/Chat.tsx'],
             feed: ['./src/components/Feed.tsx'],
             profile: ['./src/components/Profile.tsx'],
+            landing: ['./src/components/LandingPage.tsx'],
+            leftnav: ['./src/components/LeftSidebar.tsx'],
           },
         },
       },
@@ -35,8 +55,8 @@ export default defineConfig(() => {
         '/api': {
           target: 'http://localhost:5006',
           changeOrigin: true,
-          configure: (proxy, options) => {
-            proxy.on('proxyReq', (proxyReq, req, res) => {
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => {
               proxyReq.setHeader('Origin', 'http://localhost:5006');
             });
           },

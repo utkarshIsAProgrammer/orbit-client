@@ -17,7 +17,6 @@ interface DockProps {
   user: UserType | null;
   badgeCount: number;
   chatBadgeCount: number;
-  onLogout: () => void;
 }
 
 // Liquid glass shimmer keyframe
@@ -34,8 +33,7 @@ export default React.memo(function Dock({
   user,
   badgeCount,
   chatBadgeCount,
-  onLogout,
-}: DockProps) {
+}: Omit<DockProps, never>) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const leftItems: DockItem[] = [
@@ -65,7 +63,8 @@ export default React.memo(function Dock({
         onClick={() => setTab(item.id)}
         onMouseEnter={() => setHoveredIndex(index)}
         onMouseLeave={() => setHoveredIndex(null)}
-        className="group relative flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl text-zinc-550 dark:text-zinc-500 transition-colors hover:text-black dark:hover:text-white"
+        aria-label={item.label}
+        className="group relative flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl text-zinc-500 dark:text-zinc-500 transition-colors hover:text-black dark:hover:text-white"
       >
         {/* Active indicator glow */}
         {isActive && (

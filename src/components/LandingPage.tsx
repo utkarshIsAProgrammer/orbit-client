@@ -1,73 +1,60 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, lazy, Suspense } from "react";
 import { gsap } from "gsap";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import {
-  Sparkles,
   ArrowDown,
-  Lock,
   Globe,
-  Share2,
-  Zap,
   ArrowRight,
   Compass,
   MessageSquare,
-  Shield,
   Activity,
-  Cpu,
-  Radio,
-  Server,
-  Sun,
-  Moon,
   Bookmark,
-  Users,
 } from "lucide-react";
 import GlassCard from "./GlassCard";
-import LandingSpaceBackdrop from "./LandingSpaceBackdrop";
 import SplitText from "./SplitText";
 import ShinyText from "./ShinyText";
 
+const LandingSpaceBackdrop = lazy(() => import("./LandingSpaceBackdrop"));
+
 interface LandingPageProps {
   onScrollToAuth: () => void;
-  onExplorePreview?: () => void;
-  darkMode: boolean;
-  setDarkMode: (dark: boolean) => void;
 }
 
-export default function LandingPage({ onScrollToAuth, onExplorePreview, darkMode, setDarkMode }: LandingPageProps) {
-  const titleLetters = "ORBIT".split("");
+export default function LandingPage({ onScrollToAuth }: LandingPageProps) {
   const subtitleRef = useRef<HTMLParagraphElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (subtitleRef.current && ctaRef.current) {
-      // GSAP Entrance timing
-      const tl = gsap.timeline();
+    if (!subtitleRef.current || !ctaRef.current) return;
+    // GSAP Entrance timing
+    const tl = gsap.timeline();
 
-      tl.fromTo(
-        subtitleRef.current,
-        { opacity: 0, y: 30, filter: "blur(8px)" },
-        { opacity: 1, y: 0, filter: "blur(0px)", duration: 1.0, ease: "power3.out" }
-      );
+    tl.fromTo(
+      subtitleRef.current,
+      { opacity: 0, y: 30, filter: "blur(8px)" },
+      { opacity: 1, y: 0, filter: "blur(0px)", duration: 1.0, ease: "power3.out" }
+    );
 
-      tl.fromTo(
-        ctaRef.current,
-        { opacity: 0, y: 25, scale: 0.96 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "back.out(1.6)" },
-        "-=0.7"
-      );
+    tl.fromTo(
+      ctaRef.current,
+      { opacity: 0, y: 25, scale: 0.96 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "back.out(1.6)" },
+      "-=0.7"
+    );
 
-      return () => {
-        tl.kill();
-      };
-    }
+    return () => {
+      tl.kill();
+    };
   }, []);
 
   return (
     <div className="relative w-full min-h-screen bg-transparent overflow-hidden flex flex-col justify-between font-sans selection:bg-white/20">
       
-      {/* Fully interactive 3D deep space cosmic backdrop */}
-      <LandingSpaceBackdrop />
+      {/* Fully interactive 3D deep space cosmic backdrop (lazy-loaded) */}
+      <Suspense fallback={<div className="absolute inset-0 bg-black z-0" />}>
+        <LandingSpaceBackdrop />
+      </Suspense>
       
       {/* 1. Monochromatic Accent Glows */}
       <div className="absolute inset-x-0 -top-40 h-[70vh] bg-linear-to-b from-white/5 via-transparent to-transparent blur-[140px] pointer-events-none -z-10" />

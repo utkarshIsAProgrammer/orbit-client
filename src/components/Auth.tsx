@@ -1,15 +1,12 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Mail,
   Lock,
   User,
   ShieldCheck,
   AlertCircle,
-  Sparkles,
   ArrowRight,
   Camera,
-  CheckCircle,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -17,10 +14,12 @@ import { User as UserType } from "../types";
 import GlassCard from "./GlassCard";
 import ShinyText from "./ShinyText";
 import ValidationMessage from "./ValidationMessage";
+import CharCounter from "./CharCounter";
 import { apiFetch } from "../utils/api";
+import { validateSignup, validateLogin } from "../utils/validation";
 
 interface AuthProps {
-  onAuthSuccess: (user: UserType) => void;
+  onAuthSuccess: (user: UserType, token?: string) => void;
   onForgotPasswordClick: () => void;
 }
 
@@ -55,7 +54,7 @@ export default function Auth({
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [gender, setGender] = useState<"male" | "female" | "others">("others");
+  const [gender] = useState<"male" | "female" | "others">("others");
   const [bio, setBio] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -69,40 +68,20 @@ export default function Auth({
   // Sign up Form Submit
   const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const errors: Record<string, string> = {};
-    if (!username.trim()) errors.username = "Username is required.";
-    if (!fullName.trim()) errors.fullName = "Full name is required.";
-    if (!email.trim()) errors.email = "Email address is required.";
-    if (!password) errors.password = "Password is required.";
-    if (!confirmPassword) errors.confirmPassword = "Please confirm your password.";
+    const errors = validateSignup({
+      username,
+      fullName,
+      email,
+      password,
+      confirmPassword,
+      bio,
+    });
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       setError(null);
       return;
     }
     setFieldErrors({});
-
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      setFieldErrors({ email: "Please enter a valid email address." });
-      return;
-    }
-
-    // Password match check
-    if (password !== confirmPassword) {
-      setFieldErrors({ confirmPassword: "Passwords do not match." });
-      return;
-    }
-
-    // Password complexity checks: standard regex (min 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special symbol)
-    const complexity = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_])[\w\W]{8,}$/;
-    if (!complexity.test(password)) {
-      setError(
-        "Password must contain at least 8 characters, including 1 uppercase letter, 1 lowercase letter, 1 digit, and 1 special symbol."
-      );
-      return;
-    }
 
     setError(null);
     setLoading(true);
@@ -145,9 +124,7 @@ export default function Auth({
   // Login Form Submit
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const errors: Record<string, string> = {};
-    if (!identity.trim()) errors.identity = "Username or email is required.";
-    if (!password) errors.password = "Password is required.";
+    const errors = validateLogin({ usernameOrEmail: identity, password });
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       setError(null);
@@ -207,13 +184,13 @@ export default function Auth({
         </div>
 
         {error && (
-          <div className="mb-6 flex items-start gap-2.5 rounded-2xl border border-red-950/30 bg-red-950/20 p-3.5 text-xs text-red-450 font-sans">
+          <div className="mb-6 flex items-start gap-2.5 rounded-2xl border border-red-950/30 bg-red-950/20 p-3.5 text-xs text-red-400 font-sans">
             <AlertCircle className="h-4.5 w-4.5 shrink-0 text-red-400 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={tab === "login" ? handleLoginSubmit : handleSignupSubmit} className="space-y-5">
+        <form onSubmit={tab === "login" ? handleLoginSubmit : handleSignupSubmit} noValidate className="space-y-5">
           <AnimatePresence mode="wait">
             {tab === "login" ? (
               <motion.div
@@ -225,15 +202,15 @@ export default function Auth({
                 className="space-y-4 font-sans"
               >
                 <div className="space-y-2 text-left">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Username or Email</label>
+                  <label htmlFor="login-identity" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Username or Email</label>
                   <div className="relative group">
                     <span className="absolute inset-y-0 left-0 flex items-center pl-5 text-zinc-400 group-focus-within:text-black dark:group-focus-within:text-white transition-colors">
                       <User className="h-4.5 w-4.5" />
                     </span>
                     <input
+                      id="login-identity"
                       type="text"
                       required
-                      onInvalid={(e) => e.preventDefault()}
                       placeholder="alice@gmail.com"
                       value={identity}
                       onChange={(e) => { setIdentity(e.target.value); clearFieldError("identity"); }}
@@ -245,11 +222,11 @@ export default function Auth({
 
                 <div className="space-y-2 text-left">
                   <div className="flex items-center justify-between pl-4">
-                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Password</label>
+                    <label htmlFor="login-password" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Password</label>
                     <button
                       type="button"
                       onClick={onForgotPasswordClick}
-                      className="text-xs font-bold text-zinc-450 dark:text-zinc-455 hover:text-white dark:hover:text-zinc-200 transition-colors focus:outline-none cursor-pointer"
+                      className="text-xs font-bold text-zinc-400 dark:text-zinc-400 hover:text-white dark:hover:text-zinc-200 transition-colors focus:outline-none cursor-pointer"
                     >
                       Forgot Password?
                     </button>
@@ -259,10 +236,10 @@ export default function Auth({
                       <Lock className="h-4.5 w-4.5" />
                     </span>
                     <input
+                      id="login-password"
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       required
-                      onInvalid={(e) => e.preventDefault()}
                       placeholder="••••••••••••"
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
@@ -376,40 +353,47 @@ export default function Auth({
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Username</label>
+                  <label htmlFor="signup-username" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Username</label>
                   <input
+                    id="signup-username"
                     type="text"
                     required
-                    onInvalid={(e) => e.preventDefault()}
-                    maxLength={15}
                     placeholder="alice"
                     value={username}
                     onChange={(e) => { setUsername(e.target.value.toLowerCase().replace(/\s+/g, "")); clearFieldError("username"); }}
+                    maxLength={100}
                     className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 px-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
                   />
-                  <ValidationMessage message={fieldErrors.username} />
+                  <div className="flex items-center justify-between px-1">
+                    <ValidationMessage message={fieldErrors.username} />
+                    <CharCounter current={username.length} max={100} />
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Full Name</label>
+                  <label htmlFor="signup-fullname" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Full Name</label>
                   <input
+                    id="signup-fullname"
                     type="text"
                     required
-                    onInvalid={(e) => e.preventDefault()}
                     placeholder="Alice Smith"
                     value={fullName}
                     onChange={(e) => { setFullName(e.target.value); clearFieldError("fullName"); }}
+                    maxLength={50}
                     className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 px-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
                   />
-                  <ValidationMessage message={fieldErrors.fullName} />
+                  <div className="flex items-center justify-between px-1">
+                    <ValidationMessage message={fieldErrors.fullName} />
+                    <CharCounter current={fullName.length} max={50} />
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Email Address</label>
+                  <label htmlFor="signup-email" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Email Address</label>
                   <input
+                    id="signup-email"
                     type="email"
                     required
-                    onInvalid={(e) => e.preventDefault()}
                     placeholder="alice@gmail.com"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
@@ -419,13 +403,13 @@ export default function Auth({
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Password</label>
+                  <label htmlFor="signup-password" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Password</label>
                   <div className="relative">
                     <input
+                      id="signup-password"
                       type={showPassword ? "text" : "password"}
                       autoComplete="new-password"
                       required
-                      onInvalid={(e) => e.preventDefault()}
                       placeholder="••••••••••••"
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
@@ -443,13 +427,13 @@ export default function Auth({
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Confirm Password</label>
+                  <label htmlFor="signup-confirm-password" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Confirm Password</label>
                   <div className="relative">
                     <input
+                      id="signup-confirm-password"
                       type={showConfirmPassword ? "text" : "password"}
                       autoComplete="new-password"
                       required
-                      onInvalid={(e) => e.preventDefault()}
                       placeholder="••••••••••••"
                       value={confirmPassword}
                       onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}
@@ -467,14 +451,19 @@ export default function Auth({
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Bio / About</label>
+                  <label htmlFor="signup-bio" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Bio / About</label>
                   <textarea
+                    id="signup-bio"
                     rows={2}
                     placeholder="A short snippet about yourself..."
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
+                    maxLength={300}
                     className="w-full rounded-3xl border border-zinc-800 bg-zinc-950/20 py-3.5 px-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all resize-none"
                   />
+                  <div className="flex justify-end px-1">
+                    <CharCounter current={bio.length} max={300} />
+                  </div>
                 </div>
 
                 <button

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence } from "motion/react";
 import {
   Bell,
   Heart,
@@ -140,7 +140,7 @@ export default function Notifications({
       case "comment":
         return {
           icon: MessageSquare,
-          color: "text-zinc-650 bg-zinc-800/20 border-zinc-800",
+          color: "text-zinc-600 bg-zinc-800/20 border-zinc-800",
           text: "commented on your post",
         };
       case "follow":
@@ -164,7 +164,7 @@ export default function Notifications({
       case "mention":
         return {
           icon: AtSign,
-          color: "text-zinc-650 bg-zinc-800/20 border-zinc-800",
+          color: "text-zinc-600 bg-zinc-800/20 border-zinc-800",
           text: "mentioned you inside a post thread",
         };
       case "reaction":
@@ -237,7 +237,7 @@ export default function Notifications({
 
       {error && (
         <div className="mb-6 flex items-start gap-2.5 rounded-3xl border border-red-900/30 bg-red-950/25 p-4.5 text-xs text-red-800 dark:text-red-400">
-          <AlertCircle className="h-4.5 w-4.5 shrink-0 text-red-650" />
+          <AlertCircle className="h-4.5 w-4.5 shrink-0 text-red-600" />
           <span>{error}</span>
         </div>
       )}

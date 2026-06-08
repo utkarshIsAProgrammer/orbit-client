@@ -11,9 +11,6 @@ interface LeftSidebarProps {
   setSelectedUserUsername: (username: string) => void;
   badgeCount: number;
   chatBadgeCount: number;
-  darkMode: boolean;
-  setDarkMode: (value: boolean) => void;
-  onPostCreated?: () => void;
 }
 
 export default React.memo(function LeftSidebar({
@@ -23,9 +20,6 @@ export default React.memo(function LeftSidebar({
   setSelectedUserUsername,
   badgeCount,
   chatBadgeCount,
-  darkMode,
-  setDarkMode,
-  onPostCreated,
 }: LeftSidebarProps) {
   const [postModalOpen, setPostModalOpen] = useState(false);
 

@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Image, Loader2 } from "lucide-react";
 import ImageCropModal from "./ImageCropModal";
 import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
+import { validatePost } from "../utils/validation";
+import ValidationMessage from "./ValidationMessage";
+import CharCounter from "./CharCounter";
 
 interface PostModalProps {
   isOpen: boolean;
@@ -21,9 +24,68 @@ export default function PostModal({ isOpen, onClose, onPostCreated }: PostModalP
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState("");
 
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const clearFieldError = (field: string) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  // Close on Escape key + focus trap
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key === "Tab") {
+        const modal = modalRef.current;
+        if (!modal) return;
+        const focusable = modal.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    // Focus first focusable element on open
+    requestAnimationFrame(() => {
+      const firstFocusable = modalRef.current?.querySelector<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      firstFocusable?.focus();
+    });
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !content) return;
+    const errors = validatePost({ title, content });
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
     setSubmittingPost(true);
 
     try {
@@ -34,18 +96,33 @@ export default function PostModal({ isOpen, onClose, onPostCreated }: PostModalP
         formData.append("image", postImageFile);
       }
 
-      await apiFetch("/api/posts", {
+      const res = await apiFetch("/api/posts", {
         method: "POST",
         body: formData,
       });
 
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to create post");
+      }
+
+      // Revoke previous preview URL to prevent memory leaks
+      if (postImagePreview) URL.revokeObjectURL(postImagePreview);
       setTitle("");
       setContent("");
       setPostImageFile(null);
       setPostImagePreview("");
       onPostCreated();
-    } catch (err) {
+    } catch (err: any) {
       logger.error(err);
+      window.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: {
+            message: err.message || "Failed to create post. Please try again.",
+            type: "error",
+          },
+        })
+      );
     } finally {
       setSubmittingPost(false);
     }
@@ -55,7 +132,7 @@ export default function PostModal({ isOpen, onClose, onPostCreated }: PostModalP
 
   return (
     <AnimatePresence>
-      <div key="post-modal-overlay" className="fixed inset-0 z-100 flex items-center justify-center p-4">
+      <div key="post-modal-overlay" ref={modalRef} className="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -76,22 +153,32 @@ export default function PostModal({ isOpen, onClose, onPostCreated }: PostModalP
             </button>
           </div>
           <div className="p-4">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Give your post a title..."
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                autoFocus
-                className="w-full bg-transparent text-xl font-bold text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-600 outline-none"
-              />
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  maxLength={500}
+                  placeholder="Give your post a title..."
+                  value={title}
+                  onChange={(e) => { setTitle(e.target.value); clearFieldError("title"); }}
+                  autoFocus
+                  className="flex-1 bg-transparent text-xl font-bold text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-600 outline-none"
+                />
+                <CharCounter current={title.length} max={500} />
+              </div>
+              <ValidationMessage message={fieldErrors.title} />
               <textarea
                 rows={4}
                 placeholder="What's on your mind today? Share any interesting thought or story..."
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={(e) => { setContent(e.target.value); clearFieldError("content"); }}
+                maxLength={5000}
                 className="w-full resize-none bg-transparent text-sm text-slate-800 dark:text-zinc-300 placeholder-slate-500 dark:placeholder-zinc-500 outline-none"
               />
+              <div className="flex items-center justify-end mt-1">
+                <CharCounter current={content.length} max={5000} />
+              </div>
+              <ValidationMessage message={fieldErrors.content} />
               {postImagePreview && (
                 <div className="relative mt-3 rounded-xl border border-zinc-800 overflow-hidden">
                   <img loading="lazy" src={postImagePreview} alt="" className="w-full h-auto max-h-125 object-cover" />
@@ -115,6 +202,8 @@ export default function PostModal({ isOpen, onClose, onPostCreated }: PostModalP
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
+                        // Revoke previous crop image URL to prevent leaks
+                        if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
                         setCropImageSrc(URL.createObjectURL(file));
                         setCropModalOpen(true);
                       }

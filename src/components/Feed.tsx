@@ -11,12 +11,9 @@ import {
   Loader2,
   Eye,
   Share2,
-  AtSign,
   AlertCircle,
   X,
   MessageCircle,
-  CheckCircle,
-  Grid,
 } from "lucide-react";
 import { Post, Comment, User } from "../types";
 import GlassCard from "./GlassCard";
@@ -24,36 +21,35 @@ import ImageCropModal from "./ImageCropModal";
 import CommentNode from "./CommentNode";
 import Skeleton from "./Skeleton";
 import ValidationMessage from "./ValidationMessage";
+import CharCounter from "./CharCounter";
 import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
+import { validatePost, validateComment } from "../utils/validation";
 
 interface FeedProps {
   user: User | null;
-  onPostSelected?: (slug: string) => void;
   onUserSelected: (username: string) => void;
-  // Let's pass in a deep link post slug if opened from notifications
   singlePostSlug?: string | null;
   onClearSinglePost?: () => void;
-  searchQuery?: string; // Optional search query passed from parent search tab
+  searchQuery?: string;
   showSavesOnly?: boolean;
   showRepostsOnly?: boolean;
-  onTagSelected?: (tag: string) => void;
   followingStates: Record<string, boolean>;
-  onToggleFollow: (userId: string) => Promise<void>;
+  autoOpenComments?: boolean;
+  onClearAutoOpenComments?: () => void;
 }
 
 export default function Feed({
   user,
-  onPostSelected,
   onUserSelected,
   singlePostSlug,
   onClearSinglePost,
   searchQuery = "",
   showSavesOnly = false,
   showRepostsOnly = false,
-  onTagSelected,
   followingStates,
-  onToggleFollow,
+  autoOpenComments = false,
+  onClearAutoOpenComments,
 }: FeedProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,17 +93,8 @@ export default function Feed({
   };
 
   const [error, setError] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Pull-to-refresh state
   const [pullDistance, setPullDistance] = useState(0);
@@ -215,9 +202,12 @@ export default function Feed({
       const data = await res.json();
       if (res.ok && data.success && data.post) {
         setPosts([data.post]);
-        // Open comments thread drawer instantly
-        setSelectedPost(data.post);
-        loadComments(data.post._id);
+        if (autoOpenComments) {
+          // Open comments thread drawer instantly
+          setSelectedPost(data.post);
+          loadComments(data.post._id);
+          if (onClearAutoOpenComments) onClearAutoOpenComments();
+        }
       }
     } catch (e) {
       logger.error(e);
@@ -232,7 +222,7 @@ export default function Feed({
     } else {
       fetchPosts(true);
     }
-  }, [singlePostSlug, searchQuery, user, showSavesOnly, showRepostsOnly]);
+  }, [singlePostSlug, searchQuery, user, showSavesOnly, showRepostsOnly, autoOpenComments]);
 
   useEffect(() => {
     const handleRefresh = () => {
@@ -522,11 +512,10 @@ export default function Feed({
   // Submit Post
   const handleCreatePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const errors: Record<string, string> = {};
-    if (!title.trim()) errors.title = "Post title is required.";
-    if (!content.trim()) errors.content = "Post content is required.";
+    const errors = validatePost({ title, content });
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
+      setError(null);
       return;
     }
     setFieldErrors({});
@@ -558,8 +547,7 @@ export default function Feed({
         setPostImageFile(null);
         setPostImagePreview("");
 
-        setToastMessage("Your post was successfully published!");
-        setTimeout(() => setToastMessage(null), 3000);
+        window.dispatchEvent(new CustomEvent("showToast", { detail: { message: "Your post was successfully published!", type: "success" } }));
       } else {
         setError(data.message || "Failed to register post.");
       }
@@ -684,13 +672,11 @@ export default function Feed({
               : null
           );
         }
-        setToastMessage(data.message || "Failed to save post");
-        setTimeout(() => setToastMessage(null), 2500);
+        window.dispatchEvent(new CustomEvent("showToast", { detail: { message: data.message || "Failed to save post", type: "error" } }));
       } else {
         // Broadcast to other components
         window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "save", value: !savedByMe } }));
-        setToastMessage(data.savedByMe ? "Post added to your saved vaults." : "Post removed from vaults.");
-        setTimeout(() => setToastMessage(null), 2500);
+        window.dispatchEvent(new CustomEvent("showToast", { detail: { message: data.savedByMe ? "Post saved!" : "Post removed from saved.", type: "success" } }));
       }
     } catch (e) {
       logger.error(e);
@@ -724,8 +710,7 @@ export default function Feed({
             : null
         );
       }
-      setToastMessage("Network connection error");
-      setTimeout(() => setToastMessage(null), 2500);
+      window.dispatchEvent(new CustomEvent("showToast", { detail: { message: "Network connection error", type: "error" } }));
     }
   };
 
@@ -785,8 +770,7 @@ export default function Feed({
               : null
           );
         }
-        setToastMessage(data.message || "Failed to repost");
-        setTimeout(() => setToastMessage(null), 2500);
+        window.dispatchEvent(new CustomEvent("showToast", { detail: { message: data.message || "Failed to repost", type: "error" } }));
       } else {
         // Broadcast to other components
         window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "repost", value: !repostedByMe } }));
@@ -823,8 +807,7 @@ export default function Feed({
             : null
         );
       }
-      setToastMessage("Network connection error");
-      setTimeout(() => setToastMessage(null), 2500);
+      window.dispatchEvent(new CustomEvent("showToast", { detail: { message: "Network connection error", type: "error" } }));
     }
   };
 
@@ -843,8 +826,7 @@ export default function Feed({
         // Copy landing URL
         const link = `${window.location.origin}/post/${postId}`;
         navigator.clipboard.writeText(link);
-        setToastMessage("Orbit links copied to clipboard!");
-        setTimeout(() => setToastMessage(null), 3000);
+        window.dispatchEvent(new CustomEvent("showToast", { detail: { message: "Orbit link copied to clipboard!", type: "success" } }));
       }
     } catch (e) {
       logger.error(e);
@@ -875,8 +857,9 @@ export default function Feed({
   // Submit dynamic comments inside the drawer
   const handleAddCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCommentText.trim()) {
-      setFieldErrors({ comment: "Comment cannot be empty." });
+    const errors = validateComment({ content: newCommentText });
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
     setFieldErrors({});
@@ -981,21 +964,6 @@ export default function Feed({
           </div>
         </div>
       )}
-      {/* Toast Alert pop */}
-      <AnimatePresence>
-        {toastMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-6 right-6 z-50 flex items-center gap-2 rounded-full bg-zinc-900 border border-zinc-800 px-5 py-3 text-xs font-semibold text-zinc-100 shadow-2xl backdrop-blur-md"
-          >
-            <CheckCircle className="h-4 w-4 text-white" />
-            <span>{toastMessage}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Title */}
       <div className="mb-6 px-1.5 flex items-center justify-between">
         <div>
@@ -1035,7 +1003,7 @@ export default function Feed({
             {/* Post Composer Card */}
             {user && (
               <GlassCard className="shadow-sm rounded-4xl border-white/5 bg-zinc-950/20 backdrop-blur-xl">
-                <form onSubmit={handleCreatePostSubmit} className="space-y-4">
+                <form onSubmit={handleCreatePostSubmit} noValidate className="space-y-4">
                   <div className="flex gap-4">
                     <img loading="lazy"
                       src={user.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
@@ -1046,15 +1014,18 @@ export default function Feed({
 
                     <div className="w-full space-y-3">
                       {/* Post Title input */}
-                      <input
-                        type="text"
-                        required
-                        onInvalid={(e) => e.preventDefault()}
-                        placeholder="Add a title..."
-                        value={title}
-                        onChange={(e) => { setTitle(e.target.value); clearFieldError("title"); }}
-                        className="w-full bg-transparent text-sm font-bold text-white placeholder-zinc-500 outline-none focus:placeholder-zinc-400"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          required
+                          maxLength={500}
+                          placeholder="Add a title..."
+                          value={title}
+                          onChange={(e) => { setTitle(e.target.value); clearFieldError("title"); }}
+                          className="flex-1 bg-transparent text-sm font-bold text-white placeholder-zinc-500 outline-none focus:placeholder-zinc-400"
+                        />
+                        <CharCounter current={title.length} max={500} />
+                      </div>
                       <ValidationMessage message={fieldErrors.title} />
 
                       {/* Post Content input */}
@@ -1062,12 +1033,14 @@ export default function Feed({
                         <textarea
                           rows={3}
                           required
-                          onInvalid={(e) => e.preventDefault()}
                           placeholder="Share your thoughts... Use #hashtags and @mentions"
                           value={content}
                           onChange={handleContentChange}
                           className="w-full bg-transparent text-xs text-zinc-300 placeholder-zinc-500 outline-none resize-none leading-relaxed focus:placeholder-zinc-400 relative"
                         />
+                        <div className="flex items-center justify-end">
+                          <CharCounter current={content.length} max={5000} />
+                        </div>
                         <ValidationMessage message={fieldErrors.content} />
 
                         {/* Autocomplete suggestions box */}
@@ -1299,7 +1272,7 @@ export default function Feed({
                           >
                             <motion.span whileTap={{ rotate: 180 }} whileHover={{ scale: 1.1 }} className="flex">
                               <Repeat2
-                                className={`h-4 w-4 text-zinc-500 group-hover:text-white ${post.repostedByMe ? "text-green-500 font-bold" : ""
+                                className={`h-4 w-4 ${post.repostedByMe ? "text-green-500 font-bold" : "text-zinc-500 group-hover:text-white"
                                   }`}
                               />
                             </motion.span>
@@ -1481,7 +1454,7 @@ export default function Feed({
                         >
                           <motion.span whileTap={{ rotate: 180 }} whileHover={{ scale: 1.1 }} className="flex">
                             <Repeat2
-                              className={`h-4 w-4 text-zinc-500 group-hover:text-white ${post.repostedByMe ? "text-green-500 font-bold" : ""
+                              className={`h-4 w-4 ${post.repostedByMe ? "text-green-500 font-bold" : "text-zinc-500 group-hover:text-white"
                                 }`}
                             />
                           </motion.span>
@@ -1594,7 +1567,7 @@ export default function Feed({
 
               {/* Composer input inside thread */}
               {user && (
-                <form onSubmit={handleAddCommentSubmit} className="mt-4 border-t border-white/10 pt-6 shrink-0">
+                <form onSubmit={handleAddCommentSubmit} noValidate className="mt-4 border-t border-white/10 pt-6 shrink-0">
                   {replyToCommentId && (
                     <div className="flex items-center justify-between mb-3.5 px-4 text-xs text-zinc-400 bg-white/5 py-2.5 rounded-full border border-white/5">
                       <span>Replying to thread</span>
@@ -1604,16 +1577,21 @@ export default function Feed({
                     </div>
                   )}
                   <div className="flex items-center gap-3.5">
+                    <div className="relative flex-1">
                     <input
                       type="text"
                       required
-                      onInvalid={(e) => e.preventDefault()}
+                      maxLength={1000}
                       placeholder="Write a comment... (use @username)"
                       value={newCommentText}
                       onChange={(e) => { setNewCommentText(e.target.value); clearFieldError("comment"); }}
-                      className="w-full rounded-full border border-white/10 bg-zinc-950/60 px-5.5 py-3 text-sm text-white placeholder-zinc-500 outline-none focus:border-white/20 focus:bg-zinc-950/80 transition-all"
+                      className="w-full rounded-full border border-white/10 bg-zinc-950/60 px-5.5 py-3 text-sm text-white placeholder-zinc-500 outline-none focus:border-white/20 focus:bg-zinc-950/80 transition-all pr-16"
                     />
-                    <ValidationMessage message={fieldErrors.comment} />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <CharCounter current={newCommentText.length} max={1000} />
+                    </div>
+                  </div>
+                  <ValidationMessage message={fieldErrors.comment} />
                     <button
                       type="submit"
                       disabled={submittingComment}

@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-	User,
-	MapPin,
 	Calendar,
-	Grid,
-	Users,
 	Share2,
 	Edit3,
 	Camera,
-	CheckCircle,
 	AlertCircle,
 	X,
 	Heart,
@@ -17,7 +12,6 @@ import {
 	Bookmark,
 	Repeat2,
 	FileText,
-	Loader2,
 	ArrowLeft,
 } from "lucide-react";
 import { User as UserType, Post } from "../types";
@@ -32,7 +26,7 @@ interface ProfileProps {
 	user: UserType | null; // Auth User
 	targetUsername: string; // The username of the profile to view
 	onUserUpdate: (newUser: UserType) => void;
-	onPostClick: (slug: string) => void;
+	onPostClick: (slug: string, openComments?: boolean) => void;
 	onUserClick: (username: string) => void;
 	followingStates: Record<string, boolean>;
 	onToggleFollow: (userId: string) => Promise<void>;
@@ -55,7 +49,7 @@ export default function Profile({
 	const [posts, setPosts] = useState<Post[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [editOpen, setEditOpen] = useState(false);
-	const [editType, setEditType] = useState<"profile" | "banner">("profile");
+	const [, setEditType] = useState<"profile" | "banner">("profile");
 
 	// Crop Modal States
 	const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -107,7 +101,7 @@ export default function Profile({
 
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [success, setSuccess] = useState<string | null>(null);
+	const [, setSuccess] = useState<string | null>(null);
 
 	const [editPostId, setEditPostId] = useState<string | null>(null);
 
@@ -121,6 +115,15 @@ export default function Profile({
 	const touchStartRef = useRef(0);
 	const isPullingRef = useRef(false);
 	const containerRef = useRef<HTMLDivElement>(null);
+
+	const getRelativeDate = (iso: string) => {
+		const minDiff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+		const hrDiff = Math.floor(minDiff / 60);
+		if (minDiff < 1) return "Now";
+		if (minDiff < 60) return `${minDiff}m`;
+		if (hrDiff < 24) return `${hrDiff}h`;
+		return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" });
+	};
 
 	// Handle touch pull-to-refresh
 	const handleTouchStart = (e: React.TouchEvent) => {
@@ -337,6 +340,18 @@ export default function Profile({
 		};
 		window.addEventListener("userViewUpdated", handleUserViewUpdated as EventListener);
 		return () => window.removeEventListener("userViewUpdated", handleUserViewUpdated as EventListener);
+	}, []);
+
+	// Listen for realtime user followers count updates
+	useEffect(() => {
+		const handleFollowersCountChanged = (e: CustomEvent<{ targetUserId: string; followerId: string; followersCount: number }>) => {
+			const { targetUserId, followersCount } = e.detail;
+			setProfile((prev) =>
+				prev && prev._id === targetUserId ? { ...prev, followersCount } : prev
+			);
+		};
+		window.addEventListener("userFollowersCountChanged", handleFollowersCountChanged as EventListener);
+		return () => window.removeEventListener("userFollowersCountChanged", handleFollowersCountChanged as EventListener);
 	}, []);
 
 	// Listen for post interaction changes from other components
@@ -645,6 +660,9 @@ export default function Profile({
 	};
 
 	useEffect(() => {
+		// Clear previous profile to prevent flash when switching users
+		setProfile(null);
+		setLoading(true);
 		loadProfile();
 	}, [targetUsername, user?._id]);
 
@@ -907,8 +925,9 @@ export default function Profile({
 				// Copy profile landing page URL to system clipboard
 				const url_link = `${window.location.origin}/u/${profile.username}`;
 				navigator.clipboard.writeText(url_link);
-				setSuccess("Profile share link copied to clipboard!");
-				setTimeout(() => setSuccess(null), 3000);
+				window.dispatchEvent(new CustomEvent("showToast", {
+					detail: { message: "Profile share link copied to clipboard!", type: "success" },
+				}));
 			}
 		} catch (e) {
 			logger.error(e);
@@ -937,10 +956,11 @@ export default function Profile({
 			if (res.ok && data.success) {
 				setProfile(data.user);
 				onUserUpdate(data.user); // Synchronize active session user
-				setSuccess("Profile settings successfully refreshed.");
+				window.dispatchEvent(new CustomEvent("showToast", {
+					detail: { message: "Profile settings successfully refreshed.", type: "success" },
+				}));
 				setTimeout(() => {
 					setEditOpen(false);
-					setSuccess(null);
 				}, 1500);
 			} else {
 				setError(data.message || "Failed to save settings.");
@@ -1003,13 +1023,6 @@ export default function Profile({
 				className="w-full px-2 pb-24 pt-6"
 				style={{ transform: `translateY(${pullDistance}px)`, transition: isPullingRef.current ? 'none' : 'transform 0.3s ease-out' }}
 			>
-				{success && (
-					<div className="fixed top-6 right-6 z-50 flex items-center gap-2.5 rounded-full bg-black dark:bg-zinc-900 border border-zinc-800 px-5.5 py-3.5 text-xs font-semibold text-white dark:text-zinc-100 shadow-xl backdrop-blur-md">
-						<CheckCircle className="h-4 w-4" />
-						<span>{success}</span>
-					</div>
-				)}
-
 				{/* Banner */}
 				<div
 					className="group relative h-40 overflow-hidden rounded-3xl border border-white/20 bg-zinc-900 md:h-48 cursor-pointer"
@@ -1204,17 +1217,13 @@ export default function Profile({
 									</p>
 								</GlassCard>
 							) : (
-								<div className="grid gap-3.5 sm:grid-cols-2">
+								<div className="space-y-5 max-w-2xl mx-auto w-full">
 									<AnimatePresence>
 										{posts.map((post) => (
 											<GlassCard
 												key={post._id}
 												animate={true}
-												onClick={() => {
-													if (editPostId !== post._id)
-														onPostClick(post.slug);
-												}}
-												className="group relative flex flex-col justify-between overflow-hidden cursor-pointer p-4.5"
+												className="group relative flex flex-col justify-between overflow-hidden p-6 text-left rounded-4xl border-white/5 bg-zinc-950/20 hover:border-white/10 transition-all"
 												showMacControls={false}>
 												{editPostId === post._id ? (
 													<form
@@ -1277,7 +1286,7 @@ export default function Profile({
 													<>
 														{user?._id ===
 															profile?._id && (
-																<div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 z-20">
+																<div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 z-20">
 																	<button
 																		onClick={(
 																			e,
@@ -1308,47 +1317,74 @@ export default function Profile({
 																	</button>
 																</div>
 															)}
-														<div className="space-y-2 pr-8">
-															<h4 className="font-sans text-sm font-bold text-white leading-snug line-clamp-2 select-text group-hover:text-white transition-all bg-black/50 p-2 rounded-xl backdrop-blur-sm">
+														
+														{/* Author Context Line */}
+														<div className="mb-4 flex items-center justify-between">
+															<div className="flex items-center gap-3">
+																<img loading="lazy"
+																	src={profile.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+																	alt={profile.fullName}
+																	className="h-10 w-10 rounded-full object-cover border border-zinc-800 shadow-sm shrink-0"
+																/>
+																<div className="text-left">
+																	<h4 className="text-sm font-semibold text-white">
+																		{profile.fullName}
+																	</h4>
+																	<p className="text-xs text-zinc-400 font-medium">@{profile.username} • {getRelativeDate(post.createdAt)}</p>
+																</div>
+															</div>
+														</div>
+
+														<div onClick={() => onPostClick(post.slug)} className="cursor-pointer space-y-3">
+															<h4 className="font-sans text-lg font-bold text-white leading-tight text-left">
 																{post.title}
 															</h4>
-															<p className="text-xs text-zinc-300 line-clamp-4 leading-relaxed whitespace-pre-wrap select-text">
+															<p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap text-left select-text">
 																{post.content}
 															</p>
+															{post.image && (
+																<div className="mt-3.5 overflow-hidden rounded-3xl border border-zinc-800">
+																	<img
+																		src={
+																			post.image
+																				.url
+																		}
+																		alt="attachment"
+																		className="w-full h-auto max-h-120 object-cover"
+																	/>
+																</div>
+															)}
 														</div>
-														{post.image && (
-															<div className="mt-3.5 h-24 overflow-hidden rounded-3xl border border-zinc-800">
-																<img
-																	src={
-																		post.image
-																			.url
-																	}
-																	alt="attachment"
-																	className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-102"
-																/>
-															</div>
-														)}
+
 														<div
-															className="mt-4 flex items-center justify-between pt-3 text-[10px] text-zinc-500"
+															className="mt-4 flex items-center justify-between pt-3 text-sm text-zinc-400 border-t border-zinc-800/50"
 															onClick={(e) =>
 																e.stopPropagation()
 															}>
-															<span className="flex items-center gap-1 font-medium">
-																<Heart
-																	className={`h-3 w-3 ${post.likedByMe ? "fill-red-500 text-red-500" : ""}`}
-																/>{" "}
-																{post.likesCount}
-															</span>
-															<span className="flex items-center gap-1 font-medium">
-																<MessageSquare className="h-3 w-3" />{" "}
-																{post.commentsCount}
-															</span>
-															<span className="flex items-center gap-1 font-medium">
-																<Bookmark
-																	className={`h-3 w-3 ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : ""}`}
-																/>{" "}
-																{post.savesCount}
-															</span>
+															<button
+																onClick={() => handleProfileLikeToggle(post._id, !!post.likedByMe)}
+																className="flex items-center gap-1.5 font-medium cursor-pointer hover:text-red-500 transition-colors"
+															>
+																<Heart className={`h-4 w-4 ${post.likedByMe ? "fill-red-500 text-red-500" : "text-zinc-550"}`} /> {post.likesCount || 0}
+															</button>
+															<button
+																onClick={() => onPostClick(post.slug, true)}
+																className="flex items-center gap-1.5 font-medium cursor-pointer hover:text-white transition-colors"
+															>
+																<MessageSquare className="h-4 w-4 text-zinc-550" /> {post.commentsCount || 0}
+															</button>
+															<button
+																onClick={() => handleProfileSaveToggle(post._id, !!post.savedByMe)}
+																className="flex items-center gap-1.5 font-medium cursor-pointer hover:text-yellow-500 transition-colors"
+															>
+																<Bookmark className={`h-4 w-4 ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : "text-zinc-550"}`} /> {post.savesCount || 0}
+															</button>
+															<button
+																onClick={() => handleProfileRepostToggle(post._id, !!post.repostedByMe)}
+																className="flex items-center gap-1.5 font-medium cursor-pointer hover:text-green-500 transition-colors"
+															>
+																<Repeat2 className={`h-4 w-4 ${post.repostedByMe ? "text-green-500" : "text-zinc-550"}`} /> {post.repostsCount || 0}
+															</button>
 														</div>
 													</>
 												)}
@@ -1403,69 +1439,93 @@ export default function Profile({
 									</p>
 								</GlassCard>
 							) : (
-								<div className="grid gap-3.5 sm:grid-cols-2">
+								<div className="space-y-5 max-w-2xl mx-auto w-full">
 									{savedPosts.map((post) => (
 										<GlassCard
 											key={post._id}
 											animate={true}
-											onClick={() => onPostClick(post.slug)}
-											className="group relative flex flex-col justify-between overflow-hidden cursor-pointer p-4.5"
+											className="group relative flex flex-col justify-between overflow-hidden p-6 text-left rounded-4xl border-white/5 bg-zinc-950/20 hover:border-white/10 transition-all"
 											showMacControls={false}>
-											<div className="space-y-2">
-												<div className="flex items-center gap-2 mb-2">
-													<img
-														src={
-															(post as any).author
-																?.profilePic?.url ||
-															"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-														}
-														className="h-6 w-6 rounded-full object-cover border border-zinc-800"
+											
+											{/* Author Context Line */}
+											<div className="mb-4 flex items-center justify-between">
+												<div className="flex items-center gap-3">
+													<img loading="lazy"
+														src={(post as any).author?.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
 														alt=""
+														className="h-10 w-10 rounded-full object-cover border border-zinc-800 shadow-sm shrink-0 cursor-pointer"
+														onClick={() => onUserClick((post as any).author?.username)}
 													/>
-													<span className="text-[10px] font-bold text-zinc-400">
-														@
-														{
-															(post as any).author
-																?.username
-														}
-													</span>
+													<div className="text-left">
+														<h4
+															className="text-sm font-semibold text-white hover:underline cursor-pointer"
+															onClick={() => onUserClick((post as any).author?.username)}
+														>
+															{(post as any).author?.fullName}
+														</h4>
+														<p className="text-xs text-zinc-400 font-medium">@{(post as any).author?.username} • {getRelativeDate(post.createdAt)}</p>
+													</div>
 												</div>
-												<h4 className="font-sans text-sm font-bold text-white leading-snug line-clamp-2">
+											</div>
+
+											<div onClick={() => onPostClick(post.slug)} className="cursor-pointer space-y-3">
+												<h4 className="font-sans text-lg font-bold text-white leading-tight text-left">
 													{post.title}
 												</h4>
-												<p className="text-xs text-zinc-300 line-clamp-3 leading-relaxed">
+												<p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap text-left select-text">
 													{post.content}
 												</p>
-											</div>														<div
-												className="mt-4 flex items-center justify-between pt-3 text-[10px] text-zinc-500"
+												{post.image && (
+													<div className="mt-3.5 overflow-hidden rounded-3xl border border-zinc-800">
+														<img
+															src={post.image.url}
+															alt=""
+															className="w-full h-auto max-h-120 object-cover"
+														/>
+													</div>
+												)}
+											</div>
+
+											<div
+												className="mt-4 flex items-center justify-between pt-3 text-sm text-zinc-400 border-t border-zinc-800/50"
 												onClick={(e) =>
 													e.stopPropagation()
 												}>
 												<button
-													onClick={(e) => {
-														e.stopPropagation();
+													onClick={() => {
 														handleProfileLikeToggle(post._id, !!post.likedByMe);
 													}}
-													className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+													className="flex items-center gap-1.5 font-medium cursor-pointer hover:text-red-500 transition-colors">
 													<Heart
-														className={`h-3 w-3 ${post.likedByMe ? "fill-red-500 text-red-500" : ""}`}
+														className={`h-4 w-4 ${post.likedByMe ? "fill-red-500 text-red-500" : "text-zinc-550"}`}
 													/>{" "}
-													{post.likesCount}
+													{post.likesCount || 0}
 												</button>
-												<span className="flex items-center gap-1">
-													<MessageSquare className="h-3 w-3" />{" "}
-													{post.commentsCount}
-												</span>
 												<button
-													onClick={(e) => {
-														e.stopPropagation();
+													onClick={() => onPostClick(post.slug, true)}
+													className="flex items-center gap-1.5 font-medium cursor-pointer hover:text-white transition-colors">
+													<MessageSquare className="h-4 w-4 text-zinc-550" />{" "}
+													{post.commentsCount || 0}
+												</button>
+												<button
+													onClick={() => {
 														handleProfileSaveToggle(post._id, !!post.savedByMe);
 													}}
-													className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+													className="flex items-center gap-1.5 font-medium cursor-pointer hover:text-yellow-500 transition-colors">
 													<Bookmark
-														className={`h-3 w-3 ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : ""}`}
+														className={`h-4 w-4 ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : "text-zinc-550"}`}
 													/>{" "}
-													{post.savesCount}
+													{post.savesCount || 0}
+												</button>
+												<button
+													onClick={() => {
+														handleProfileRepostToggle(post._id, !!post.repostedByMe);
+													}}
+													className="flex items-center gap-1.5 font-medium cursor-pointer hover:text-green-500 transition-colors">
+													<Repeat2
+														className={`h-4 w-4 ${post.repostedByMe ? "text-green-500" : "text-zinc-550"}`}
+													/>{" "}
+													{post.repostsCount || 0}
 												</button>
 											</div>
 										</GlassCard>
@@ -1519,70 +1579,93 @@ export default function Profile({
 									</p>
 								</GlassCard>
 							) : (
-								<div className="grid gap-3.5 sm:grid-cols-2">
+								<div className="space-y-5 max-w-2xl mx-auto w-full">
 									{repostedPosts.map((post) => (
 										<GlassCard
 											key={post._id}
 											animate={true}
-											onClick={() => onPostClick(post.slug)}
-											className="group relative flex flex-col justify-between overflow-hidden cursor-pointer p-4.5"
+											className="group relative flex flex-col justify-between overflow-hidden p-6 text-left rounded-4xl border-white/5 bg-zinc-950/20 hover:border-white/10 transition-all"
 											showMacControls={false}>
-											<div className="space-y-2">
-												<div className="flex items-center gap-2 mb-2">
-													<Repeat2 className="h-3 w-3 text-zinc-500 shrink-0" />
-													<img
-														src={
-															(post as any).author
-																?.profilePic?.url ||
-															"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-														}
-														className="h-6 w-6 rounded-full object-cover border border-zinc-800"
+											
+											{/* Author Context Line */}
+											<div className="mb-4 flex items-center justify-between">
+												<div className="flex items-center gap-3">
+													<img loading="lazy"
+														src={(post as any).author?.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
 														alt=""
+														className="h-10 w-10 rounded-full object-cover border border-zinc-800 shadow-sm shrink-0 cursor-pointer"
+														onClick={() => onUserClick((post as any).author?.username)}
 													/>
-													<span className="text-[10px] font-bold text-zinc-400">
-														@
-														{
-															(post as any).author
-																?.username
-														}
-													</span>
+													<div className="text-left">
+														<h4
+															className="text-sm font-semibold text-white hover:underline cursor-pointer"
+															onClick={() => onUserClick((post as any).author?.username)}
+														>
+															{(post as any).author?.fullName}
+														</h4>
+														<p className="text-xs text-zinc-400 font-medium">@{(post as any).author?.username} • {getRelativeDate(post.createdAt)}</p>
+													</div>
 												</div>
-												<h4 className="font-sans text-sm font-bold text-white leading-snug line-clamp-2">
+											</div>
+
+											<div onClick={() => onPostClick(post.slug)} className="cursor-pointer space-y-3">
+												<h4 className="font-sans text-lg font-bold text-white leading-tight text-left">
 													{post.title}
 												</h4>
-												<p className="text-xs text-zinc-300 line-clamp-3 leading-relaxed">
+												<p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap text-left select-text">
 													{post.content}
 												</p>
-											</div>													<div
-												className="mt-4 flex items-center justify-between pt-3 text-[10px] text-zinc-500"
+												{post.image && (
+													<div className="mt-3.5 overflow-hidden rounded-3xl border border-zinc-800">
+														<img
+															src={post.image.url}
+															alt=""
+															className="w-full h-auto max-h-120 object-cover"
+														/>
+													</div>
+												)}
+											</div>
+
+											<div
+												className="mt-4 flex items-center justify-between pt-3 text-sm text-zinc-400 border-t border-zinc-800/50"
 												onClick={(e) =>
 													e.stopPropagation()
 												}>
 												<button
-													onClick={(e) => {
-														e.stopPropagation();
+													onClick={() => {
 														handleProfileLikeToggle(post._id, !!post.likedByMe);
 													}}
-													className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+													className="flex items-center gap-1.5 font-medium cursor-pointer hover:text-red-500 transition-colors">
 													<Heart
-														className={`h-3 w-3 ${post.likedByMe ? "fill-red-500 text-red-500" : ""}`}
+														className={`h-4 w-4 ${post.likedByMe ? "fill-red-500 text-red-500" : "text-zinc-550"}`}
 													/>{" "}
-													{post.likesCount}
+													{post.likesCount || 0}
 												</button>
-												<span className="flex items-center gap-1">
-													<MessageSquare className="h-3 w-3" />{" "}
-													{post.commentsCount}
-												</span>
 												<button
-													onClick={(e) => {
-														e.stopPropagation();
+													onClick={() => onPostClick(post.slug, true)}
+													className="flex items-center gap-1.5 font-medium cursor-pointer hover:text-white transition-colors">
+													<MessageSquare className="h-4 w-4 text-zinc-550" />{" "}
+													{post.commentsCount || 0}
+												</button>
+												<button
+													onClick={() => {
+														handleProfileSaveToggle(post._id, !!post.savedByMe);
+													}}
+													className="flex items-center gap-1.5 font-medium cursor-pointer hover:text-yellow-500 transition-colors">
+													<Bookmark
+														className={`h-4 w-4 ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : "text-zinc-550"}`}
+													/>{" "}
+													{post.savesCount || 0}
+												</button>
+												<button
+													onClick={() => {
 														handleProfileRepostToggle(post._id, !!post.repostedByMe);
 													}}
-													className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+													className="flex items-center gap-1.5 font-medium cursor-pointer hover:text-green-500 transition-colors">
 													<Repeat2
-														className={`h-3 w-3 ${post.repostedByMe ? "text-green-500" : ""}`}
+														className={`h-4 w-4 ${post.repostedByMe ? "text-green-500" : "text-zinc-550"}`}
 													/>{" "}
-													{post.repostsCount}
+													{post.repostsCount || 0}
 												</button>
 											</div>
 										</GlassCard>
@@ -1804,7 +1887,7 @@ export default function Profile({
 
 				<AnimatePresence>
 					{activeList && (
-						<div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+						<div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
 							<motion.div
 								initial={{ opacity: 0 }}
 								animate={{ opacity: 1 }}

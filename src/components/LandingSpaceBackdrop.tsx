@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { hasWebGL } from "../utils/hasWebGL";
 
 export default function LandingSpaceBackdrop() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -22,6 +23,7 @@ export default function LandingSpaceBackdrop() {
   }, []);
 
   useEffect(() => {
+    if (!hasWebGL()) return;
     const canvas = canvasRef.current;
     const etherCanvas = etherCanvasRef.current;
     if (!canvas || !etherCanvas) return;
@@ -47,13 +49,19 @@ export default function LandingSpaceBackdrop() {
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
     camera.position.z = 20;
 
-    // 3. WebGL Renderer with High-Gloss Specular properties
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      alpha: true,
-      antialias: true,
-      powerPreference: "high-performance"
-    });
+    // 3. WebGL Renderer with High-Gloss Specular properties (wrapped in try-catch for headless compat)
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        alpha: true,
+        antialias: true,
+        powerPreference: "high-performance"
+      });
+    } catch {
+      // WebGL not available (e.g. headless Chromium)
+      return;
+    }
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 

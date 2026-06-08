@@ -86,7 +86,7 @@ class WebSocketReconnect {
         this.options.onConnected();
       };
 
-      this.ws.onclose = (event) => {
+      this.ws.onclose = (_event) => {
         this.options.onDisconnected();
         
         if (!this.manualClose && this.shouldReconnect && this.retryCount < this.options.maxRetries) {

@@ -25,6 +25,7 @@ import Skeleton from "./Skeleton";
 import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
 import ValidationMessage from "./ValidationMessage";
+import { validateChatMessage } from "../utils/validation";
 
 interface ChatProps {
   user: UserType;
@@ -38,7 +39,7 @@ interface ChatProps {
 export default function Chat({ user, socket, conversations, setConversations, onUserSelected, onBack }: ChatProps) {
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [loadingConvs, setLoadingConvs] = useState(false);
+  const [loadingConvs] = useState(false);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -106,13 +107,16 @@ export default function Chat({ user, socket, conversations, setConversations, on
   const [messagesCursor, setMessagesCursor] = useState<string | null>(null);
   const [messagesHasMore, setMessagesHasMore] = useState(false);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
-  const messagesTopSentinelRef = useRef<HTMLDivElement>(null);
+  const messagesTopSentinelRef = useRef<HTMLDivElement>(null);  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Refs for socket listener closures — prevents listener re-registration on conversation/user change
+  const selectedConvRef = useRef(selectedConv);
+  selectedConvRef.current = selectedConv;
+  const userRef = useRef(user);
+  userRef.current = user;
 
-
-
-
+  // Pending message IDs (optimistic messages not yet confirmed by server)
+  const [, setPendingMessageIds] = useState<Set<string>>(new Set());
 
   // Fetch messages when conversation is selected or socket becomes available
   useEffect(() => {
@@ -173,7 +177,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
     return () => window.removeEventListener("click", handleClick);
   }, []);
 
-  // Handle Socket Events
+  // Handle Socket Events — reads from refs to avoid re-registering listeners on conv/user change
   useEffect(() => {
     const s = socket;
     if (!s) return;
@@ -198,33 +202,37 @@ export default function Chat({ user, socket, conversations, setConversations, on
     // Listen for new messages
     s.on("message:new", (message: Message) => {
       logger.info("Chat: Received message:new event", { messageId: message._id, conversationId: message.conversation });
+      const currentConv = selectedConvRef.current;
+      const currentUser = userRef.current;
+      if (!currentUser) return;
       // If message is for the current conversation, append it
-      if (selectedConv && message.conversation === selectedConv._id) {
+      if (currentConv && message.conversation === currentConv._id) {
         setMessages((prev) => {
           // Prevent duplicates
           if (prev.some((m) => m._id === message._id)) return prev;
-          return [...prev, message];
+          // Remove pending version if present
+          const filtered = prev.filter((m) => !m._id.startsWith("pending-") || (m as any)._pendingConv !== message.conversation);
+          return [...filtered, message];
         });
-        scrollToBottom();
       }
 
       // Update conversations list to show last message
       setConversations((prev) => {
         return prev.map((c) => {
           if (c._id === message.conversation) {
-            const isMeRecipient = message.recipient === user._id;
-            const updatedUnread = (selectedConv && selectedConv._id === c._id)
+            const isMeRecipient = message.recipient === currentUser._id;
+            const updatedUnread = (currentConv && currentConv._id === c._id)
               ? 0
               : isMeRecipient
-                ? (c.unreadCounts?.[user._id] || 0) + 1
-                : (c.unreadCounts?.[user._id] || 0);
+                ? (c.unreadCounts?.[currentUser._id] || 0) + 1
+                : (c.unreadCounts?.[currentUser._id] || 0);
 
             return {
               ...c,
               lastMessage: message,
               unreadCounts: {
                 ...c.unreadCounts,
-                [user._id]: updatedUnread
+                [currentUser._id]: updatedUnread
               }
             };
           }
@@ -236,10 +244,10 @@ export default function Chat({ user, socket, conversations, setConversations, on
     // Listen for message edits
     s.on("message:edit", (message: Message) => {
       logger.info("Chat: Received message:edit event", { messageId: message._id, conversationId: message.conversation });
-      if (selectedConv && message.conversation === selectedConv._id) {
+      const currentConv = selectedConvRef.current;
+      if (currentConv && message.conversation === currentConv._id) {
         setMessages((prev) => prev.map((m) => (m._id === message._id ? message : m)));
       }
-      // Update in conversations list
       setConversations((prev) =>
         prev.map((c) => (c._id === message.conversation ? { ...c, lastMessage: message } : c))
       );
@@ -255,10 +263,10 @@ export default function Chat({ user, socket, conversations, setConversations, on
             : m
         )
       );
-      // Also update conversations list to reflect deletion
+      const currentConv = selectedConvRef.current;
       setConversations((prev) =>
         prev.map((c) => {
-          if (c._id === selectedConv?._id && c.lastMessage?._id === messageId) {
+          if (c._id === currentConv?._id && c.lastMessage?._id === messageId) {
             return {
               ...c,
               lastMessage: {
@@ -280,21 +288,21 @@ export default function Chat({ user, socket, conversations, setConversations, on
       setMessages((prev) =>
         prev.map((m) => {
           if (m._id !== payload.messageId) return m;
-
-          if (payload.type === "add" && payload.reaction) {
+          const reaction = payload.reaction;
+          if (payload.type === "add" && reaction) {
             const existingReactions = m.reactions || [];
-            const senderId = typeof payload.reaction.sender === "string" ? payload.reaction.sender : payload.reaction.sender._id;
+            const senderId = typeof reaction.sender === "string" ? reaction.sender : reaction.sender._id;
             const filtered = existingReactions.filter((r) => {
               const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
               return sId !== senderId;
             });
-            return { ...m, reactions: [...filtered, payload.reaction] };
-          } else if (payload.type === "remove" && payload.reaction) {
+            return { ...m, reactions: [...filtered, reaction] };
+          } else if (payload.type === "remove" && reaction) {
             const existingReactions = m.reactions || [];
-            const senderId = typeof payload.reaction.sender === "string" ? payload.reaction.sender : payload.reaction.sender._id;
+            const senderId = typeof reaction.sender === "string" ? reaction.sender : reaction.sender._id;
             const filtered = existingReactions.filter((r) => {
               const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
-              return !(sId === senderId && r.emoji === payload.reaction.emoji);
+              return !(sId === senderId && r.emoji === reaction.emoji);
             });
             return { ...m, reactions: filtered };
           }
@@ -318,7 +326,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
     // Listen for conversation clearing
     s.on("conversation:clear", ({ conversationId }: { conversationId: string }) => {
       logger.info("Chat: Received conversation:clear event", { conversationId });
-      if (selectedConv && selectedConv._id === conversationId) {
+      const currentConv = selectedConvRef.current;
+      if (currentConv && currentConv._id === conversationId) {
         setMessages([]);
       }
       setConversations((prev) =>
@@ -331,12 +340,14 @@ export default function Chat({ user, socket, conversations, setConversations, on
     // Listen for read receipts
     s.on("messages:seen", ({ conversationId, seenBy, seenAt }: { conversationId: string; seenBy: string; seenAt?: Date }) => {
       logger.info("Chat: Received messages:seen event", { conversationId, seenBy, seenAt });
-      if (selectedConv && selectedConv._id === conversationId && seenBy !== user._id) {
+      const currentConv = selectedConvRef.current;
+      const currentUser = userRef.current;
+      if (currentConv && currentConv._id === conversationId && seenBy !== currentUser?._id) {
         setMessages((prev) =>
           prev.map((m) => {
             const senderId = typeof m.sender === "string" ? m.sender : m.sender?._id;
-            if (senderId === user._id) {
-              return { ...m, seen: true, seenAt: seenAt ? seenAt.toISOString() : new Date().toISOString() };
+            if (senderId === currentUser?._id) {
+              return { ...m, seen: true, seenAt: seenAt ? new Date(seenAt).toISOString() : new Date().toISOString() };
             }
             return m;
           })
@@ -347,7 +358,9 @@ export default function Chat({ user, socket, conversations, setConversations, on
     // Listen for typing indicators
     s.on("chat:typing", ({ conversationId, userId: typingUserId, isTyping: partnerIsTyping }: any) => {
       logger.info("Chat: Received chat:typing event", { conversationId, typingUserId, isTyping: partnerIsTyping });
-      if (selectedConv && selectedConv._id === conversationId && typingUserId !== user._id) {
+      const currentConv = selectedConvRef.current;
+      const currentUser = userRef.current;
+      if (currentConv && currentConv._id === conversationId && typingUserId !== currentUser?._id) {
         setPartnerTyping(partnerIsTyping);
       }
     });
@@ -363,7 +376,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
       s.off("messages:seen");
       s.off("chat:typing");
     };
-  }, [socket, selectedConv, user]);
+  }, [socket]);
 
   // Fetch older messages (infinite scroll up)
   const fetchOlderMessages = async () => {
@@ -501,8 +514,9 @@ export default function Chat({ user, socket, conversations, setConversations, on
   // Send message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim() && attachments.length === 0) {
-      setFieldErrors({ message: "Message cannot be empty." });
+    const errors = validateChatMessage({ text: inputText, hasAttachments: attachments.length > 0 });
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
     setFieldErrors({});
@@ -516,6 +530,36 @@ export default function Chat({ user, socket, conversations, setConversations, on
       socket.emit("chat:typing", { conversationId: selectedConv._id, isTyping: false });
     }
 
+    // Optimistic: insert pending message immediately for tick feedback
+    const pendingId = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const optimisticMessage: any = {
+      _id: pendingId,
+      conversation: selectedConv._id,
+      sender: { _id: user._id, username: user.username, fullName: user.fullName, profilePic: user.profilePic },
+      recipient: getPartner(selectedConv)._id,
+      text: inputText.trim(),
+      attachments: [],
+      seen: false,
+      _pending: true,
+      _pendingConv: selectedConv._id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    // Only show pending for text messages (attachments complicate optimistic)
+    const showOptimistic = inputText.trim().length > 0 && attachments.length === 0;
+    if (showOptimistic) {
+      setPendingMessageIds((prev) => new Set(prev).add(pendingId));
+      setMessages((prev) => [...prev, optimisticMessage]);
+      scrollToBottom();
+      // Clear input immediately for optimistic send
+      setInputText("");
+    }
+
+    // Save input for rollback on failure (declared here so catch block can access it)
+    const savedInput = inputText;
+    const savedAttachments = [...attachments];
+    const savedPreviews = [...attachmentPreviews];
+
     try {
       const formData = new FormData();
       formData.append("text", inputText.trim());
@@ -523,28 +567,77 @@ export default function Chat({ user, socket, conversations, setConversations, on
         formData.append("files", file);
       });
 
-      // Optimistic update for UI speed
-      setInputText("");
-      setAttachments([]);
-      setAttachmentPreviews([]);
-
       const res = await apiFetch(`/api/chats/conversations/${selectedConv._id}/messages`, {
         method: "POST",
         body: formData,
       });
       const data = await res.json();
       if (res.ok && data.success && data.sentMessage) {
+        // Replace pending message with confirmed one
+        setPendingMessageIds((prev) => {
+          const next = new Set(prev);
+          next.delete(pendingId);
+          return next;
+        });
         setMessages((prev) => {
+          const filtered = prev.filter((m) => m._id !== pendingId);
           // Prevent duplicates in case the socket event is also received
-          if (prev.some((m) => m._id === data.sentMessage._id)) return prev;
-          return [...prev, data.sentMessage];
+          if (filtered.some((m) => m._id === data.sentMessage._id)) return filtered;
+          return [...filtered, data.sentMessage];
         });
         scrollToBottom();
+
+        if (!showOptimistic) {
+          // Clear input only after successful send (for attachment messages)
+          setInputText("");
+          setAttachments([]);
+          setAttachmentPreviews([]);
+        }
       } else {
+        // Rollback on failure — remove pending message
+        setPendingMessageIds((prev) => {
+          const next = new Set(prev);
+          next.delete(pendingId);
+          return next;
+        });
+        setMessages((prev) => prev.filter((m) => m._id !== pendingId));
+        if (!showOptimistic) {
+          setInputText(savedInput);
+          setAttachments(savedAttachments);
+          setAttachmentPreviews(savedPreviews);
+        }
         logger.error("Message send failed", data.message);
+        window.dispatchEvent(
+          new CustomEvent("showToast", {
+            detail: {
+              message: data.message || "Failed to send message. Please try again.",
+              type: "error",
+            },
+          })
+        );
       }
     } catch (err) {
       logger.error(err);
+      // Rollback on error — restore saved input
+      setPendingMessageIds((prev) => {
+        const next = new Set(prev);
+        next.delete(pendingId);
+        return next;
+      });
+      setMessages((prev) => prev.filter((m) => m._id !== pendingId));
+      setInputText(savedInput);
+      if (!showOptimistic) {
+        setAttachments(savedAttachments);
+        setAttachmentPreviews(savedPreviews);
+      }
+      window.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: {
+            message: "Failed to send message. Please try again.",
+            type: "error",
+          },
+        })
+      );
     } finally {
       setSendingMessage(false);
     }
@@ -553,8 +646,9 @@ export default function Chat({ user, socket, conversations, setConversations, on
   // Edit message
   const handleEditMessageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editText.trim()) {
-      setFieldErrors({ edit: "Message text is required." });
+    const errors = validateChatMessage({ text: editText, hasAttachments: false });
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
     setFieldErrors({});
@@ -922,7 +1016,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                             >
                               <img
                                 src={usr.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-                                alt=""
+                                alt={usr.fullName}
                                 className="h-7 w-7 rounded-full object-cover border border-zinc-800"
                               />
                               <div className="text-left">
@@ -972,7 +1066,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         <div className="relative shrink-0">
                           <img
                             src={partner.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-                            alt=""
+                            alt={partner.fullName}
                             className="h-10 w-10 rounded-full object-cover border border-zinc-800"
                           />
                           {presence === "online" && (
@@ -1048,7 +1142,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                   >
                     <img
                       src={getPartner(selectedConv).profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-                      alt=""
+                      alt={getPartner(selectedConv).fullName}
                       className="h-9 w-9 rounded-full object-cover border border-zinc-800"
                     />
                     {getPartnerPresence(selectedConv) === "online" && (
@@ -1071,7 +1165,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleClearChat}
-                    className="flex h-8 px-3 items-center gap-1.5 rounded-full border border-zinc-200/10 hover:border-red-500/20 bg-white/5 hover:bg-red-550/10 text-zinc-400 hover:text-red-400 transition-all cursor-pointer shadow-sm text-[10px] font-black uppercase tracking-wider"
+                    className="flex h-8 px-3 items-center gap-1.5 rounded-full border border-zinc-200/10 hover:border-red-500/20 bg-white/5 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition-all cursor-pointer shadow-sm text-[10px] font-black uppercase tracking-wider"
                     title="Clear All Chat History"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -1113,9 +1207,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         )}
                       </div>
                     )}
-                    {messages.map((msg, index) => {
+                    {messages.map((msg) => {
                       const isMe = msg.sender._id === user._id;
-                      const editable = isMe && isEditable(msg.createdAt) && !msg.isDeleted;
                       const groupedReactions = getGroupedReactions(msg.reactions);
 
                       return (
@@ -1128,7 +1221,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                             <div className="w-8 shrink-0 flex items-end">
                               <img loading="lazy"
                                 src={msg.sender.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-                                alt=""
+                                alt={msg.sender.fullName}
                                 className="h-7 w-7 rounded-full object-cover border border-zinc-800"
                               />
                             </div>
@@ -1152,7 +1245,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                                         <img
                                           key={aIdx}
                                           src={att.url}
-                                          alt=""
+                                          alt={`Attachment from ${msg.sender.fullName}`}
                                           className="w-full h-auto max-h-60 object-cover cursor-pointer hover:opacity-90"
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -1188,8 +1281,10 @@ export default function Chat({ user, socket, conversations, setConversations, on
                               {msg.isEdited && !msg.isDeleted && <span>edited</span>}
                               <span>{formatMessageTime(msg.createdAt)}</span>
                               {isMe && (
-                                <span>
-                                  {msg.seen ? (
+                                <span title={(msg as any)._pending ? 'Sending...' : msg.seen ? 'Seen' : 'Sent'}>
+                                  {(msg as any)._pending ? (
+                                    <Loader2 className="h-3 w-3 text-zinc-550 animate-spin" />
+                                  ) : msg.seen ? (
                                     <CheckCheck className="h-3.5 w-3.5 text-sky-400" />
                                   ) : (
                                     <Check className="h-3.5 w-3.5 text-zinc-550" />
@@ -1225,7 +1320,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                   <div className="flex gap-2 mb-3 bg-zinc-900/50 p-2.5 rounded-2xl border border-zinc-800 max-w-sm">
                     {attachmentPreviews.map((url, idx) => (
                       <div key={idx} className="relative h-14 w-14 rounded-lg overflow-hidden border border-zinc-800">
-                        <img loading="lazy" src={url} alt="" className="h-full w-full object-cover" />
+                        <img loading="lazy" src={url} alt="Attachment preview" className="h-full w-full object-cover" />
                         <button
                           type="button"
                           onClick={() => removeAttachment(idx)}
@@ -1244,7 +1339,6 @@ export default function Chat({ user, socket, conversations, setConversations, on
                       <input
                         type="text"
                         required
-                        onInvalid={(e) => e.preventDefault()}
                         value={editText}
                         onChange={(e) => { setEditText(e.target.value); clearFieldError("edit"); }}
                         className="w-full rounded-full border border-white/20 bg-zinc-900 px-4.5 py-3 text-xs text-white outline-none"
@@ -1290,7 +1384,6 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         type="text"
                         placeholder="Type a message..."
                         value={inputText}
-                        onInvalid={(e) => e.preventDefault()}
                         onChange={(e) => {
                           setInputText(e.target.value);
                           clearFieldError("message");
@@ -1538,7 +1631,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-100 bg-black/50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
             onClick={() => {
               setShowEmojiPicker(null);
               setCustomEmoji("");
@@ -1598,7 +1691,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-100 bg-black/50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
             onClick={() => setForwardModal(null)}
           >
             <motion.div
@@ -1635,7 +1728,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                       >
                         <img
                           src={partner.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-                          alt=""
+                          alt={partner.fullName}
                           className="h-8 w-8 rounded-full object-cover border border-zinc-800"
                         />
                         <div>

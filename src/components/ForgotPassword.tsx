@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
-import { motion } from "motion/react";
 import { Mail, KeyRound, AlertCircle, ArrowLeft, ArrowRight, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import GlassCard from "./GlassCard";
 import ValidationMessage from "./ValidationMessage";
 import { apiFetch } from "../utils/api";
+import { validateForgotPasswordRequest, validateForgotPasswordReset } from "../utils/validation";
 
 interface ForgotPasswordProps {
   onBackToLogin: () => void;
@@ -37,19 +37,19 @@ export default function ForgotPassword({
 
   // Timer Effect
   useEffect(() => {
-    if (step === "verify" && timer > 0) {
-      const interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-      return () => clearInterval(interval);
-    }
+    if (step !== "verify" || timer <= 0) return;
+    const interval = setInterval(() => {
+      setTimer((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
   }, [step, timer]);
 
   // Request Reset OTP
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
-      setFieldErrors({ email: "Email address is required." });
+    const errors = validateForgotPasswordRequest({ email });
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
     setFieldErrors({});
@@ -104,22 +104,15 @@ export default function ForgotPassword({
   // Complete Reset Password
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    const otpValue = otp.join("");
-    const errors: Record<string, string> = {};
-    if (otpValue.length < 6) errors.otp = "Complete the 6-digit code.";
-    if (!newPassword) errors.newPassword = "New password is required.";
+    const errors = validateForgotPasswordReset({ otp, newPassword });
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
+      setError(null);
       return;
     }
     setFieldErrors({});
-    // Password complexity check
-    const complexity = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_])[\w\W]{8,}$/;
-    if (!complexity.test(newPassword)) {
-      setError("Password must include uppercase, lowercase, number, and special character.");
-      return;
-    }
 
+    const otpValue = otp.join("");
     setError(null);
     setLoading(true);
 
@@ -159,12 +152,13 @@ export default function ForgotPassword({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      const data = await res.json();
-      if (res.ok) {
-        // Code resent successfully
+      if (!res.ok) {
+        setError("Failed to resend code.");
+        return;
       }
     } catch (e) {
       setError("Failed to resend code.");
+      return;
     }
   };
 
@@ -201,17 +195,17 @@ export default function ForgotPassword({
       )}
 
       {step === "request" ? (
-        <form onSubmit={handleRequestOtp} className="space-y-5">
+        <form onSubmit={handleRequestOtp} noValidate className="space-y-5">
           <div className="space-y-1.5 pl-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-350 pl-3">Your Email Address</label>
+            <label htmlFor="forgot-email" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-350 pl-3">Your Email Address</label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-4.5 text-slate-400 dark:text-zinc-500">
                 <Mail className="h-4.5 w-4.5" />
               </span>
               <input
+                id="forgot-email"
                 type="email"
                 required
-                onInvalid={(e) => e.preventDefault()}
                 placeholder="alice@gmail.com"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
@@ -231,14 +225,15 @@ export default function ForgotPassword({
           </button>
         </form>
       ) : (
-        <form onSubmit={handleResetPassword} className="space-y-6">
+        <form onSubmit={handleResetPassword} noValidate className="space-y-6">
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-350 pl-3">6-Digit Verification Code</label>
+            <label htmlFor="forgot-otp" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-350 pl-3">6-Digit Verification Code</label>
             <div className="flex justify-between gap-2.5">
               {otp.map((digit, index) => (
                 <input
                   key={index}
                   ref={(el) => { inputRefs.current[index] = el!; }}
+                  id={index === 0 ? "forgot-otp" : undefined}
                   type="text"
                   maxLength={1}
                   required
@@ -253,16 +248,16 @@ export default function ForgotPassword({
           </div>
 
           <div className="space-y-1.5 pl-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-350 pl-3">New Password</label>
+            <label htmlFor="forgot-new-password" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-350 pl-3">New Password</label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-4.5 text-slate-400 dark:text-zinc-500">
                 <KeyRound className="h-4.5 w-4.5" />
               </span>
               <input
+                id="forgot-new-password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
                 required
-                onInvalid={(e) => e.preventDefault()}
                 minLength={8}
                 placeholder="••••••••••••"
                 value={newPassword}
@@ -285,7 +280,7 @@ export default function ForgotPassword({
             <button
               type="button"
               onClick={codeResend}
-              className={`font-semibold cursor-pointer transition-colors ${timer > 0 ? "text-zinc-550/50 cursor-not-allowed" : "text-black dark:text-zinc-200 hover:underline"
+              className={`font-semibold cursor-pointer transition-colors ${timer > 0 ? "text-zinc-500/50 cursor-not-allowed" : "text-black dark:text-zinc-200 hover:underline"
                 }`}
             >
               {timer > 0 ? `Resend Code (${timer}s)` : "Resend Code"}

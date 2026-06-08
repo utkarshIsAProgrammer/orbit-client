@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 interface Ripple {
   id: number;
@@ -10,6 +10,19 @@ export default function CustomCursor() {
   const [visible, setVisible] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [ripples, setRipples] = useState<Ripple[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(
+        window.innerWidth < 768 ||
+        window.matchMedia("(pointer: coarse)").matches
+      );
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
@@ -36,9 +49,14 @@ export default function CustomCursor() {
   }, []);
 
   useEffect(() => {
+    if (isMobile) return;
+
     const style = document.createElement("style");
     style.innerHTML = `
-      body, button, a, [role="button"], [onClick], .cursor-pointer {
+      body.custom-cursor-active button:not(:disabled),
+      body.custom-cursor-active a,
+      body.custom-cursor-active [role="button"],
+      body.custom-cursor-active .cursor-pointer {
         cursor: none !important;
       }
 
@@ -57,6 +75,8 @@ export default function CustomCursor() {
       }
     `;
     document.head.appendChild(style);
+
+    document.body.classList.add('custom-cursor-active');
 
     const onMouseMove = (e: MouseEvent) => {
       mouse.current.x = e.clientX;
@@ -128,13 +148,14 @@ export default function CustomCursor() {
       window.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("mouseover", checkInteractiveHover);
       cancelAnimationFrame(frameId);
+      document.body.classList.remove('custom-cursor-active');
       if (style.parentNode) {
         style.parentNode.removeChild(style);
       }
     };
   }, [spawnRipple]);
 
-  if (!visible) return null;
+  if (isMobile || !visible) return null;
 
   const ringScale = isHovered ? "0.65" : "1";
 

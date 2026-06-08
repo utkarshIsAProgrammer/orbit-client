@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { motion } from "motion/react";
 import {
   User as UserIcon,
   Lock,
@@ -15,7 +14,9 @@ import {
 import { User as UserType } from "../types";
 import GlassCard from "./GlassCard";
 import ValidationMessage from "./ValidationMessage";
+import CharCounter from "./CharCounter";
 import { apiFetch } from "../utils/api";
+import { validateProfile, validatePasswordChange, validateDeleteAccount } from "../utils/validation";
 
 interface SettingsProps {
   user: UserType;
@@ -78,8 +79,9 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
     setProfileError(null);
     setProfileSuccess(null);
 
-    if (!fullName.trim()) {
-      setFieldErrors({ fullName: "Full name is required." });
+    const errs = validateProfile({ fullName, bio });
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       return;
     }
     setFieldErrors({});
@@ -123,25 +125,13 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
     setPasswordError(null);
     setPasswordSuccess(null);
 
-    const errors: Record<string, string> = {};
-    if (!currentPassword) errors.currentPassword = "Current password is required.";
-    if (!newPassword) errors.newPassword = "New password is required.";
-    if (!confirmPassword) errors.confirmPassword = "Please confirm your new password.";
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
+    const errs = validatePasswordChange({ currentPassword, newPassword, confirmPassword });
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      setPasswordError(null);
       return;
     }
     setFieldErrors({});
-
-    if (newPassword !== confirmPassword) {
-      setFieldErrors({ confirmPassword: "Passwords do not match." });
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setPasswordError("Verification failed: Password must be at least 6 characters.");
-      return;
-    }
 
     setSavingPassword(true);
     try {
@@ -169,11 +159,10 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
 
   // Delete Account handler
   const handleDeleteAccount = async () => {
-    const errors: Record<string, string> = {};
-    if (!deleteEmail) errors.deleteEmail = "Email is required to delete your account.";
-    if (!deletePassword) errors.deletePassword = "Password is required to delete your account.";
+    const errors = validateDeleteAccount({ email: deleteEmail, password: deletePassword });
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
+      setDeleteError(null);
       return;
     }
     setFieldErrors({});
@@ -237,7 +226,7 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                 </div>
               )}
 
-              <form onSubmit={handleProfileSubmit} className="space-y-4">
+              <form onSubmit={handleProfileSubmit} noValidate className="space-y-4">
                 {/* Images Upload */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1 col-span-1">
@@ -261,7 +250,7 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                         {profilePicPreview ? (
                          <img loading="lazy"
                            src={profilePicPreview}
-                            alt=""
+                            alt="Profile preview"
                             className="mx-auto h-12 w-12 rounded-full object-cover border border-zinc-700 shadow-sm"
                           />
                         ) : (
@@ -295,7 +284,7 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                         {bannerPicPreview ? (
                          <img loading="lazy"
                            src={bannerPicPreview}
-                            alt=""
+                            alt="Banner preview"
                             className="mx-auto h-12 w-24 rounded-2xl object-cover border border-zinc-700 shadow-sm"
                           />
                         ) : (
@@ -310,32 +299,40 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                 </div>
 
                 <div className="space-y-1.5 label text-left">
-                  <label className="text-xs font-semibold text-zinc-300 pl-4">
+                  <label htmlFor="settings-fullname" className="text-xs font-semibold text-zinc-300 pl-4">
                     Full Name
                   </label>
                   <input
+                    id="settings-fullname"
                     type="text"
                     required
-                    onInvalid={(e) => e.preventDefault()}
                     value={fullName}
                     onChange={(e) => { setFullName(e.target.value); clearFieldError("fullName"); }}
+                    maxLength={50}
                     className="w-full rounded-full border border-zinc-800 bg-zinc-900/55 py-3.5 px-5 text-sm font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
                   />
-                  <ValidationMessage message={fieldErrors.fullName} />
+                  <div className="flex items-center justify-between px-1">
+                    <ValidationMessage message={fieldErrors.fullName} />
+                    <CharCounter current={fullName.length} max={50} />
+                  </div>
                 </div>
 
                 <div className="space-y-1.5 label text-left">
-                  <label className="text-xs font-semibold text-zinc-300 pl-4">
+                  <label htmlFor="settings-bio" className="text-xs font-semibold text-zinc-300 pl-4">
                     Bio
                   </label>
                   <textarea
+                    id="settings-bio"
                     rows={3}
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
                     placeholder="A brief snippet about yourself..."
                     className="w-full rounded-3xl border border-zinc-800 bg-zinc-900/55 py-3.5 px-5 text-sm font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all resize-none"
-                    maxLength={160}
+                    maxLength={300}
                   />
+                  <div className="flex justify-end px-1">
+                    <CharCounter current={bio.length} max={300} />
+                  </div>
                 </div>
 
                 <button
@@ -369,17 +366,17 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                 </div>
               )}
 
-              <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <form onSubmit={handlePasswordSubmit} noValidate className="space-y-4">
                 <div className="space-y-1.5 text-left">
-                  <label className="text-xs font-semibold text-zinc-300 pl-4">
+                  <label htmlFor="settings-current-password" className="text-xs font-semibold text-zinc-300 pl-4">
                     Current Password
                   </label>
                   <div className="relative">
                     <input
+                      id="settings-current-password"
                       type={showCurrentPassword ? "text" : "password"}
                       autoComplete="current-password"
                       required
-                      onInvalid={(e) => e.preventDefault()}
                       value={currentPassword}
                       onChange={(e) => { setCurrentPassword(e.target.value); clearFieldError("currentPassword"); }}
                       className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3.5 pl-5 pr-12 text-sm font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
@@ -387,7 +384,7 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                     <button
                       type="button"
                       onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute right-4.5 top-3.5 text-zinc-400 hover:text-zinc-650 cursor-pointer"
+                      className="absolute right-4.5 top-3.5 text-zinc-400 hover:text-zinc-600 cursor-pointer"
                     >
                       {showCurrentPassword ? (
                         <Eye className="h-4 w-4" />
@@ -400,15 +397,15 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="text-xs font-semibold text-zinc-300 pl-4">
+                  <label htmlFor="settings-new-password" className="text-xs font-semibold text-zinc-300 pl-4">
                     New Password
                   </label>
                   <div className="relative">
                     <input
+                      id="settings-new-password"
                       type={showNewPassword ? "text" : "password"}
                       autoComplete="new-password"
                       required
-                      onInvalid={(e) => e.preventDefault()}
                       value={newPassword}
                       onChange={(e) => { setNewPassword(e.target.value); clearFieldError("newPassword"); }}
                       className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3.5 pl-5 pr-12 text-sm font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
@@ -416,7 +413,7 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-4.5 top-3.5 text-zinc-400 hover:text-zinc-650 cursor-pointer"
+                      className="absolute right-4.5 top-3.5 text-zinc-400 hover:text-zinc-600 cursor-pointer"
                     >
                       {showNewPassword ? (
                         <Eye className="h-4 w-4" />
@@ -429,13 +426,13 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="text-xs font-semibold text-zinc-300 pl-4">
+                  <label htmlFor="settings-confirm-password" className="text-xs font-semibold text-zinc-300 pl-4">
                     Confirm New Password
                   </label>
                   <input
+                    id="settings-confirm-password"
                     type="password"
                     required
-                    onInvalid={(e) => e.preventDefault()}
                     value={confirmPassword}
                     onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}
                     className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3.5 px-5 text-sm font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
@@ -455,7 +452,7 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
           )}
 
           {activeSubTab === "account" && (
-            <GlassCard animate={true} className="p-6 border-rose-500/25 dark:border-rose-955/25 bg-red-500/2 dark:bg-red-500/2 shadow-none">
+            <GlassCard animate={true} className="p-6 border-rose-500/25 dark:border-rose-950/25 bg-red-950/10 dark:bg-red-950/10 shadow-none">
               <div className="flex items-center gap-2 mb-3 border-b border-rose-500/20 pb-2">
                 <Trash2 className="h-4.5 w-4.5 text-rose-500 animate-bounce" />
                 <h3 className="text-sm font-bold text-rose-500 uppercase tracking-wider">
@@ -477,10 +474,11 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
 
               <div className="mt-5 space-y-4 text-left">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-300 pl-4">
+                  <label htmlFor="settings-delete-email" className="text-xs font-semibold text-zinc-300 pl-4">
                     To delete your account, enter your <span className="font-extrabold text-black dark:text-white">Email Address</span>:
                   </label>
                   <input
+                    id="settings-delete-email"
                     type="text"
                     inputMode="email"
                     autoComplete="off"
@@ -494,11 +492,12 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="text-xs font-semibold text-zinc-300 pl-4">
+                  <label htmlFor="settings-delete-password" className="text-xs font-semibold text-zinc-300 pl-4">
                     And your current <span className="font-extrabold text-black dark:text-white">Password</span>:
                   </label>
                   <div className="relative">
                     <input
+                      id="settings-delete-password"
                       type={showDeletePassword ? "text" : "password"}
                       autoComplete="off"
                       required
@@ -510,7 +509,7 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                     <button
                       type="button"
                       onClick={() => setShowDeletePassword(!showDeletePassword)}
-                      className="absolute right-4.5 top-3.5 text-zinc-400 hover:text-zinc-650 cursor-pointer"
+                      className="absolute right-4.5 top-3.5 text-zinc-400 hover:text-zinc-600 cursor-pointer"
                     >
                       {showDeletePassword ? (
                         <Eye className="h-4 w-4" />
@@ -535,8 +534,8 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
           )}
 
           {activeSubTab === "logout" && (
-            <GlassCard animate={true} className="p-8 text-center space-y-6 max-w-sm mx-auto my-6 border-red-550/20 dark:border-red-900/40">
-              <div className="mx-auto h-12 w-12 rounded-full bg-red-100 dark:bg-red-950/20 flex items-center justify-center text-red-650 dark:text-red-450 animate-pulse">
+            <GlassCard animate={true} className="p-8 text-center space-y-6 max-w-sm mx-auto my-6 border-red-500/20 dark:border-red-900/40">
+              <div className="mx-auto h-12 w-12 rounded-full bg-red-100 dark:bg-red-950/20 flex items-center justify-center text-red-600 dark:text-red-400 animate-pulse">
                 <LogOut className="h-6 w-6" />
               </div>
               <div className="space-y-2">
