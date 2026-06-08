@@ -144,6 +144,15 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
     fetchMessages();
 
+    // Clear unread count for this conversation when opening it
+    setConversations((prev) =>
+      prev.map((c) =>
+        c._id === selectedConv._id
+          ? { ...c, unreadCounts: { ...c.unreadCounts, [user._id]: 0 } }
+          : c
+      )
+    );
+
     // Socket: Join room
     if (socket) {
       socket.emit("chat:join", { conversationId: selectedConv._id });
@@ -171,6 +180,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
     // Listen for presence updates
     s.on("user:presence", ({ userId: presenceUserId, status }: { userId: string; status: "online" | "offline" }) => {
+      logger.info("Chat: Received user:presence event", { presenceUserId, status });
       setConversations((prev) =>
         prev.map((c) => {
           const other = c.participants.find((p) => p && p._id === presenceUserId);
@@ -187,6 +197,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
     // Listen for new messages
     s.on("message:new", (message: Message) => {
+      logger.info("Chat: Received message:new event", { messageId: message._id, conversationId: message.conversation });
       // If message is for the current conversation, append it
       if (selectedConv && message.conversation === selectedConv._id) {
         setMessages((prev) => {
@@ -224,6 +235,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
     // Listen for message edits
     s.on("message:edit", (message: Message) => {
+      logger.info("Chat: Received message:edit event", { messageId: message._id, conversationId: message.conversation });
       if (selectedConv && message.conversation === selectedConv._id) {
         setMessages((prev) => prev.map((m) => (m._id === message._id ? message : m)));
       }
@@ -235,6 +247,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
     // Listen for message deletions
     s.on("message:delete", ({ messageId }: { messageId: string }) => {
+      logger.info("Chat: Received message:delete event", { messageId });
       setMessages((prev) =>
         prev.map((m) =>
           m._id === messageId
@@ -263,6 +276,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
     // Listen for message reactions
     s.on("message:reaction", (payload: { messageId: string; reaction: MessageReaction | null; type: "add" | "remove" }) => {
+      logger.info("Chat: Received message:reaction event", payload);
       setMessages((prev) =>
         prev.map((m) => {
           if (m._id !== payload.messageId) return m;
@@ -291,6 +305,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
     // Listen for conversation deletions
     s.on("conversation:delete", ({ conversationId }: { conversationId: string }) => {
+      logger.info("Chat: Received conversation:delete event", { conversationId });
       setConversations((prev) => prev.filter((c) => c._id !== conversationId));
       setSelectedConv((currentSelected) => {
         if (currentSelected?._id === conversationId) {
@@ -302,6 +317,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
     // Listen for conversation clearing
     s.on("conversation:clear", ({ conversationId }: { conversationId: string }) => {
+      logger.info("Chat: Received conversation:clear event", { conversationId });
       if (selectedConv && selectedConv._id === conversationId) {
         setMessages([]);
       }
@@ -314,6 +330,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
     // Listen for read receipts
     s.on("messages:seen", ({ conversationId, seenBy, seenAt }: { conversationId: string; seenBy: string; seenAt?: Date }) => {
+      logger.info("Chat: Received messages:seen event", { conversationId, seenBy, seenAt });
       if (selectedConv && selectedConv._id === conversationId && seenBy !== user._id) {
         setMessages((prev) =>
           prev.map((m) => {
@@ -329,6 +346,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
     // Listen for typing indicators
     s.on("chat:typing", ({ conversationId, userId: typingUserId, isTyping: partnerIsTyping }: any) => {
+      logger.info("Chat: Received chat:typing event", { conversationId, typingUserId, isTyping: partnerIsTyping });
       if (selectedConv && selectedConv._id === conversationId && typingUserId !== user._id) {
         setPartnerTyping(partnerIsTyping);
       }
@@ -606,6 +624,22 @@ export default function Chat({ user, socket, conversations, setConversations, on
   // Delete conversation
   const handleDeleteConversation = async (conversationId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // Prevent deletion if there are unread messages
+    const conversation = conversations.find(c => c._id === conversationId);
+    const unreadCount = conversation?.unreadCounts?.[user._id] || 0;
+    if (unreadCount > 0) {
+      window.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: {
+            message: "Cannot delete conversation with unread messages",
+            type: "error",
+          },
+        })
+      );
+      return;
+    }
+
     try {
       const res = await apiFetch(`/api/chats/conversations/${conversationId}`, {
         method: "DELETE",
@@ -860,7 +894,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
-                      className="absolute left-4 right-4 mt-2 rounded-2xl border border-zinc-800 bg-zinc-900/95 backdrop-blur-2xl p-2 shadow-2xl max-h-60 overflow-y-auto"
+                      className="absolute left-4 right-4 mt-2 rounded-2xl border border-zinc-800 bg-zinc-900/95 backdrop-blur-2xl p-2 shadow-2xl max-h-60 overflow-y-auto z-50"
                     >
                       <div className="flex items-center justify-between px-2 pb-1.5 border-b border-zinc-800">
                         <span className="text-[9px] font-black uppercase tracking-wider text-zinc-550">

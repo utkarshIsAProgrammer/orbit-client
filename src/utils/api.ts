@@ -34,6 +34,9 @@ function getTTL(url: string): number {
 // ── Cache store ─────────────────────────────────────────────────────
 const cache = new Map<string, { data: any; expiry: number }>();
 
+// ── Request deduplication store ─────────────────────────────────────
+const pendingRequests = new Map<string, Promise<Response>>();
+
 /**
  * Read the CSRF token from the non-httpOnly cookie set by the server.
  * Used by apiFetch to include the CSRF header on state-changing requests.
@@ -126,10 +129,26 @@ export async function apiFetch(
     });
   }
 
-  const res = await fetch(url, {
+  // ── Request deduplication ───────────────────────────────────────
+  // Check if there's already an identical request in flight
+  const pending = pendingRequests.get(url);
+  if (pending) {
+    return pending;
+  }
+
+  // Create the request promise and store it
+  const requestPromise = fetch(url, {
     ...options,
     credentials: "include",
+  }).finally(() => {
+    // Remove from pending requests when complete
+    pendingRequests.delete(url);
   });
+
+  // Store the promise for deduplication
+  pendingRequests.set(url, requestPromise);
+
+  const res = await requestPromise;
 
   if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
     try {

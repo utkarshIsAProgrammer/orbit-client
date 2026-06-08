@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
-import React, { Component, type ReactNode, type ErrorInfo } from "react";
+import { Component, type ReactNode, type ErrorInfo } from "react";
+import { logger } from "../utils/logger";
+import { captureException } from "../utils/sentry";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -27,6 +29,16 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
     if (import.meta.env.DEV) {
       console.error("ErrorBoundary caught:", error, errorInfo);
     }
+    // Always log errors for debugging
+    logger.error("ErrorBoundary caught an error", {
+      error: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+    });
+    // Send to Sentry in production
+    captureException(error, {
+      componentStack: errorInfo.componentStack,
+    });
     this.props.onError?.(error, errorInfo);
   }
 
@@ -41,7 +53,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
       }
 
       return (
-        <div className="flex min-h-[300px] w-full items-center justify-center p-8">
+        <div className="flex min-h-75 w-full items-center justify-center p-8">
           <div className="flex max-w-md flex-col items-center gap-4 rounded-3xl border border-zinc-800 bg-zinc-950/60 p-8 text-center backdrop-blur-xl">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-950/30 text-red-400">
               <svg

@@ -1,25 +1,15 @@
 import React, { useState, useEffect, useRef, Suspense, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { io, Socket } from "socket.io-client";
+import { io } from "socket.io-client";
 import {
-	Sparkles,
-	Search,
-	Bell,
-	Bookmark,
-	User as UserIcon,
-	LogOut,
 	AlertCircle,
 	X,
-	Compass,
-	Sun,
-	Moon,
 	UserPlus,
 	Check,
-	MessageSquare,
 	Users,
-	ShoppingBag,
 	ArrowRight,
 	ArrowLeft,
+	ShoppingBag,
 } from "lucide-react";
 import type { User, Notification, Conversation } from "./types";
 import BackgroundGradients from "./components/BackgroundGradients";
@@ -342,6 +332,7 @@ export default function App() {
 	const connectSockets = (userId: string) => {
 		// Prevent multiple socket connections
 		if (socketRef.current?.connected) {
+			logger.info("Socket already connected, skipping reconnection");
 			return;
 		}
 
@@ -358,10 +349,21 @@ export default function App() {
 		const socket = io(socketUrl, {
 			transports: ["websocket", "polling"],
 			withCredentials: true,
+			reconnection: true,
+			reconnectionAttempts: 5,
+			reconnectionDelay: 1000,
 		});
 
 		socketRef.current = socket;
 		setSocket(socket);
+
+		socket.on("connect", () => {
+			logger.info("Socket connected successfully", { socketId: socket.id, userId });
+		});
+
+		socket.on("disconnect", (reason) => {
+			logger.warn("Socket disconnected", { reason, userId });
+		});
 
 		socket.on("connect_error", (error) => {
 			logger.error("Socket connection error:", error);
@@ -377,6 +379,7 @@ export default function App() {
 
 		// ── Realtime user presence status changes ──
 		socket.on("user:presence", ({ userId: presenceUserId, status }: { userId: string; status: "online" | "offline" }) => {
+			logger.info("Received user:presence event", { presenceUserId, status });
 			setConversations((prev) =>
 				prev.map((c) => {
 					const other = c.participants.find((p) => p && p._id === presenceUserId);
@@ -389,12 +392,11 @@ export default function App() {
 					return c;
 				})
 			);
-			// Also refresh conversations to get latest presence status
-			fetchConversations();
 		});
 
 		// ── Realtime chat notifications & badge increments ──
 		socket.on("chat:notification", (payload: { conversationId: string; message: any; unreadCount: number }) => {
+			logger.info("Received chat:notification event", payload);
 			setConversations((prev) => {
 				const updated = prev.map((c) => {
 					if (c._id === payload.conversationId) {
@@ -424,6 +426,7 @@ export default function App() {
 
 		// Listen for WebSocket events from server
 		socket.on("notification", (payload: Notification) => {
+			logger.info("Received notification event", payload);
 			// 1. Increment inbox badge counter instantly
 			setBadgeCount((prev) => prev + 1);
 
@@ -453,52 +456,63 @@ export default function App() {
 		// Use the `userId` parameter (stable in closure) instead of `user` state (stale at setup time)
 		const uid = userId;
 		const dispatchSocketInteraction = (postId: string, type: string, value: boolean) => {
+			logger.info("Dispatching socket interaction", { postId, type, value });
 			window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type, value, source: "socket" } }));
 		};
 
 		socket.on("post:like", (data: { postId: string; userId: string; likesCount: number }) => {
+			logger.info("Received post:like event", data);
 			if (data.userId === uid) return; // own action, already handled via optimistic + local dispatch
 			dispatchSocketInteraction(data.postId, "like", true);
 		});
 		socket.on("post:unlike", (data: { postId: string; userId: string; likesCount: number }) => {
+			logger.info("Received post:unlike event", data);
 			if (data.userId === uid) return;
 			dispatchSocketInteraction(data.postId, "like", false);
 		});
 
 		socket.on("post:save", (data: { postId: string; userId: string; savesCount: number }) => {
+			logger.info("Received post:save event", data);
 			if (data.userId === uid) return;
 			dispatchSocketInteraction(data.postId, "save", true);
 		});
 		socket.on("post:unsave", (data: { postId: string; userId: string; savesCount: number }) => {
+			logger.info("Received post:unsave event", data);
 			if (data.userId === uid) return;
 			dispatchSocketInteraction(data.postId, "save", false);
 		});
 
 		socket.on("post:repost", (data: { postId: string; userId: string; repostsCount: number }) => {
+			logger.info("Received post:repost event", data);
 			if (data.userId === uid) return;
 			dispatchSocketInteraction(data.postId, "repost", true);
 		});
 		socket.on("post:unrepost", (data: { postId: string; userId: string; repostsCount: number }) => {
+			logger.info("Received post:unrepost event", data);
 			if (data.userId === uid) return;
 			dispatchSocketInteraction(data.postId, "repost", false);
 		});
 
 		// ── Realtime share count sync (no userId to check, just increment) ──
 		socket.on("post:share", (data: { postId: string; sharesCount: number }) => {
+			logger.info("Received post:share event", data);
 			window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId: data.postId, type: "share", value: true, source: "socket" } }));
 		});
 
 		// ── Realtime follow/unfollow sync ──
 		socket.on("user:follow", (data: { targetUserId: string; followerId: string; followersCount: number }) => {
+			logger.info("Received user:follow event", data);
 			setFollowingStates((prev) => ({ ...prev, [data.targetUserId]: true }));
 		});
 		socket.on("user:unfollow", (data: { targetUserId: string; followerId: string; followersCount: number }) => {
+			logger.info("Received user:unfollow event", data);
 			setFollowingStates((prev) => ({ ...prev, [data.targetUserId]: false }));
 		});
 
 		// ── Realtime new posts in feed (prepend to home feed) ──
 		// Skip own posts since they're already in the local state from createPost response
 		socket.on("post:created", (post: any) => {
+			logger.info("Received post:created event", post);
 			if (post.author?._id === uid) return;
 			window.dispatchEvent(new CustomEvent("newPostCreated", { detail: { post } }));
 		});
@@ -506,6 +520,7 @@ export default function App() {
 		// ── Realtime comment count sync ──
 		// Skip own comments (already incremented locally via the comment drawer)
 		socket.on("post:comment", (data: { postId: string; comment: any; userId: string; commentsCount: number }) => {
+			logger.info("Received post:comment event", data);
 			if (data.userId === uid) return;
 			window.dispatchEvent(new CustomEvent("postCommentAdded", { detail: { postId: data.postId, commentsCount: data.commentsCount } }));
 		});
@@ -513,55 +528,78 @@ export default function App() {
 		// ── Realtime post deletion ──
 		// Remove the post from all views when it's deleted by its author
 		socket.on("post:deleted", (postId: string) => {
+			logger.info("Received post:deleted event", postId);
 			window.dispatchEvent(new CustomEvent("postDeleted", { detail: { postId } }));
 		});
 
 		// ── Realtime post edits ──
 		// Update post content/title in all views when author edits it
 		socket.on("post:updated", (post: any) => {
+			logger.info("Received post:updated event", post);
 			window.dispatchEvent(new CustomEvent("postUpdated", { detail: { post } }));
 		});
 
 		// ── Realtime comment reply sync ──
 		// When someone replies to a comment, the post's commentsCount goes up too
 		socket.on("comment:reply", (data: { postId: string; commentId: string; reply: any; userId: string; commentsCount: number; repliesCount: number }) => {
+			logger.info("Received comment:reply event", data);
 			if (data.userId === uid) return; // own reply, already handled locally
 			window.dispatchEvent(new CustomEvent("postCommentAdded", { detail: { postId: data.postId, commentsCount: data.commentsCount } }));
-		});    // ── Realtime comment edit sync ──
+		});
+
+		// ── Realtime comment edit sync ──
 		socket.on("comment:updated", (comment: any) => {
+			logger.info("Received comment:updated event", comment);
 			window.dispatchEvent(new CustomEvent("commentUpdated", { detail: { comment } }));
 		});
 
 		// ── Realtime comment deletion sync ──
 		// When a comment is deleted, update the post's commentsCount
 		socket.on("comment:deleted", (data: { postId: string; commentId: string; commentsCount: number }) => {
+			logger.info("Received comment:deleted event", data);
 			window.dispatchEvent(new CustomEvent("postCommentDeleted", { detail: { postId: data.postId, commentsCount: data.commentsCount } }));
 			window.dispatchEvent(new CustomEvent("commentDeleted", { detail: { commentId: data.commentId } }));
 		});
 
 		// ── Realtime comment emoji reactions ──
 		socket.on("comment:reaction", (data: { commentId: string; reaction: any; type: "add" | "remove" }) => {
+			logger.info("Received comment:reaction event", data);
 			window.dispatchEvent(new CustomEvent("commentReactionChanged", { detail: data }));
 		});
 
 		// ── Realtime comment like/unlike sync ──
 		socket.on("comment:like", (data: { commentId: string; userId: string; likesCount: number }) => {
+			logger.info("Received comment:like event", data);
 			if (data.userId === uid) return;
 			window.dispatchEvent(new CustomEvent("postCommentLikeChanged", { detail: { commentId: data.commentId, likesCount: data.likesCount } }));
 		});
 		socket.on("comment:unlike", (data: { commentId: string; userId: string; likesCount: number }) => {
+			logger.info("Received comment:unlike event", data);
 			if (data.userId === uid) return;
 			window.dispatchEvent(new CustomEvent("postCommentLikeChanged", { detail: { commentId: data.commentId, likesCount: data.likesCount } }));
 		});
 
 		// ── Realtime post view sync ──
 		socket.on("post:view", (data: { postId: string; viewsCount: number }) => {
+			logger.info("Received post:view event", data);
 			window.dispatchEvent(new CustomEvent("postViewUpdated", { detail: { postId: data.postId, viewsCount: data.viewsCount } }));
 		});
 
 		// ── Realtime user profile view sync ──
 		socket.on("user:view", (data: { userId: string; viewsCount: number }) => {
+			logger.info("Received user:view event", data);
 			window.dispatchEvent(new CustomEvent("userViewUpdated", { detail: { userId: data.userId, viewsCount: data.viewsCount } }));
+		});
+
+		// ── Realtime post pin sync ──
+		socket.on("post:pin", (data: { postId: string; userId: string }) => {
+			logger.info("Received post:pin event", data);
+			window.dispatchEvent(new CustomEvent("postPinned", { detail: { postId: data.postId, userId: data.userId } }));
+		});
+
+		socket.on("post:unpin", (data: { postId: string; userId: string }) => {
+			logger.info("Received post:unpin event", data);
+			window.dispatchEvent(new CustomEvent("postUnpinned", { detail: { postId: data.postId, userId: data.userId } }));
 		});
 	};
 
@@ -626,17 +664,6 @@ export default function App() {
 		setSinglePostSlug(slug);
 		navigateToTab("home");
 	}, [navigateToTab]);
-
-	const handleTagSelection = useCallback((tag: string) => {
-		if (tag.startsWith("post-") || tag.includes("-")) {
-			// It's a post slug, open thread direct
-			handlePostSelectionBySlug(tag);
-		} else {
-			// It's a search tag
-			setSinglePostSlug(null);
-			navigateToTab("home");
-		}
-	}, [handlePostSelectionBySlug, navigateToTab]);
 
 	const handleFollowSuggestion = useCallback(async (userId: string) => {
 		// Optimistic update

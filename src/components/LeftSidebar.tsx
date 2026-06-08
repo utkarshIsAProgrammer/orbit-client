@@ -55,7 +55,7 @@ export default React.memo(function LeftSidebar({
             </div>
 
             {/* Navigation Options */}
-            <nav className="space-y-1.5 pt-3">
+            <nav className="space-y-1.5 pt-3" aria-label="Main navigation">
               {tabs.map((tab) => {
                 const active = currentTab === tab.id;
                 const Icon = tab.icon;
@@ -63,15 +63,17 @@ export default React.memo(function LeftSidebar({
                   <button
                     key={tab.id}
                     onClick={() => setTab(tab.id)}
+                    aria-label={tab.label}
+                    aria-current={active ? "page" : undefined}
                     className={`flex w-full items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all cursor-pointer ${active
                       ? "bg-zinc-900 text-white dark:bg-zinc-800 dark:text-white shadow-md"
                       : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                       }`}
                   >
                     <div className="relative">
-                      <Icon className={`h-5 w-5 ${active ? "opacity-100" : "opacity-70"}`} />
+                      <Icon className={`h-5 w-5 ${active ? "opacity-100" : "opacity-70"}`} aria-hidden="true" />
                       {tab.badge ? (
-                        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-900 text-[9px] font-semibold text-white dark:bg-white dark:text-black shadow-sm">
+                        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-900 text-[9px] font-semibold text-white dark:bg-white dark:text-black shadow-sm" aria-label={`${tab.badge} new ${tab.label}`}>
                           {tab.badge > 99 ? "99" : tab.badge}
                         </span>
                       ) : null}
@@ -85,9 +87,10 @@ export default React.memo(function LeftSidebar({
             {/* Create Post Action */}
             <button
               onClick={() => setPostModalOpen(true)}
+              aria-label="Create new post"
               className="w-full bg-white text-black font-semibold text-sm rounded-full py-3 px-6 flex items-center justify-center lg:justify-start gap-3 transition-all shadow-lg active:scale-95 cursor-pointer hover:bg-zinc-100 hover:shadow-xl"
             >
-              <Feather className="h-4 w-4" />
+              <Feather className="h-4 w-4" aria-hidden="true" />
               <span className="hidden lg:block">Post</span>
             </button>
           </div>
@@ -99,11 +102,12 @@ export default React.memo(function LeftSidebar({
                 setSelectedUserUsername(user?.username || "");
                 setTab("profile");
               }}
+              aria-label="View your profile"
               className="flex w-full items-center gap-3 rounded-2xl p-3 transition-all group hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
             >
               <img loading="lazy"
                 src={user?.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-                alt=""
+                alt={`${user?.fullName || 'User'} profile picture`}
                 className="h-9 w-9 shrink-0 rounded-full object-cover border border-zinc-800"
               />
               <div className="hidden flex-1 shrink-0 flex-col items-start lg:flex overflow-hidden text-left">

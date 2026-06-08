@@ -388,6 +388,56 @@ export default function Feed({
     return () => window.removeEventListener("commentReactionChanged", handleReactionChanged as EventListener);
   }, []);
 
+  // Listen for post interaction changes from socket (likes, saves, reposts from other users)
+  useEffect(() => {
+    const handleInteractionChanged = (e: CustomEvent<{ postId: string; type: string; value: boolean; source?: string }>) => {
+      const { postId, type, value, source } = e.detail;
+      
+      // Only update counts from socket events, not from local optimistic updates
+      if (source === "local") return;
+      
+      setPosts((prev) =>
+        prev.map((p) => {
+          if (p._id !== postId) return p;
+          
+          switch (type) {
+            case "like":
+              return { ...p, likesCount: Math.max(0, (p.likesCount || 0) + (value ? 1 : -1)) };
+            case "save":
+              return { ...p, savesCount: Math.max(0, (p.savesCount || 0) + (value ? 1 : -1)) };
+            case "repost":
+              return { ...p, repostsCount: Math.max(0, (p.repostsCount || 0) + (value ? 1 : -1)) };
+            case "share":
+              return { ...p, sharesCount: Math.max(0, (p.sharesCount || 0) + 1) };
+            default:
+              return p;
+          }
+        })
+      );
+
+      // Also update selected post if open
+      if (selectedPost && selectedPost._id === postId) {
+        setSelectedPost((prev) => {
+          if (!prev) return null;
+          switch (type) {
+            case "like":
+              return { ...prev, likesCount: Math.max(0, (prev.likesCount || 0) + (value ? 1 : -1)) };
+            case "save":
+              return { ...prev, savesCount: Math.max(0, (prev.savesCount || 0) + (value ? 1 : -1)) };
+            case "repost":
+              return { ...prev, repostsCount: Math.max(0, (prev.repostsCount || 0) + (value ? 1 : -1)) };
+            case "share":
+              return { ...prev, sharesCount: Math.max(0, (prev.sharesCount || 0) + 1) };
+            default:
+              return prev;
+          }
+        });
+      }
+    };
+    window.addEventListener("postInteractionChanged", handleInteractionChanged as EventListener);
+    return () => window.removeEventListener("postInteractionChanged", handleInteractionChanged as EventListener);
+  }, [selectedPost]);
+
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -832,6 +882,12 @@ export default function Feed({
     setFieldErrors({});
     if (!selectedPost) return;
 
+    // Optimistic update: increment comment count immediately
+    setPosts((prev) =>
+      prev.map((p) => (p._id === selectedPost._id ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p))
+    );
+    setSelectedPost((prev) => (prev ? { ...prev, commentsCount: (prev.commentsCount || 0) + 1 } : null));
+
     setSubmittingComment(true);
     try {
       const res = await apiFetch(`/api/comments/${selectedPost._id}`, {
@@ -844,18 +900,23 @@ export default function Feed({
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        // Increment count inside posts lists
-        setPosts((prev) =>
-          prev.map((p) => (p._id === selectedPost._id ? { ...p, commentsCount: (p.commentsCount || 0) + 1 } : p))
-        );
-        setSelectedPost((prev) => (prev ? { ...prev, commentsCount: (prev.commentsCount || 0) + 1 } : null));
-
         setNewCommentText("");
         setReplyToCommentId(null);
         loadComments(selectedPost._id); // Reload replies
+      } else {
+        // Rollback on failure
+        setPosts((prev) =>
+          prev.map((p) => (p._id === selectedPost._id ? { ...p, commentsCount: Math.max(0, (p.commentsCount || 0) - 1) } : p))
+        );
+        setSelectedPost((prev) => (prev ? { ...prev, commentsCount: Math.max(0, (prev.commentsCount || 0) - 1) } : null));
       }
     } catch (err) {
       logger.error(err);
+      // Rollback on error
+      setPosts((prev) =>
+        prev.map((p) => (p._id === selectedPost._id ? { ...p, commentsCount: Math.max(0, (p.commentsCount || 0) - 1) } : p))
+      );
+      setSelectedPost((prev) => (prev ? { ...prev, commentsCount: Math.max(0, (prev.commentsCount || 0) - 1) } : null));
     } finally {
       setSubmittingComment(false);
     }
@@ -1011,8 +1072,8 @@ export default function Feed({
 
                         {/* Autocomplete suggestions box */}
                         {showMentionDropdown && candidateUsers.length > 0 && (
-                          <div className="absolute top-full left-0 z-50 w-64 rounded-3xl border border-zinc-800 bg-zinc-900 p-2.5 shadow-xl">
-                            <p className="px-2.5 pb-1.5 text-[9px] font-bold uppercase tracking-wider text-zinc-550">
+                          <div className="absolute top-full left-0 z-50 w-64 max-w-[calc(100vw-2rem)] rounded-3xl border border-zinc-800 bg-zinc-900 p-2.5 shadow-xl">
+                            <p className="px-2.5 pb-1.5 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
                               People to Mention
                             </p>
                             <div className="max-h-36 overflow-y-auto space-y-0.5">
@@ -1025,11 +1086,11 @@ export default function Feed({
                                   <img loading="lazy"
                                     src={u.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
                                     alt=""
-                                    className="h-5.5 w-5.5 rounded-full object-cover border border-zinc-850"
+                                    className="h-5.5 w-5.5 rounded-full object-cover border border-zinc-800"
                                   />
                                   <div>
                                     <p className="font-bold text-zinc-200 text-[11px]">{u.fullName}</p>
-                                    <p className="text-[10px] text-zinc-450">@{u.username}</p>
+                                    <p className="text-[10px] text-zinc-500">@{u.username}</p>
                                   </div>
                                 </div>
                               ))}
@@ -1146,11 +1207,17 @@ export default function Feed({
                               alt={post.author.fullName}
                               onClick={() => onUserSelected(post.author.username)}
                               className="h-10 w-10 cursor-pointer rounded-full object-cover border border-zinc-800 shadow-sm"
+                              role="button"
+                              tabIndex={0}
+                              onKeyPress={(e) => e.key === 'Enter' && onUserSelected(post.author.username)}
                             />
                             <div>
                               <h4
                                 onClick={() => onUserSelected(post.author.username)}
                                 className="font-sans text-sm font-bold text-white cursor-pointer hover:underline"
+                                role="button"
+                                tabIndex={0}
+                                onKeyPress={(e) => e.key === 'Enter' && onUserSelected(post.author.username)}
                               >
                                 {post.author.fullName}
                               </h4>
@@ -1158,7 +1225,7 @@ export default function Feed({
                             </div>
                           </div>
 
-                          <span className="text-[10px] font-medium text-zinc-550">
+                          <span className="text-[10px] font-medium text-zinc-500" aria-label={`Posted ${getRelativeDate(post.createdAt)}`}>
                             {getRelativeDate(post.createdAt)}
                           </span>
                         </div>
@@ -1191,15 +1258,16 @@ export default function Feed({
                         )}
 
                         {/* Bottom stats rail / Interactivity buttons with spring pops */}
-                        <div className="mt-5 flex items-center justify-between border-t border-zinc-850 pt-3.5 text-zinc-400">
+                        <div className="mt-5 flex items-center justify-between border-t border-zinc-800 pt-3.5 text-zinc-400">
                           {/* Likes button */}
                           <button
                             onClick={() => handleLikeToggle(post._id, !!post.likedByMe)}
                             className="flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none cursor-pointer"
+                            aria-label={`${post.likedByMe ? 'Unlike' : 'Like'} post (${post.likesCount} likes)`}
                           >
                             <motion.span whileTap={{ scale: 1.4 }} whileHover={{ scale: 1.1 }} className="flex">
                               <Heart
-                                className={`h-4 w-4 transition-colors group-hover:text-red-500 ${post.likedByMe ? "fill-red-500 text-red-500" : "text-zinc-550"
+                                className={`h-4 w-4 transition-colors group-hover:text-red-500 ${post.likedByMe ? "fill-red-500 text-red-500" : "text-zinc-500"
                                   }`}
                               />
                             </motion.span>
@@ -1215,9 +1283,10 @@ export default function Feed({
                               loadComments(post._id);
                             }}
                             className="flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none cursor-pointer"
+                            aria-label={`View comments (${post.commentsCount} comments)`}
                           >
                             <motion.span whileHover={{ scale: 1.1 }}>
-                              <MessageSquare className="h-4 w-4 text-zinc-550 group-hover:text-white" />
+                              <MessageSquare className="h-4 w-4 text-zinc-500 group-hover:text-white" />
                             </motion.span>
                             <span className="group-hover:text-white text-zinc-400">{post.commentsCount}</span>
                           </button>
@@ -1226,10 +1295,11 @@ export default function Feed({
                           <button
                             onClick={() => handleRepostToggle(post._id, !!post.repostedByMe)}
                             className="flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none cursor-pointer"
+                            aria-label={`${post.repostedByMe ? 'Undo repost' : 'Repost'} post (${post.repostsCount} reposts)`}
                           >
                             <motion.span whileTap={{ rotate: 180 }} whileHover={{ scale: 1.1 }} className="flex">
                               <Repeat2
-                                className={`h-4 w-4 text-zinc-550 group-hover:text-white ${post.repostedByMe ? "text-green-500 font-bold" : ""
+                                className={`h-4 w-4 text-zinc-500 group-hover:text-white ${post.repostedByMe ? "text-green-500 font-bold" : ""
                                   }`}
                               />
                             </motion.span>
@@ -1242,10 +1312,11 @@ export default function Feed({
                           <button
                             onClick={() => handleSaveToggle(post._id, !!post.savedByMe)}
                             className="flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none cursor-pointer"
+                            aria-label={`${post.savedByMe ? 'Remove from saved' : 'Save post'} (${post.savesCount} saves)`}
                           >
                             <motion.span whileTap={{ scale: 1.3 }} whileHover={{ scale: 1.1 }} className="flex">
                               <Bookmark
-                                className={`h-4 w-4 transition-colors ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : "text-zinc-550 group-hover:text-white"
+                                className={`h-4 w-4 transition-colors ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : "text-zinc-500 group-hover:text-white"
                                   }`}
                               />
                             </motion.span>
@@ -1255,8 +1326,8 @@ export default function Feed({
                           </button>
 
                           {/* Viewer / Reach stats */}
-                          <span className="flex items-center gap-1 text-[10px] text-zinc-555 select-none">
-                            <Eye className="h-3 w-3" />
+                          <span className="flex items-center gap-1 text-[10px] text-zinc-500 select-none" aria-label={`${post.viewsCount || 0} views`}>
+                            <Eye className="h-3 w-3" aria-hidden="true" />
                             {post.viewsCount || 0}
                           </span>
 
@@ -1264,8 +1335,9 @@ export default function Feed({
                           <button
                             onClick={() => handleSharePost(post._id)}
                             className="flex h-7.5 w-7.5 items-center justify-center rounded-full hover:bg-zinc-800 transition-colors cursor-pointer text-zinc-500 hover:text-white"
+                            aria-label="Share post"
                           >
-                            <Share2 className="h-3.5 w-3.5" />
+                            <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
                         </div>
                       </GlassCard>
@@ -1276,7 +1348,7 @@ export default function Feed({
                 {/* Infinite scroll sentinel */}
                 {hasMore && (
                   <div ref={sentinelRef} className="flex justify-center py-6">
-                    <Loader2 className="h-5 w-5 animate-spin text-zinc-550" />
+                    <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
                   </div>
                 )}
               </div>
@@ -1338,7 +1410,7 @@ export default function Feed({
                           </div>
                         </div>
 
-                        <span className="text-[10px] font-medium text-zinc-550">
+                        <span className="text-[10px] font-medium text-zinc-500">
                           {getRelativeDate(post.createdAt)}
                         </span>
                       </div>
@@ -1371,7 +1443,7 @@ export default function Feed({
                       )}
 
                       {/* Bottom stats rail / Interactivity buttons with spring pops */}
-                      <div className="mt-5 flex items-center justify-between border-t border-zinc-850 pt-3.5 text-zinc-400">
+                      <div className="mt-5 flex items-center justify-between border-t border-zinc-800 pt-3.5 text-zinc-400">
                         {/* Likes button */}
                         <button
                           onClick={() => handleLikeToggle(post._id, !!post.likedByMe)}
@@ -1379,11 +1451,11 @@ export default function Feed({
                         >
                           <motion.span whileTap={{ scale: 1.4 }} whileHover={{ scale: 1.1 }} className="flex">
                             <Heart
-                              className={`h-4 w-4 transition-colors group-hover:text-red-500 ${post.likedByMe ? "fill-red-500 text-red-500" : "text-zinc-550"
+                              className={`h-4 w-4 transition-colors group-hover:text-red-500 ${post.likedByMe ? "fill-red-500 text-red-500" : "text-zinc-500"
                                 }`}
                             />
                           </motion.span>
-                          <span className={post.likedByMe ? "text-red-450 font-bold" : "group-hover:text-red-400 text-zinc-400"}>
+                          <span className={post.likedByMe ? "text-red-400 font-bold" : "group-hover:text-red-400 text-zinc-400"}>
                             {post.likesCount}
                           </span>
                         </button>
@@ -1397,7 +1469,7 @@ export default function Feed({
                           className="flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none cursor-pointer"
                         >
                           <motion.span whileHover={{ scale: 1.1 }}>
-                            <MessageSquare className="h-4 w-4 text-zinc-550 group-hover:text-white" />
+                            <MessageSquare className="h-4 w-4 text-zinc-500 group-hover:text-white" />
                           </motion.span>
                           <span className="group-hover:text-white text-zinc-400">{post.commentsCount}</span>
                         </button>
@@ -1409,7 +1481,7 @@ export default function Feed({
                         >
                           <motion.span whileTap={{ rotate: 180 }} whileHover={{ scale: 1.1 }} className="flex">
                             <Repeat2
-                              className={`h-4 w-4 text-zinc-550 group-hover:text-white ${post.repostedByMe ? "text-green-500 font-bold" : ""
+                              className={`h-4 w-4 text-zinc-500 group-hover:text-white ${post.repostedByMe ? "text-green-500 font-bold" : ""
                                 }`}
                             />
                           </motion.span>
@@ -1425,7 +1497,7 @@ export default function Feed({
                         >
                           <motion.span whileTap={{ scale: 1.3 }} whileHover={{ scale: 1.1 }} className="flex">
                             <Bookmark
-                              className={`h-4 w-4 transition-colors ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : "text-zinc-550 group-hover:text-white"
+                              className={`h-4 w-4 transition-colors ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : "text-zinc-500 group-hover:text-white"
                                 }`}
                             />
                           </motion.span>
@@ -1435,7 +1507,7 @@ export default function Feed({
                         </button>
 
                         {/* Viewer / Reach stats */}
-                        <span className="flex items-center gap-1 text-[10px] text-zinc-550 select-none">
+                        <span className="flex items-center gap-1 text-[10px] text-zinc-500 select-none">
                           <Eye className="h-3 w-3" />
                           {post.viewsCount || 0}
                         </span>
@@ -1495,7 +1567,7 @@ export default function Feed({
                     <Loader2 className="h-7 w-7 animate-spin text-white" />
                   </div>
                 ) : comments.length === 0 ? (
-                  <div className="py-16 text-center text-sm text-zinc-550">
+                  <div className="py-16 text-center text-sm text-zinc-500">
                     <MessageCircle className="mx-auto h-9 w-9 text-zinc-500 mb-3 animate-bounce" />
                     No status comments. Be the first to add one!
                   </div>
