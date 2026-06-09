@@ -40,6 +40,11 @@ export async function apiFetch(
     ...(options.headers as Record<string, string>),
   };
 
+  const token = localStorage.getItem("orbit_jwt_token");
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   if (method !== "GET") {
     const csrfToken = getCsrfToken();
     if (csrfToken) {
