@@ -110,7 +110,7 @@ export default function Auth({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        onAuthSuccess(data.user);
+        onAuthSuccess(data.user, data.token);
       } else {
         setError(data.message || "Registration failed.");
       }
@@ -144,7 +144,7 @@ export default function Auth({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        onAuthSuccess(data.user);
+        onAuthSuccess(data.user, data.token);
       } else {
         setError(data.message || "Invalid username or password.");
       }

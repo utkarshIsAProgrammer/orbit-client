@@ -51,6 +51,20 @@ export default function Feed({
   autoOpenComments = false,
   onClearAutoOpenComments,
 }: FeedProps) {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.innerWidth < 768 || window.matchMedia("(pointer: coarse)").matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || window.matchMedia("(pointer: coarse)").matches);
+    };
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -1201,11 +1215,11 @@ export default function Feed({
                   {posts.map((post) => (
                     <motion.div
                       key={post._id}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -15 }}
-                      whileHover={{ y: -3, transition: { duration: 0.2, ease: "easeOut" } }}
-                      transition={{ duration: 0.3 }}
+                      initial={isMobile ? undefined : { opacity: 0, y: 15 }}
+                      animate={isMobile ? undefined : { opacity: 1, y: 0 }}
+                      exit={isMobile ? undefined : { opacity: 0, y: -15 }}
+                      whileHover={isMobile ? undefined : { y: -3, transition: { duration: 0.2, ease: "easeOut" } }}
+                      transition={isMobile ? { duration: 0 } : { duration: 0.3 }}
                     >
                       <GlassCard
                         className="shadow-sm border-white/5 bg-zinc-950/20 hover:border-white/10 transition-all rounded-4xl"
@@ -1392,11 +1406,11 @@ export default function Feed({
                 {posts.map((post) => (
                   <motion.div
                     key={post._id}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    whileHover={{ y: -3, transition: { duration: 0.2, ease: "easeOut" } }}
-                    transition={{ duration: 0.3 }}
+                    initial={isMobile ? undefined : { opacity: 0, y: 15 }}
+                    animate={isMobile ? undefined : { opacity: 1, y: 0 }}
+                    exit={isMobile ? undefined : { opacity: 0, y: -15 }}
+                    whileHover={isMobile ? undefined : { y: -3, transition: { duration: 0.2, ease: "easeOut" } }}
+                    transition={isMobile ? { duration: 0 } : { duration: 0.3 }}
                   >
                     <GlassCard
                       className="shadow-sm border-white/5 bg-zinc-950/20 hover:border-white/10 transition-all rounded-4xl"

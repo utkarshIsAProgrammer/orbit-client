@@ -63,6 +63,19 @@ export default function App() {
 	const [socket, setSocket] = useState<ReturnType<typeof io> | null>(null);
 	const [conversations, setConversations] = useState<Conversation[]>([]);
 	const [composeOpen, setComposeOpen] = useState(false);
+	const [isMobileDevice, setIsMobileDevice] = useState(() => {
+		if (typeof window === "undefined") return false;
+		return window.innerWidth < 768 || window.matchMedia("(pointer: coarse)").matches;
+	});
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const checkMobile = () => {
+			setIsMobileDevice(window.innerWidth < 768 || window.matchMedia("(pointer: coarse)").matches);
+		};
+		window.addEventListener("resize", checkMobile);
+		return () => window.removeEventListener("resize", checkMobile);
+	}, []);
 
 	useEffect(() => {
 		let timer: NodeJS.Timeout;
@@ -180,7 +193,11 @@ export default function App() {
 			const data = await res.json();
 			if (res.ok && data.success) {
 				setUser(data.user);
-				connectSockets(data.user._id);
+				if (data.token) {
+					localStorage.setItem("orbit_jwt_token", data.token);
+				}
+				const token = data.token || localStorage.getItem("orbit_jwt_token") || "";
+				connectSockets(data.user._id, token);
 				fetchBadgeCounts(); // fetch initial badge counts
 				fetchConversations();
 				fetchFollowing(data.user._id);
@@ -355,7 +372,7 @@ export default function App() {
 	}, [user]);
 
 	// Set up socket connections
-	const connectSockets = (userId: string, token?: string) => {
+	const connectSockets = (userId: string, token: string = localStorage.getItem("orbit_jwt_token") || "") => {
 		// Prevent multiple socket connections for the SAME user
 		if (socketRef.current?.connected && socketUserIdRef.current === userId) {
 			logger.info("Socket already connected for this user, skipping reconnection");
@@ -667,9 +684,13 @@ export default function App() {
 		});
 	};
 
-	const handleAuthSuccess = useCallback((authUser: User) => {
+	const handleAuthSuccess = useCallback((authUser: User, token?: string) => {
 		setUser(authUser);
-		connectSockets(authUser._id);
+		if (token) {
+			localStorage.setItem("orbit_jwt_token", token);
+		}
+		const finalToken = token || localStorage.getItem("orbit_jwt_token") || "";
+		connectSockets(authUser._id, finalToken);
 		fetchBadgeCounts();
 		fetchFollowing(authUser._id);
 		setTab("home");
@@ -694,6 +715,7 @@ export default function App() {
 			}
 			setSocket(null);
 			socketUserIdRef.current = null;
+			localStorage.removeItem("orbit_jwt_token");
 		} catch (e) {
 			logger.error(e);
 		}
@@ -852,23 +874,25 @@ export default function App() {
 									id="auth-section"
 									className="min-h-screen w-full flex flex-col items-center justify-center px-6 py-20 relative z-10 bg-transparent overflow-hidden">
 									<div className="absolute inset-0 w-full h-full pointer-events-none select-none z-0 opacity-40 mix-blend-screen">
-										<LiquidEther
-											colors={["#ffffff", "#a1a1aa", "#3f3f46"]}
-											mouseForce={20}
-											cursorSize={110}
-											isViscous={false}
-											viscous={30}
-											iterationsViscous={32}
-											iterationsPoisson={32}
-											resolution={0.5}
-											isBounce={false}
-											autoDemo={true}
-											autoSpeed={0.55}
-											autoIntensity={2.2}
-											takeoverDuration={0.25}
-											autoResumeDelay={2500}
-											autoRampDuration={0.6}
-										/>
+										{!isMobileDevice && (
+											<LiquidEther
+												colors={["#ffffff", "#a1a1aa", "#3f3f46"]}
+												mouseForce={20}
+												cursorSize={110}
+												isViscous={false}
+												viscous={30}
+												iterationsViscous={32}
+												iterationsPoisson={32}
+												resolution={0.5}
+												isBounce={false}
+												autoDemo={true}
+												autoSpeed={0.55}
+												autoIntensity={2.2}
+												takeoverDuration={0.25}
+												autoResumeDelay={2500}
+												autoRampDuration={0.6}
+											/>
+										)}
 									</div>
 									{/* Center Auth Card with super clean backplate */}
 									<div className="w-full max-w-md my-6 relative z-10 shrink-0">
