@@ -1050,7 +1050,7 @@ export default function Profile({
 							}),
 						);
 					}}>
-					<img
+					<img loading="lazy" 
 						src={
 							bannerPicPreview ||
 							"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800"
@@ -1358,7 +1358,7 @@ export default function Profile({
 								</p>
 															{post.image && (
 																<div className="mt-3.5 overflow-hidden rounded-3xl border border-zinc-800">
-																	<img
+																	<img loading="lazy" 
 																		src={
 																			post.image
 																				.url
@@ -1491,7 +1491,7 @@ export default function Profile({
 							</p>
 												{post.image && (
 													<div className="mt-3.5 overflow-hidden rounded-3xl border border-zinc-800">
-														<img
+														<img loading="lazy" 
 															src={post.image.url}
 															alt=""
 															className="w-full h-auto max-h-120 object-cover"
@@ -1631,7 +1631,7 @@ export default function Profile({
 							</p>
 												{post.image && (
 													<div className="mt-3.5 overflow-hidden rounded-3xl border border-zinc-800">
-														<img
+														<img loading="lazy" 
 															src={post.image.url}
 															alt=""
 															className="w-full h-auto max-h-120 object-cover"
@@ -1943,7 +1943,7 @@ export default function Profile({
 													setActiveList(null);
 													onPostClick(post.slug);
 												}}>
-												<img
+												<img loading="lazy" 
 													src={
 														post.author?.profilePic
 															?.url ||
@@ -1973,7 +1973,7 @@ export default function Profile({
 													setActiveList(null);
 													onUserClick(u.username);
 												}}>
-												<img
+												<img loading="lazy" 
 													src={
 														u.profilePic?.url ||
 														"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"

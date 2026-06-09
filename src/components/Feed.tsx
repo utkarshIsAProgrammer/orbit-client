@@ -1181,7 +1181,7 @@ export default function Feed({
                         {/* Author context line */}
                         <div className="mb-4 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <img
+                            <img loading="lazy" 
                               src={post.author.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
                               alt={post.author.fullName}
                               onClick={() => onUserSelected(post.author.username)}
@@ -1227,7 +1227,7 @@ export default function Feed({
                               window.dispatchEvent(new CustomEvent("openImagePreview", { detail: post.image!.url }));
                             }}
                           >
-                            <img
+                            <img loading="lazy" 
                               src={post.image.url}
                               alt="attachment media"
                               onLoad={() => registerViewCount(post._id)}

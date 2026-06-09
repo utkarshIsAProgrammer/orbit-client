@@ -7,6 +7,7 @@ export default function LandingSpaceBackdrop() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const etherCanvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 });
+  const isMobile = typeof window !== 'undefined' && (window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -23,7 +24,7 @@ export default function LandingSpaceBackdrop() {
   }, []);
 
   useEffect(() => {
-    if (!hasWebGL()) return;
+    if (!hasWebGL() || isMobile) return;
     const canvas = canvasRef.current;
     const etherCanvas = etherCanvasRef.current;
     if (!canvas || !etherCanvas) return;

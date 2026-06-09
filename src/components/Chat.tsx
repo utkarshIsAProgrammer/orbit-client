@@ -342,6 +342,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
       logger.info("Chat: Received messages:seen event", { conversationId, seenBy, seenAt });
       const currentConv = selectedConvRef.current;
       const currentUser = userRef.current;
+      
+      // Update messages in the active conversation (double tick)
       if (currentConv && currentConv._id === conversationId && seenBy !== currentUser?._id) {
         setMessages((prev) =>
           prev.map((m) => {
@@ -353,6 +355,22 @@ export default function Chat({ user, socket, conversations, setConversations, on
           })
         );
       }
+      
+      // Update the conversation's unreadCounts so the app-level chatBadgeCount recalculates
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c._id === conversationId && currentUser) {
+            return {
+              ...c,
+              unreadCounts: {
+                ...c.unreadCounts,
+                [currentUser._id]: 0
+              }
+            };
+          }
+          return c;
+        })
+      );
     });
 
     // Listen for typing indicators
@@ -944,7 +962,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
   };
 
   return (
-    <div className="w-full px-2 pb-24 pt-6 h-[calc(100vh-7rem)] relative select-text">
+    <div className="w-full px-2 pb-24 pt-6 h-[calc(100vh-7rem)] h-screen-force relative select-text chat-container">
       <GlassCard animate={true} className="w-full h-full p-0 flex rounded-4xl overflow-hidden border-white/5 bg-zinc-950/20 backdrop-blur-xl">
         <AnimatePresence mode="wait">
           {!selectedConv ? (
@@ -1014,7 +1032,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                               onClick={() => startConversation(usr._id)}
                               className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 hover:bg-zinc-800/60 cursor-pointer transition-colors"
                             >
-                              <img
+                              <img loading="lazy" 
                                 src={usr.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
                                 alt={usr.fullName}
                                 className="h-7 w-7 rounded-full object-cover border border-zinc-800"
@@ -1064,7 +1082,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         className="flex items-center gap-3 rounded-2xl p-3 cursor-pointer transition-all border hover:bg-zinc-900/30 text-zinc-300 border-transparent"
                       >
                         <div className="relative shrink-0">
-                          <img
+                          <img loading="lazy" 
                             src={partner.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
                             alt={partner.fullName}
                             className="h-10 w-10 rounded-full object-cover border border-zinc-800"
@@ -1140,7 +1158,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                     className="relative cursor-pointer hover:opacity-85"
                     onClick={() => onUserSelected(getPartner(selectedConv).username)}
                   >
-                    <img
+                    <img loading="lazy" 
                       src={getPartner(selectedConv).profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
                       alt={getPartner(selectedConv).fullName}
                       className="h-9 w-9 rounded-full object-cover border border-zinc-800"
@@ -1242,7 +1260,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                                   {msg.attachments && msg.attachments.length > 0 && (
                                     <div className="mt-2 space-y-1.5 max-w-sm rounded-xl overflow-hidden border border-zinc-800">
                                       {msg.attachments.map((att, aIdx) => (
-                                        <img
+                                        <img loading="lazy" 
                                           key={aIdx}
                                           src={att.url}
                                           alt={`Attachment from ${msg.sender.fullName}`}
@@ -1315,7 +1333,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                 )}
               </AnimatePresence>
 
-              <div className="p-4 border-t border-zinc-800/30 shrink-0 bg-zinc-950/20 backdrop-blur-md relative z-10">
+              <div className="p-4 border-t border-zinc-800/30 shrink-0 bg-zinc-950/20 backdrop-blur-md relative z-10 chat-input-area">
                 {attachmentPreviews.length > 0 && (
                   <div className="flex gap-2 mb-3 bg-zinc-900/50 p-2.5 rounded-2xl border border-zinc-800 max-w-sm">
                     {attachmentPreviews.map((url, idx) => (
@@ -1727,7 +1745,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         onClick={() => handleForwardMessage(conv._id)}
                         className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-800/60 text-left transition-colors"
                       >
-                        <img
+                        <img loading="lazy" 
                           src={partner.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
                           alt={partner.fullName}
                           className="h-8 w-8 rounded-full object-cover border border-zinc-800"

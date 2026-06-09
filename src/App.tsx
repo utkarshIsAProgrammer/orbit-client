@@ -87,6 +87,24 @@ export default function App() {
 		localStorage.setItem("orbit_theme", "dark");
 	}, []);
 
+	// Dynamic page title based on current tab — improves UX and browser history
+	useEffect(() => {
+		const tabTitles: Record<string, string> = {
+			home: "Home Feed",
+			explore: "Explore",
+			notifications: "Notifications",
+			chat: "Messages",
+			profile: "Profile",
+			settings: "Settings",
+			saved: "Saved Posts",
+			reposts: "Your Reposts",
+		};
+		const tabName = tabTitles[currentTab] || "Home Feed";
+		document.title = user
+			? `ORBIT | ${tabName} — @${user.username}`
+			: currentTab === "home" ? "ORBIT | Your Inner Circle" : `ORBIT | ${tabName}`;
+	}, [currentTab, user]);
+
 	// Calculate total unread chat messages
 	useEffect(() => {
 		if (!user) {

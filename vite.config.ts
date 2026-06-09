@@ -1,8 +1,11 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { sentryVitePlugin } from "@sentry/vite-plugin";
+import { visualizer } from "rollup-plugin-visualizer";
 import path from 'path';
 import { defineConfig } from 'vite';
+
+const isProd = process.env.NODE_ENV === 'production';
 
 export default defineConfig(() => {
   return {
@@ -18,6 +21,13 @@ export default defineConfig(() => {
           assets: "./dist/assets/**",
         },
       }),
+      // Visualize bundle composition (run with ANALYZE=true to open report)
+      ...(process.env.ANALYZE === 'true' ? [visualizer({
+        filename: 'dist/stats.html',
+        open: true,
+        gzipSize: true,
+        brotliSize: true,
+      })] : []),
     ],
     resolve: {
       alias: {
@@ -25,7 +35,8 @@ export default defineConfig(() => {
       },
     },
     build: {
-      sourcemap: true,
+      // Generate sourcemaps only in development (or when explicitly opted in)
+      sourcemap: !isProd || process.env.GENERATE_SOURCEMAPS === 'true',
       rollupOptions: {
         output: {
           manualChunks: {

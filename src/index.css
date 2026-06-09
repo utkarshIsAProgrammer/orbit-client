@@ -208,4 +208,51 @@ textarea:focus:invalid {
     transform: none !important;
     will-change: auto !important;
   }
+  
+  /* Mobile chat: prevent zoom on input focus, prevent overscroll */
+  input, textarea, select {
+    font-size: 16px !important; /* prevents iOS auto-zoom on focus */
+  }
+  
+  /* Chat specific mobile fixes */
+  .chat-container {
+    touch-action: pan-y pinch-zoom !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* Prevent layout shift when keyboard opens */
+  .chat-input-area {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 10 !important;
+    padding-bottom: env(safe-area-inset-bottom, 8px) !important;
+  }
+}
+
+/* Mobile: dynamic viewport height for all browsers that support dvh */
+/* 100dvh excludes browser chrome (address bar, etc.) on mobile - prevents 'top part missing' issue */
+@supports (height: 100dvh) {
+  .h-screen-force {
+    height: 100dvh !important;
+  }
+}
+
+/* Fallback for browsers that don't support dvh units */
+@supports not (height: 100dvh) {
+  .h-screen-force {
+    height: 100vh !important;
+  }
+}
+
+/* iOS Safari must come LAST — overrides both 100dvh and 100vh above */
+@supports (-webkit-touch-callout: none) {
+  .h-screen-force {
+    height: -webkit-fill-available !important;
+  }
+  
+  input, textarea {
+    -webkit-user-select: text !important;
+    user-select: text !important;
+  }
 }

@@ -446,7 +446,7 @@ export default function Explore({
                     <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{pst.content}</p>
                     {pst.image && (
                       <div className="mt-3 overflow-hidden rounded-3xl border border-zinc-800">
-                        <img
+                        <img loading="lazy" 
                           src={pst.image.url}
                           alt=""
                           className="w-full h-auto max-h-125 object-cover"
