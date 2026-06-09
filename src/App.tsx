@@ -15,7 +15,6 @@ import type { User, Notification, Conversation } from "./types";
 import BackgroundGradients from "./components/BackgroundGradients";
 import LeftSidebar from "./components/LeftSidebar";
 import GlassCard from "./components/GlassCard";
-import CustomCursor from "./components/CustomCursor";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { apiFetch } from "./utils/api";
 import { getNotificationText, getFloatingToastText } from "./utils/notificationText";
@@ -308,6 +307,9 @@ export default function App() {
 		}
 	};
 
+	// Track previous user value to detect actual login/logout (not incremental followingCount changes)
+	const prevUserRef = useRef(user);
+
 	useEffect(() => {
 		checkSession();
 		return () => {
@@ -320,10 +322,17 @@ export default function App() {
 	}, []);
 
 	useEffect(() => {
-		if (user) {
-			fetchSuggestions();
-		} else {
+		const prevUser = prevUserRef.current;
+		// Update ref AFTER comparison so it holds the previous value during next render
+		prevUserRef.current = user;
+		
+		// Only fetch on actual login/logout transitions, not incremental followingCount changes
+		if (prevUser && !user) {
+			// User logged out
 			setSuggestions([]);
+		} else if (user && !prevUser) {
+			// User logged in — fetch suggestions
+			fetchSuggestions();
 		}
 	}, [user]);
 
@@ -456,51 +465,51 @@ export default function App() {
 		});
 
 		// ── Realtime post interaction sync (likes, saves, reposts) ──
-		// Dispatch with source="socket" so listeners only update counts, not status fields
+		// Dispatch with source="socket" and the absolute count from server so listeners can use exact values
 		// Use the `userId` parameter (stable in closure) instead of `user` state (stale at setup time)
 		const uid = userId;
-		const dispatchSocketInteraction = (postId: string, type: string, value: boolean) => {
-			logger.info("Dispatching socket interaction", { postId, type, value });
-			window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type, value, source: "socket" } }));
+		const dispatchSocketInteraction = (postId: string, type: string, value: boolean, count?: number) => {
+			logger.info("Dispatching socket interaction", { postId, type, value, count });
+			window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type, value, count, source: "socket" } }));
 		};
 
 		socket.on("post:like", (data: { postId: string; userId: string; likesCount: number }) => {
 			logger.info("Received post:like event", data);
 			if (data.userId === uid) return; // own action, already handled via optimistic + local dispatch
-			dispatchSocketInteraction(data.postId, "like", true);
+			dispatchSocketInteraction(data.postId, "like", true, data.likesCount);
 		});
 		socket.on("post:unlike", (data: { postId: string; userId: string; likesCount: number }) => {
 			logger.info("Received post:unlike event", data);
 			if (data.userId === uid) return;
-			dispatchSocketInteraction(data.postId, "like", false);
+			dispatchSocketInteraction(data.postId, "like", false, data.likesCount);
 		});
 
 		socket.on("post:save", (data: { postId: string; userId: string; savesCount: number }) => {
 			logger.info("Received post:save event", data);
 			if (data.userId === uid) return;
-			dispatchSocketInteraction(data.postId, "save", true);
+			dispatchSocketInteraction(data.postId, "save", true, data.savesCount);
 		});
 		socket.on("post:unsave", (data: { postId: string; userId: string; savesCount: number }) => {
 			logger.info("Received post:unsave event", data);
 			if (data.userId === uid) return;
-			dispatchSocketInteraction(data.postId, "save", false);
+			dispatchSocketInteraction(data.postId, "save", false, data.savesCount);
 		});
 
 		socket.on("post:repost", (data: { postId: string; userId: string; repostsCount: number }) => {
 			logger.info("Received post:repost event", data);
 			if (data.userId === uid) return;
-			dispatchSocketInteraction(data.postId, "repost", true);
+			dispatchSocketInteraction(data.postId, "repost", true, data.repostsCount);
 		});
 		socket.on("post:unrepost", (data: { postId: string; userId: string; repostsCount: number }) => {
 			logger.info("Received post:unrepost event", data);
 			if (data.userId === uid) return;
-			dispatchSocketInteraction(data.postId, "repost", false);
+			dispatchSocketInteraction(data.postId, "repost", false, data.repostsCount);
 		});
 
-		// ── Realtime share count sync (no userId to check, just increment) ──
+		// ── Realtime share count sync (use absolute count from server) ──
 		socket.on("post:share", (data: { postId: string; sharesCount: number }) => {
 			logger.info("Received post:share event", data);
-			window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId: data.postId, type: "share", value: true, source: "socket" } }));
+			window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId: data.postId, type: "share", value: true, count: data.sharesCount, source: "socket" } }));
 		});
 
 		// ── Realtime follow/unfollow sync ──
@@ -749,9 +758,6 @@ export default function App() {
 	return (
 		<ErrorBoundary>
 			<div className="relative min-h-screen text-slate-800 dark:text-zinc-100 selection:bg-zinc-800/10 dark:selection:bg-white/10 antialiased font-ui flex flex-col justify-start bg-transparent transition-colors duration-500 overflow-x-hidden">
-				{/* Custom cursor */}
-				<CustomCursor />
-
 				{/* Background Liquid Glob Dynamic Mesh Grid */}
 				<BackgroundGradients />
 

@@ -376,54 +376,59 @@ export default function Feed({
     };
     window.addEventListener("commentReactionChanged", handleReactionChanged as EventListener);
     return () => window.removeEventListener("commentReactionChanged", handleReactionChanged as EventListener);
-  }, []);
+  }, []);	// Listen for post interaction changes from socket (likes, saves, reposts from other users)
+	useEffect(() => {
+		const handleInteractionChanged = (e: CustomEvent<{ postId: string; type: string; value: boolean; source?: string; count?: number }>) => {
+			const { postId, type, value, source, count } = e.detail;
+			
+			// Only update counts from socket events, not from local optimistic updates
+			if (source === "local") return;
+			if (!source) return; // Events without a source come from Feed's own dispatch — skip to prevent double-counting
+			
+			// Use absolute count from server when available (socket events carry the authoritative count)
+			const getCount = (p: any, field: string) => {
+				if (count !== undefined) return count;
+				return Math.max(0, (p[field as keyof Post] as number || 0) + (value ? 1 : -1));
+			};
+			
+			setPosts((prev) =>
+				prev.map((p) => {
+					if (p._id !== postId) return p;
+					
+					switch (type) {
+						case "like":
+							return { ...p, likesCount: getCount(p, "likesCount") };
+						case "save":
+							return { ...p, savesCount: getCount(p, "savesCount") };
+						case "repost":
+							return { ...p, repostsCount: getCount(p, "repostsCount") };
+						case "share":
+							return { ...p, sharesCount: count !== undefined ? count : Math.max(0, (p.sharesCount || 0) + 1) };
+						default:
+							return p;
+					}
+				})
+			);
 
-  // Listen for post interaction changes from socket (likes, saves, reposts from other users)
-  useEffect(() => {
-    const handleInteractionChanged = (e: CustomEvent<{ postId: string; type: string; value: boolean; source?: string }>) => {
-      const { postId, type, value, source } = e.detail;
-      
-      // Only update counts from socket events, not from local optimistic updates
-      if (source === "local") return;
-      
-      setPosts((prev) =>
-        prev.map((p) => {
-          if (p._id !== postId) return p;
-          
-          switch (type) {
-            case "like":
-              return { ...p, likesCount: Math.max(0, (p.likesCount || 0) + (value ? 1 : -1)) };
-            case "save":
-              return { ...p, savesCount: Math.max(0, (p.savesCount || 0) + (value ? 1 : -1)) };
-            case "repost":
-              return { ...p, repostsCount: Math.max(0, (p.repostsCount || 0) + (value ? 1 : -1)) };
-            case "share":
-              return { ...p, sharesCount: Math.max(0, (p.sharesCount || 0) + 1) };
-            default:
-              return p;
-          }
-        })
-      );
-
-      // Also update selected post if open
-      if (selectedPost && selectedPost._id === postId) {
-        setSelectedPost((prev) => {
-          if (!prev) return null;
-          switch (type) {
-            case "like":
-              return { ...prev, likesCount: Math.max(0, (prev.likesCount || 0) + (value ? 1 : -1)) };
-            case "save":
-              return { ...prev, savesCount: Math.max(0, (prev.savesCount || 0) + (value ? 1 : -1)) };
-            case "repost":
-              return { ...prev, repostsCount: Math.max(0, (prev.repostsCount || 0) + (value ? 1 : -1)) };
-            case "share":
-              return { ...prev, sharesCount: Math.max(0, (prev.sharesCount || 0) + 1) };
-            default:
-              return prev;
-          }
-        });
-      }
-    };
+			// Also update selected post if open
+			if (selectedPost && selectedPost._id === postId) {
+				setSelectedPost((prev) => {
+					if (!prev) return null;
+					switch (type) {
+						case "like":
+							return { ...prev, likesCount: count !== undefined ? count : Math.max(0, (prev.likesCount || 0) + (value ? 1 : -1)) };
+						case "save":
+							return { ...prev, savesCount: count !== undefined ? count : Math.max(0, (prev.savesCount || 0) + (value ? 1 : -1)) };
+						case "repost":
+							return { ...prev, repostsCount: count !== undefined ? count : Math.max(0, (prev.repostsCount || 0) + (value ? 1 : -1)) };
+						case "share":
+							return { ...prev, sharesCount: count !== undefined ? count : Math.max(0, (prev.sharesCount || 0) + 1) };
+						default:
+							return prev;
+					}
+				});
+			}
+		};
     window.addEventListener("postInteractionChanged", handleInteractionChanged as EventListener);
     return () => window.removeEventListener("postInteractionChanged", handleInteractionChanged as EventListener);
   }, [selectedPost]);
@@ -608,8 +613,8 @@ export default function Feed({
           })
         );
       } else {
-        // Broadcast to all open components
-        window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "like", value: !likedByMe } }));
+        // Broadcast to all open components with source="local" so listeners can skip
+        window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "like", value: !likedByMe, source: "local" } }));
       }
     } catch (err) {
       logger.error(err);
@@ -674,8 +679,8 @@ export default function Feed({
         }
         window.dispatchEvent(new CustomEvent("showToast", { detail: { message: data.message || "Failed to save post", type: "error" } }));
       } else {
-        // Broadcast to other components
-        window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "save", value: !savedByMe } }));
+        // Broadcast to other components with source="local" so listeners can skip
+        window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "save", value: !savedByMe, source: "local" } }));
         window.dispatchEvent(new CustomEvent("showToast", { detail: { message: data.savedByMe ? "Post saved!" : "Post removed from saved.", type: "success" } }));
       }
     } catch (e) {
@@ -772,8 +777,8 @@ export default function Feed({
         }
         window.dispatchEvent(new CustomEvent("showToast", { detail: { message: data.message || "Failed to repost", type: "error" } }));
       } else {
-        // Broadcast to other components
-        window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "repost", value: !repostedByMe } }));
+        // Broadcast to other components with source="local" so listeners can skip
+        window.dispatchEvent(new CustomEvent("postInteractionChanged", { detail: { postId, type: "repost", value: !repostedByMe, source: "local" } }));
       }
     } catch (e) {
       logger.error(e);
@@ -966,8 +971,7 @@ export default function Feed({
       )}
       {/* Title */}
       <div className="mb-6 px-1.5 flex items-center justify-between">
-        <div>
-          <h2 className="font-sans text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 md:text-3xl">
+        <div>                  <h2 className="font-sans text-2xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
             {searchQuery ? `Search Results: "${searchQuery}"` : showSavesOnly ? "Saved Posts" : showRepostsOnly ? "Your Reposts" : "Home Feed"}
           </h2>
           <p className="text-sm text-slate-500 dark:text-zinc-400">
@@ -1097,9 +1101,11 @@ export default function Feed({
                       <input
                         type="file"
                         accept="image/*"
+                        multiple
                         onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
+                          const files = Array.from(e.target.files || []);
+                          if (files.length > 0) {
+                            const file = files[0];
                             setCropImageSrc(URL.createObjectURL(file));
                             setCropModalOpen(true);
                           }
@@ -1205,10 +1211,10 @@ export default function Feed({
 
                         {/* Content block */}
                         <div className="space-y-2.5">
-                          <h3 className="font-sans text-sm font-bold text-zinc-100 tracking-tight leading-snug">
+                          <h3 className="font-sans text-base md:text-lg font-bold text-zinc-100 tracking-tight leading-snug">
                             {post.title}
                           </h3>
-                          <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap select-text">
+                          <p className="text-sm md:text-base text-zinc-300 leading-relaxed whitespace-pre-wrap select-text">
                             {renderFormattedContent(post.content)}
                           </p>
                         </div>
@@ -1390,10 +1396,10 @@ export default function Feed({
 
                       {/* Content block */}
                       <div className="space-y-2.5">
-                        <h3 className="font-sans text-sm font-bold text-zinc-100 tracking-tight leading-snug">
+                        <h3 className="font-sans text-base md:text-lg font-bold text-zinc-100 tracking-tight leading-snug">
                           {post.title}
                         </h3>
-                        <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap select-text">
+                        <p className="text-sm md:text-base text-zinc-300 leading-relaxed whitespace-pre-wrap select-text">
                           {renderFormattedContent(post.content)}
                         </p>
                       </div>

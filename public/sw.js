@@ -1,9 +1,11 @@
-const STATIC_CACHE = 'orbit-static-v2';
+const STATIC_CACHE = 'orbit-static-v3';
 
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
-  '/favicon.svg'
+  '/favicon.svg',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {

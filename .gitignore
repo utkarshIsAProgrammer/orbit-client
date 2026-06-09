@@ -42,8 +42,8 @@ coverage/
 .temp/
 .tmp/
 *.pid
-*.seed
 *.pid.lock
+*.seed
 
 # Uploads and local data
 uploads/
@@ -52,3 +52,7 @@ assets/
 
 # Vite
 .vite/
+
+# Testing output
+test-results/
+__screenshots__/

@@ -1371,6 +1371,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         multiple
                         disabled={attachments.length >= 5}
                         onChange={handleFileChange}
+                        title="Select images (multiple allowed)"
                         className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
                       />
                       <button

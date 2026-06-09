@@ -150,3 +150,62 @@ textarea:focus:invalid {
 }
 
 /* Reusable surface border for consistent dark theme — use Tailwind's border-zinc-800/opacity instead */
+
+/* ─── Mobile Performance: Reduce animations and effects on small screens ─── */
+@media (max-width: 768px) {
+  /* Disable all non-essential heavy motion animations on mobile */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.1s !important;
+  }
+  
+  /* Re-enable essential micro-animations (spinner, pulse loaders) */
+  .animate-spin,
+  .animate-pulse {
+    animation-duration: 1.5s !important;
+    animation-iteration-count: infinite !important;
+  }
+  
+  /* Prevent costly backdrop-blur on mobile */
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-md,
+  .backdrop-blur-sm,
+  .glass-effect {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  /* Simplify shadows on mobile */
+  .shadow-2xl,
+  .shadow-xl,
+  .shadow-lg,
+  .shadow-md {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+  }
+  
+  /* Disable hover scale transforms on touch devices */
+  .group:hover .group-hover\:scale-105,
+  .group:hover .group-hover\:scale-110,
+  .group\/image:hover .group-hover\/image\:scale-\[1\.02\],
+  .group\/item:hover .group-hover\/item\:scale-105,
+  .hover\:scale-105:hover,
+  .hover\:scale-110:hover,
+  .hover\:scale-\[1\.02\]:hover {
+    transform: none !important;
+  }
+  
+  /* Remove opacity hover effects on mobile */
+  .hover\:opacity-85:hover,
+  .hover\:opacity-90:hover,
+  .hover\:opacity-80:hover {
+    opacity: 1 !important;
+  }
+  
+  /* Reduce paint cost — disable GPU layer promotions */
+  .gpu-accelerated {
+    transform: none !important;
+    will-change: auto !important;
+  }
+}

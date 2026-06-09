@@ -163,43 +163,48 @@ export default function Profile({
 			// 1. Fetch profile user
 			const res = await apiFetch(`/api/users/username/${targetUsername}`);
 			const data = await res.json();
-			if (res.ok && data.success) {
-				setProfile(data.user);
-				setFullName(data.user.fullName || "");
-				setBio(data.user.bio || "");
-				setProfilePicPreview(data.user.profilePic?.url || "");
-				setBannerPicPreview(data.user.bannerImage?.url || "");
-
-				// Sync following state with server
-				if (onProfileLoaded && data.user._id) {
-					onProfileLoaded(data.user._id, !!data.user.followingByMe);
-				}
-
-				// Trigger view count increment (if not self view)
-				if (user?._id !== data.user._id) {
-					apiFetch(`/api/users/${data.user._id}/view`, {
-						method: "POST",
-					});
-				}
+			if (!res.ok || !data.success) {
+				setLoading(false);
+				return;
 			}
 
-			// 2. Fetch user's own posts using dedicated endpoint with interaction status
-			const targetId = data.user?._id;
-			if (targetId) {
-				const postRes = await apiFetch(`/api/users/${targetId}/posts?limit=10`);
-				const postData = await postRes.json();
-				if (postRes.ok && postData.success) {
-					setPosts(postData.posts || []);
-					setPostsCursor(postData.nextCursor || null);
-					setPostsHasMore(postData.hasMore || false);
-				}
+			setProfile(data.user);
+			setFullName(data.user.fullName || "");
+			setBio(data.user.bio || "");
+			setProfilePicPreview(data.user.profilePic?.url || "");
+			setBannerPicPreview(data.user.bannerImage?.url || "");
+
+			// Sync following state with server
+			if (onProfileLoaded && data.user._id) {
+				onProfileLoaded(data.user._id, !!data.user.followingByMe);
 			}
 
-			// 3. Fetch saved and reposted posts if viewing own profile
+			// Trigger view count increment (if not self view) — fire-and-forget
+			if (user?._id !== data.user._id) {
+				apiFetch(`/api/users/${data.user._id}/view`, { method: "POST" });
+			}
+
+			const targetId = data.user._id;
+
+			// 2. Fetch posts + saved/reposted in parallel
+			const promises: Promise<void>[] = [
+				apiFetch(`/api/users/${targetId}/posts?limit=10`).then(async (postRes) => {
+					const postData = await postRes.json();
+					if (postRes.ok && postData.success) {
+						setPosts(postData.posts || []);
+						setPostsCursor(postData.nextCursor || null);
+						setPostsHasMore(postData.hasMore || false);
+					}
+				}),
+			];
+
+			// 3. Fetch saved/reposted if viewing own profile (in parallel with posts)
 			if (user && user.username === targetUsername) {
-				await fetchSavedPosts();
-				await fetchRepostedPosts();
+				promises.push(fetchSavedPosts());
+				promises.push(fetchRepostedPosts());
 			}
+
+			await Promise.all(promises);
 		} catch (e) {
 			logger.error(e);
 		} finally {
@@ -356,10 +361,20 @@ export default function Profile({
 
 	// Listen for post interaction changes from other components
 	useEffect(() => {
-		const handleInteraction = (e: CustomEvent<{ postId: string; type: string; value: boolean; source?: string }>) => {
-			const { postId, type, value, source } = e.detail;
-			// Socket events only update counts, never status (likedByMe/savedByMe/repostedByMe)
+		const handleInteraction = (e: CustomEvent<{ postId: string; type: string; value: boolean; source?: string; count?: number }>) => {
+			const { postId, type, value, source, count } = e.detail;
+			// Skip local dispatches — Profile already has its own optimistic handling
+			if (source === "local") return;
+			if (!source) return; // Events without source prevent double-counting
+			// Socket events only update counts using authoritative count from server
 			const isSocketSource = source === "socket";
+			
+			// Helper: use absolute count from server when available
+			const getCount = (currentCount: number) => {
+				if (count !== undefined) return count;
+				return Math.max(0, currentCount + (value ? 1 : -1));
+			};
+			
 			const updateFn = (p: Post) => {
 				if (p._id !== postId) return p;
 				const interactiveTypes = ["like", "save", "repost"];
@@ -367,21 +382,21 @@ export default function Profile({
 					const statusField = type === "like" ? "likedByMe" : type === "save" ? "savedByMe" : "repostedByMe";
 					const countField = type === "like" ? "likesCount" : type === "save" ? "savesCount" : "repostsCount";
 					if (isSocketSource) {
-						// Socket: only update count, leave existing status untouched
+						// Socket: only update count using authoritative server value, leave status untouched
 						return {
 							...p,
-							[countField]: Math.max(0, (p[countField as keyof Post] as number || 0) + (value ? 1 : -1)),
+							[countField]: getCount(p[countField as keyof Post] as number || 0),
 						};
 					}
-					// Local: update both status and count
+					// Not socket, not local — update both status and count
 					return {
 						...p,
 						[statusField]: value,
-						[countField]: Math.max(0, (p[countField as keyof Post] as number || 0) + (value ? 1 : -1)),
+						[countField]: getCount(p[countField as keyof Post] as number || 0),
 					};
 				}
 				if (type === "share") {
-					return { ...p, sharesCount: Math.max(0, (p.sharesCount || 0) + 1) };
+					return { ...p, sharesCount: count !== undefined ? count : Math.max(0, (p.sharesCount || 0) + 1) };
 				}
 				return p;
 			};
@@ -1335,13 +1350,12 @@ export default function Profile({
 															</div>
 														</div>
 
-														<div onClick={() => onPostClick(post.slug)} className="cursor-pointer space-y-3">
-															<h4 className="font-sans text-lg font-bold text-white leading-tight text-left">
-																{post.title}
-															</h4>
-															<p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap text-left select-text">
-																{post.content}
-															</p>
+														<div onClick={() => onPostClick(post.slug)} className="cursor-pointer space-y-3">									<h4 className="font-sans text-lg md:text-xl font-bold text-white leading-tight text-left">
+									{post.title}
+								</h4>
+								<p className="text-sm md:text-base text-zinc-300 leading-relaxed whitespace-pre-wrap text-left select-text">
+									{post.content}
+								</p>
 															{post.image && (
 																<div className="mt-3.5 overflow-hidden rounded-3xl border border-zinc-800">
 																	<img
@@ -1469,12 +1483,12 @@ export default function Profile({
 											</div>
 
 											<div onClick={() => onPostClick(post.slug)} className="cursor-pointer space-y-3">
-												<h4 className="font-sans text-lg font-bold text-white leading-tight text-left">
-													{post.title}
-												</h4>
-												<p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap text-left select-text">
-													{post.content}
-												</p>
+							<h4 className="font-sans text-lg md:text-xl font-bold text-white leading-tight text-left">
+								{post.title}
+							</h4>
+							<p className="text-sm md:text-base text-zinc-300 leading-relaxed whitespace-pre-wrap text-left select-text">
+								{post.content}
+							</p>
 												{post.image && (
 													<div className="mt-3.5 overflow-hidden rounded-3xl border border-zinc-800">
 														<img
@@ -1609,12 +1623,12 @@ export default function Profile({
 											</div>
 
 											<div onClick={() => onPostClick(post.slug)} className="cursor-pointer space-y-3">
-												<h4 className="font-sans text-lg font-bold text-white leading-tight text-left">
-													{post.title}
-												</h4>
-												<p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap text-left select-text">
-													{post.content}
-												</p>
+							<h4 className="font-sans text-lg md:text-xl font-bold text-white leading-tight text-left">
+								{post.title}
+							</h4>
+							<p className="text-sm md:text-base text-zinc-300 leading-relaxed whitespace-pre-wrap text-left select-text">
+								{post.content}
+							</p>
 												{post.image && (
 													<div className="mt-3.5 overflow-hidden rounded-3xl border border-zinc-800">
 														<img
