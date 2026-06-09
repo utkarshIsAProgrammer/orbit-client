@@ -400,6 +400,33 @@ export default function App() {
 			logger.error("Socket connection error:", error);
 		});
 
+		// ── Realtime message updates when Chat.tsx is not mounted ──
+		// Keeps conversations list sorted with latest message even when user is on another tab
+		socket.on("message:new", (message: any) => {
+			logger.info("Received message:new in App.tsx", { messageId: message._id, conversationId: message.conversation });
+			setConversations((prev) => {
+				const existing = prev.find((c) => c._id === message.conversation);
+				if (!existing) return prev;
+				const isMeRecipient = message.recipient === userId;
+				return prev.map((c) => {
+					if (c._id === message.conversation) {
+						const updatedUnread = isMeRecipient
+							? (c.unreadCounts?.[userId] || 0) + 1
+							: (c.unreadCounts?.[userId] || 0);
+						return {
+							...c,
+							lastMessage: message,
+							unreadCounts: {
+								...c.unreadCounts,
+								[userId]: updatedUnread
+							}
+						};
+					}
+					return c;
+				}).sort((a, b) => new Date(b.lastMessage?.createdAt || b.updatedAt).getTime() - new Date(a.lastMessage?.createdAt || a.updatedAt).getTime());
+			});
+		});
+
 		// Helper to show native OS notification
 		const showNativeNotif = (title: string, body: string) => {
 			if (!("Notification" in window)) return;
@@ -554,12 +581,12 @@ export default function App() {
 			window.dispatchEvent(new CustomEvent("newPostCreated", { detail: { post } }));
 		});
 
-		// ── Realtime comment count sync ──
+		// ── Realtime comment count sync & comment addition ──
 		// Skip own comments (already incremented locally via the comment drawer)
 		socket.on("post:comment", (data: { postId: string; comment: any; userId: string; commentsCount: number }) => {
 			logger.info("Received post:comment event", data);
 			if (data.userId === uid) return;
-			window.dispatchEvent(new CustomEvent("postCommentAdded", { detail: { postId: data.postId, commentsCount: data.commentsCount } }));
+			window.dispatchEvent(new CustomEvent("postCommentAdded", { detail: { postId: data.postId, commentsCount: data.commentsCount, comment: data.comment } }));
 		});
 
 		// ── Realtime post deletion ──
@@ -581,7 +608,7 @@ export default function App() {
 		socket.on("comment:reply", (data: { postId: string; commentId: string; reply: any; userId: string; commentsCount: number; repliesCount: number }) => {
 			logger.info("Received comment:reply event", data);
 			if (data.userId === uid) return; // own reply, already handled locally
-			window.dispatchEvent(new CustomEvent("postCommentAdded", { detail: { postId: data.postId, commentsCount: data.commentsCount } }));
+			window.dispatchEvent(new CustomEvent("postCommentAdded", { detail: { postId: data.postId, commentsCount: data.commentsCount, comment: data.reply, parentCommentId: data.commentId } }));
 		});
 
 		// ── Realtime comment edit sync ──

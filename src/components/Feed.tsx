@@ -252,19 +252,53 @@ export default function Feed({
     };
     window.addEventListener("newPostCreated", handleNewPost as EventListener);
     return () => window.removeEventListener("newPostCreated", handleNewPost as EventListener);
-  }, [searchQuery, showSavesOnly, showRepostsOnly, singlePostSlug, user]);
+  }, [searchQuery, showSavesOnly, showRepostsOnly, singlePostSlug, user]);	// Use a ref for selectedPost to avoid re-registering the event listener every time it changes.
+	// The ref is always current, so the listener closure always has the latest value.
+	const selectedPostRef = useRef(selectedPost);
+	selectedPostRef.current = selectedPost;
 
-  // Listen for realtime comment count updates from other users
-  useEffect(() => {
-    const handleCommentAdded = (e: CustomEvent<{ postId: string; commentsCount: number }>) => {
-      const { postId, commentsCount } = e.detail;
-      setPosts((prev) =>
-        prev.map((p) => (p._id === postId ? { ...p, commentsCount } : p))
-      );
-    };
-    window.addEventListener("postCommentAdded", handleCommentAdded as EventListener);
-    return () => window.removeEventListener("postCommentAdded", handleCommentAdded as EventListener);
-  }, []);
+	// Listen for realtime comment count updates from other users
+	useEffect(() => {
+		const handleCommentAdded = (e: CustomEvent<{ postId: string; commentsCount: number; comment?: Comment; parentCommentId?: string }>) => {
+			const { postId, commentsCount, comment, parentCommentId } = e.detail;
+			// Update the post's commentsCount
+			setPosts((prev) =>
+				prev.map((p) => (p._id === postId ? { ...p, commentsCount } : p))
+			);
+			// Read the latest selectedPost from the ref
+			const currentSelectedPost = selectedPostRef.current;
+			// If we have the full comment data and the comments drawer is open for this post, add the comment
+			if (comment && currentSelectedPost && currentSelectedPost._id === postId) {
+				setComments((prev) => {
+					// Deduplicate
+					if (prev.some((c) => c._id === comment._id)) return prev;
+					// If parentCommentId is set, add as a reply under that parent; otherwise add as top-level
+					if (parentCommentId) {
+						// Increment the parent's repliesCount and also add the reply to the flat list
+						// so it shows up when the user expands replies on that parent
+						const replyWithParent = { ...comment, parent: parentCommentId };
+						const updated = prev.map((c) => {
+							if (c._id === parentCommentId) {
+								return {
+									...c,
+									repliesCount: (c.repliesCount || 0) + 1,
+								};
+							}
+							return c;
+						});
+						// Also add the reply to the comments list so CommentNode's reply fetching finds it
+						if (!updated.some((c) => c._id === replyWithParent._id)) {
+							return [replyWithParent, ...updated];
+						}
+						return updated;
+					}
+					return [comment, ...prev];
+				});
+			}
+		};
+		window.addEventListener("postCommentAdded", handleCommentAdded as EventListener);
+		return () => window.removeEventListener("postCommentAdded", handleCommentAdded as EventListener);
+	}, []);
 
   // Listen for realtime post deletion
   useEffect(() => {

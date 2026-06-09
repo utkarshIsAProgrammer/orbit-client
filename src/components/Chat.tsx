@@ -9,8 +9,6 @@ import {
   Trash2,
   Edit2,
   X,
-  Check,
-  CheckCheck,
   Loader2,
   CornerDownLeft,
   ArrowLeft,
@@ -25,6 +23,7 @@ import Skeleton from "./Skeleton";
 import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
 import ValidationMessage from "./ValidationMessage";
+import MessageBubble from "./MessageBubble";
 import { validateChatMessage } from "../utils/validation";
 
 interface ChatProps {
@@ -114,6 +113,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
   selectedConvRef.current = selectedConv;
   const userRef = useRef(user);
   userRef.current = user;
+  const socketRef = useRef(socket);
+  socketRef.current = socket;
 
   // Pending message IDs (optimistic messages not yet confirmed by server)
   const [, setPendingMessageIds] = useState<Set<string>>(new Set());
@@ -323,7 +324,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
       });
     });
 
-    // Listen for conversation clearing
+    // Listen for conversation clearing (conversation room)
     s.on("conversation:clear", ({ conversationId }: { conversationId: string }) => {
       logger.info("Chat: Received conversation:clear event", { conversationId });
       const currentConv = selectedConvRef.current;
@@ -336,6 +337,21 @@ export default function Chat({ user, socket, conversations, setConversations, on
         )
       );
     });
+
+    // Listen for conversation cleared (personal room — when user is not in the conversation)
+    s.on("conversation:cleared", ({ conversationId }: { conversationId: string }) => {
+      logger.info("Chat: Received conversation:cleared event", { conversationId });
+      const currentConv = selectedConvRef.current;
+      if (currentConv && currentConv._id === conversationId) {
+        setMessages([]);
+      }
+      setConversations((prev) =>
+        prev.map((c) =>
+          c._id === conversationId ? { ...c, lastMessage: undefined } : c
+        )
+      );
+    });
+
 
     // Listen for read receipts
     s.on("messages:seen", ({ conversationId, seenBy, seenAt }: { conversationId: string; seenBy: string; seenAt?: Date }) => {
@@ -391,6 +407,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
       s.off("message:reaction");
       s.off("conversation:delete");
       s.off("conversation:clear");
+      s.off("conversation:cleared");
       s.off("messages:seen");
       s.off("chat:typing");
     };
@@ -455,28 +472,38 @@ export default function Chat({ user, socket, conversations, setConversations, on
     return () => observer.disconnect();
   }, [messagesHasMore, loadingOlderMessages, messagesCursor, selectedConv]);
 
-  // Scroll to bottom
+  // Scroll to bottom — reset scroll position first to prevent mobile jump
   const scrollToBottom = () => {
+    // First, scroll the container to the very bottom instantly (no smooth behavior)
+    // to prevent the 'scrolled up' look on mobile when a conversation is opened
+    const container = document.querySelector('[class*="overflow-y-auto"][class*="scrollbar-thin"]');
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 50);
+    }, 100);
   };
 
-  // Trigger typing notification
+  // Trigger typing notification — use refs to avoid stale closure in setTimeout
   const handleTyping = () => {
-    if (!socket || !selectedConv) return;
+    const s = socketRef.current;
+    const conv = selectedConvRef.current;
+    if (!s || !conv) return;
 
     if (!isTyping) {
       setIsTyping(true);
-      socket.emit("chat:typing", { conversationId: selectedConv._id, isTyping: true });
+      s.emit("chat:typing", { conversationId: conv._id, isTyping: true });
     }
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      if (socket && selectedConv) {
-        socket.emit("chat:typing", { conversationId: selectedConv._id, isTyping: false });
+      const s2 = socketRef.current;
+      const conv2 = selectedConvRef.current;
+      if (s2 && conv2) {
+        s2.emit("chat:typing", { conversationId: conv2._id, isTyping: false });
       }
     }, 2000);
   };
@@ -1230,88 +1257,15 @@ export default function Chat({ user, socket, conversations, setConversations, on
                       const groupedReactions = getGroupedReactions(msg.reactions);
 
                       return (
-                        <div
+                        <MessageBubble
                           key={msg._id}
-                          className={`flex gap-3 max-w-[85%] ${isMe ? "ml-auto flex-row-reverse" : "mr-auto"}`}
-                          onContextMenu={(e) => handleContextMenu(e, msg)}
-                        >
-                          {!isMe && (
-                            <div className="w-8 shrink-0 flex items-end">
-                              <img loading="lazy"
-                                src={msg.sender.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-                                alt={msg.sender.fullName}
-                                className="h-7 w-7 rounded-full object-cover border border-zinc-800"
-                              />
-                            </div>
-                          )}
-
-                          <div className="space-y-1 text-left flex flex-col items-end">
-                            <div
-                              className={`rounded-2xl px-3.5 py-2 text-xs border relative group/bubble select-text ${isMe
-                                ? "bg-zinc-800 text-white border-zinc-700 rounded-tr-none"
-                                : "bg-zinc-900/80 text-zinc-100 border-zinc-800 rounded-tl-none"
-                                }`}
-                            >
-                              {msg.isDeleted ? (
-                                <span className="italic text-zinc-500 text-[11px]">This message was deleted</span>
-                              ) : (
-                                <>
-                                  <p className="leading-relaxed whitespace-pre-wrap select-text break-word pr-1.5">{msg.text}</p>
-                                  {msg.attachments && msg.attachments.length > 0 && (
-                                    <div className="mt-2 space-y-1.5 max-w-sm rounded-xl overflow-hidden border border-zinc-800">
-                                      {msg.attachments.map((att, aIdx) => (
-                                        <img loading="lazy" 
-                                          key={aIdx}
-                                          src={att.url}
-                                          alt={`Attachment from ${msg.sender.fullName}`}
-                                          className="w-full h-auto max-h-60 object-cover cursor-pointer hover:opacity-90"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            window.dispatchEvent(new CustomEvent("openImagePreview", { detail: att.url }));
-                                          }}
-                                        />
-                                      ))}
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                            </div>
-
-                            {Object.keys(groupedReactions).length > 0 && (
-                              <div className="flex gap-1 mt-1">
-                                {Object.entries(groupedReactions).map(([emoji, data]) => (
-                                  <button
-                                    key={emoji}
-                                    onClick={() => handleReaction(msg, emoji)}
-                                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${data.hasReacted
-                                      ? "bg-blue-500/20 border-blue-400/30"
-                                      : "bg-zinc-800/50 border-zinc-700/50"
-                                      }`}
-                                  >
-                                    <span>{emoji}</span>
-                                    <span className="text-[10px]">{data.count}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-
-                            <div className="flex items-center gap-1.5 px-1.5 text-[9px] font-bold text-zinc-550 select-none">
-                              {msg.isEdited && !msg.isDeleted && <span>edited</span>}
-                              <span>{formatMessageTime(msg.createdAt)}</span>
-                              {isMe && (
-                                <span title={(msg as any)._pending ? 'Sending...' : msg.seen ? 'Seen' : 'Sent'}>
-                                  {(msg as any)._pending ? (
-                                    <Loader2 className="h-3 w-3 text-zinc-550 animate-spin" />
-                                  ) : msg.seen ? (
-                                    <CheckCheck className="h-3.5 w-3.5 text-sky-400" />
-                                  ) : (
-                                    <Check className="h-3.5 w-3.5 text-zinc-550" />
-                                  )}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                          msg={msg}
+                          isMe={isMe}
+                          groupedReactions={groupedReactions}
+                          handleContextMenu={handleContextMenu}
+                          handleReaction={handleReaction}
+                          formatMessageTime={formatMessageTime}
+                        />
                       );
                     })
                     }
