@@ -12,7 +12,6 @@ import {
 	Bookmark,
 	Repeat2,
 	FileText,
-	ArrowLeft,
 	Image,
 } from "lucide-react";
 import { User as UserType, Post } from "../types";
@@ -45,7 +44,7 @@ export default function Profile({
 	followingStates,
 	onToggleFollow,
 	onProfileLoaded,
-	onBack,
+	onBack: _onBack,
 }: ProfileProps) {
 	const [profile, setProfile] = useState<UserType | null>(null);
 	const [posts, setPosts] = useState<Post[]>([]);
@@ -1122,15 +1121,7 @@ export default function Profile({
 
 	return (
 		<>
-			{onBack && (
-				<button
-					onClick={onBack}
-					className="fixed top-4 left-4 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200/10 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer shadow-sm backdrop-blur-md"
-					title="Back"
-				>
-					<ArrowLeft className="h-4 w-4" />
-				</button>
-			)}
+
 			<div
 				ref={containerRef}
 				onTouchStart={handleTouchStart}
@@ -1140,27 +1131,36 @@ export default function Profile({
 				style={{ transform: `translateY(${pullDistance}px)`, transition: isPullingRef.current ? 'none' : 'transform 0.3s ease-out' }}
 			>
 				{/* Banner */}
-				<div
-					className="group relative h-40 overflow-hidden rounded-3xl border border-white/20 bg-zinc-900 md:h-48 cursor-pointer"
-					onClick={() => {
-						window.dispatchEvent(
-							new CustomEvent("openImagePreview", {
-								detail:
-									bannerPicPreview ||
-									"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800",
-							}),
-						);
-					}}>
-					<img loading="lazy" 
-						src={
-							bannerPicPreview ||
-							"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=800"
-						}
-						alt="User banner"
-						className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-102"
-					/>
-					<div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
-				</div>
+				{bannerPicPreview ? (
+					<div
+						className="group relative h-40 overflow-hidden rounded-3xl border border-white/20 bg-zinc-900 md:h-48 cursor-pointer"
+						onClick={() => {
+							window.dispatchEvent(
+								new CustomEvent("openImagePreview", {
+									detail: bannerPicPreview,
+								}),
+							);
+						}}>
+						<img loading="lazy"
+							src={bannerPicPreview}
+							alt="User banner"
+							className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-102"
+						/>
+						<div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+					</div>
+				) : (
+					<div className="relative flex h-40 items-center justify-center rounded-3xl border border-zinc-800 bg-zinc-900/50 md:h-48 overflow-hidden">
+						{/* Subtle dots pattern */}
+						<div className="absolute inset-0 opacity-[0.04]" style={{
+							backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`,
+							backgroundSize: '20px 20px'
+						}} />
+						<div className="relative flex flex-col items-center gap-2">
+							<Image className="h-8 w-8 text-zinc-600" />
+							<span className="text-[10px] text-zinc-600 font-medium uppercase tracking-wider">No banner</span>
+						</div>
+					</div>
+				)}
 
 				{/* Profile Header Block */}
 				<div className="relative -mt-12 px-6 font-sans">
@@ -1778,8 +1778,6 @@ export default function Profile({
 								exit={drawerExit}
 								transition={drawerTransition}
 								className="relative z-10 w-full max-w-xl rounded-4xl border border-white/10 bg-zinc-950/90 backdrop-blur-2xl p-6 shadow-[0_-25px_60px_-15px_rgba(0,0,0,0.9),0_25px_60px_-15px_rgba(0,0,0,0.5)] md:max-h-[85vh] md:overflow-y-auto">
-								{/* Drag handle bar */}
-								<div className="absolute top-3 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-white/20 md:hidden" />
 								<div className="mb-5 pb-5 flex items-center justify-between">
 									<div>
 										<h3 className="text-xl font-semibold text-white">
@@ -1811,8 +1809,7 @@ export default function Profile({
 										<div className="space-y-1.5">
 											<label className="text-xs font-medium text-zinc-400 pl-3">
 												Profile Pic
-											</label>
-											<div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
+											</label>											<div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
 												<input
 													type="file"
 													accept="image/*"
@@ -1825,28 +1822,27 @@ export default function Profile({
 																	file,
 																),
 															);
-															setCropType("profile");
-															setCropModalOpen(true);
-														}
-														e.target.value = "";
-													}}
-													className="absolute inset-0 opacity-0 cursor-pointer animate-none z-10"
-												/>
+														setCropType("profile");
+														setCropModalOpen(true);
+													}
+													e.target.value = "";
+												}}
+												className="absolute inset-0 opacity-0 cursor-pointer animate-none z-10"
+											/>
 												{profilePicPreview ? (
 													<>
-													<img loading="lazy" src={profilePicPreview} alt="Avatar preview" className="absolute inset-0 h-full w-full object-cover" />
+													<img loading="lazy" src={profilePicPreview} alt="Avatar preview" className="absolute inset-0 h-full w-full rounded-full object-cover pointer-events-none" />
 													<button
 														type="button"
 														onClick={(e) => {
 															e.stopPropagation();
 															setProfilePicFile(null);
 															setProfilePicPreview("");
-														}}
-														className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
-														title="Remove avatar"
-													>
-														<X className="h-3 w-3 text-white" />
-													</button>
+														}}className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
+															title="Remove avatar"
+														>
+															<X className="h-2.5 w-2.5 text-white" />
+												</button>
 												</>
 												) : (
 													<div className="text-center space-y-1">
@@ -1891,10 +1887,10 @@ export default function Profile({
 															setBannerPicFile(null);
 															setBannerPicPreview("");
 														}}
-														className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
+														className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
 														title="Remove banner"
 													>
-														<X className="h-3 w-3 text-white" />
+														<X className="h-2.5 w-2.5 text-white" />
 													</button>
 												</>
 												) : (
@@ -1975,7 +1971,6 @@ export default function Profile({
 								exit={drawerExit}
 								transition={drawerTransition}
 								className="relative z-10 w-full max-w-xl rounded-4xl border border-white/10 bg-zinc-950/90 backdrop-blur-2xl p-6 shadow-[0_-25px_60px_-15px_rgba(0,0,0,0.9)] md:max-h-[85vh] md:overflow-y-auto">
-								<div className="absolute top-3 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-white/20 md:hidden" />
 								<div className="mb-5 flex items-center justify-between">
 									<div>
 										<h3 className="text-xl font-semibold text-white">Edit Post</h3>
@@ -2011,7 +2006,7 @@ export default function Profile({
 														<button
 															type="button"
 															onClick={() => handleEditPostRemoveExistingImage(img.public_id)}
-															className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 hover:bg-black transition-all"
+															className="absolute top-0.5 right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 hover:bg-black transition-all"
 														>
 															<X className="h-2.5 w-2.5" />
 														</button>
@@ -2032,7 +2027,7 @@ export default function Profile({
 														<button
 															type="button"
 															onClick={() => handleEditPostRemoveNewImage(idx)}
-															className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 hover:bg-black transition-all"
+															className="absolute top-0.5 right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 hover:bg-black transition-all"
 														>
 															<X className="h-2.5 w-2.5" />
 														</button>

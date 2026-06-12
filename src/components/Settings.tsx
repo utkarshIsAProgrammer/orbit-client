@@ -263,7 +263,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 pl-3">
                       Profile Pic
                     </span>
-                    <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
+                    <div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
                       <input
                         type="file"
                         accept="image/*"
@@ -291,10 +291,10 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                               setProfilePicFile(null);
                               setProfilePicPreview("");
                             }}
-                            className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
+                            className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
                             title="Remove avatar"
                           >
-                            <X className="h-3 w-3 text-white" />
+                            <X className="h-2.5 w-2.5 text-white" />
                           </button>
                           <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] text-zinc-500 dark:text-zinc-400 z-10 whitespace-nowrap pointer-events-none">
                             Tap to change
@@ -343,10 +343,10 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                               setBannerPicFile(null);
                               setBannerPicPreview("");
                             }}
-                            className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
+                            className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
                             title="Remove banner"
                           >
-                            <X className="h-3 w-3 text-white" />
+                            <X className="h-2.5 w-2.5 text-white" />
                           </button>
                           <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] text-zinc-500 dark:text-zinc-400 z-10 whitespace-nowrap pointer-events-none">
                             Tap to change

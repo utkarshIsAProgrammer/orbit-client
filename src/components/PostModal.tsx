@@ -225,7 +225,7 @@ export default function PostModal({ isOpen, onClose, onPostCreated }: PostModalP
                           setPostImageFiles((prev) => prev.filter((_, i) => i !== idx));
                           setPostImagePreviews((prev) => prev.filter((_, i) => i !== idx));
                         }}
-                        className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
+                        className="absolute top-0.5 right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
                       >
                         <X className="h-2.5 w-2.5" />
                       </button>

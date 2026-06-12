@@ -1853,8 +1853,6 @@ export default function Feed({
               transition={isMobile ? { type: "spring" as const, damping: 28, stiffness: 220 } : { type: "tween" as const, duration: 0.2, ease: "easeOut" as const }}
               className="relative z-10 w-full max-w-4xl h-[85vh] md:h-[70vh] rounded-4xl border border-white/10 bg-zinc-950/90 backdrop-blur-2xl p-5 md:p-7 shadow-[0_-25px_60px_-15px_rgba(0,0,0,0.9)] flex flex-col justify-between"
             >
-              {/* Drag handle bar */}
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 h-1 w-10 rounded-full bg-white/20" />
               <div className="mb-6 flex items-center justify-between shrink-0 border-b border-white/10 pb-5">
                 <div>
                   <h3 className="font-sans text-lg font-semibold text-zinc-100">Comments</h3>
@@ -1919,7 +1917,7 @@ export default function Feed({
                       type="text"
                       required
                       maxLength={1000}
-                      placeholder="Write a comment... (use @username)"
+                      placeholder="write a comment....."
                       value={newCommentText}
                       onChange={(e) => { setNewCommentText(e.target.value); clearFieldError("comment"); }}
                       className="w-full rounded-full border border-white/10 bg-zinc-950/60 px-5.5 py-3 text-sm text-white placeholder-zinc-500 outline-none focus:border-white/20 focus:bg-zinc-950/80 transition-all pr-16"
