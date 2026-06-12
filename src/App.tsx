@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef, Suspense, useCallback } from "react";
+import LandingPage from "./components/LandingPage";
+import Auth from "./components/Auth";
+import ForgotPassword from "./components/ForgotPassword";
 import { motion, AnimatePresence } from "motion/react";
 import { io } from "socket.io-client";
 import {
@@ -21,9 +24,6 @@ import { getNotificationText, getFloatingToastText } from "./utils/notificationT
 import { logger } from "./utils/logger";
 
 // Lazy-loaded heavy components — only fetched when first rendered
-const LandingPage = React.lazy(() => import("./components/LandingPage"));
-const Auth = React.lazy(() => import("./components/Auth"));
-const ForgotPassword = React.lazy(() => import("./components/ForgotPassword"));
 const LiquidEther = React.lazy(() => import("./components/LiquidEther"));
 const Feed = React.lazy(() => import("./components/Feed"));
 const Explore = React.lazy(() => import("./components/Explore"));
@@ -40,8 +40,6 @@ export default function App() {
 	const [currentTab, setTab] = useState("home");
 	const [badgeCount, setBadgeCount] = useState(0);
 	const [chatBadgeCount, setChatBadgeCount] = useState(0);
-	const [isCheckingSession, setIsCheckingSession] = useState(true);
-
 	// Preload all lazy components after mount to prevent Suspense flash on navigation
 	useEffect(() => {
 		const preloadComponents = async () => {
@@ -65,6 +63,8 @@ export default function App() {
 	const [conversations, setConversations] = useState<Conversation[]>([]);
 	const [composeOpen, setComposeOpen] = useState(false);
 	const [hasActiveConversation, setHasActiveConversation] = useState(false);
+	const [commentsOpen, setCommentsOpen] = useState(false);
+	const [settingsEditProfileOpen, setSettingsEditProfileOpen] = useState(false);
 	const [isMobileDevice, setIsMobileDevice] = useState(() => {
 		if (typeof window === "undefined") return false;
 		return window.innerWidth < 768 || window.matchMedia("(pointer: coarse)").matches;
@@ -207,7 +207,6 @@ export default function App() {
 		} catch (e) {
 			logger.warn("Session check failed", e);
 		} finally {
-			setIsCheckingSession(false);
 		}
 	};
 
@@ -843,15 +842,6 @@ export default function App() {
 		}
 	}, [tabHistory, singlePostSlug, selectedUserUsername, user?.username]);
 
-	// Prevent landing page flash for logged-in users — all hooks must be declared before this point
-	if (isCheckingSession) {
-		return (
-			<ErrorBoundary>
-				<div className="relative min-h-screen bg-black" />
-			</ErrorBoundary>
-		);
-	}
-
 	return (
 		<ErrorBoundary>
 			<div className="relative min-h-screen text-slate-800 dark:text-zinc-100 selection:bg-zinc-800/10 dark:selection:bg-white/10 antialiased font-ui flex flex-col justify-start bg-transparent transition-colors duration-500 overflow-x-hidden">
@@ -879,8 +869,7 @@ export default function App() {
 
 				<AnimatePresence mode="wait">
 					{!user ? (
-						<Suspense fallback={<div className="min-h-screen" />}>
-							<motion.div
+						<motion.div
 								key="logged-out-section"
 								initial={{ opacity: 0 }}
 								animate={{ opacity: 1 }}
@@ -985,8 +974,7 @@ export default function App() {
 										</AnimatePresence>
 									</div>
 								</div>
-							</motion.div>
-						</Suspense>
+						</motion.div>
 					) : (
 						<motion.div
 							key="logged-in-section"
@@ -1097,7 +1085,7 @@ export default function App() {
 								className={`${currentTab === "chat"
 										? "lg:col-span-9 overflow-hidden"
 										: "lg:col-span-6 xl:col-span-6 overflow-y-auto"
-									} w-full h-full ${currentTab === "chat" ? "pb-0" : "pb-36 sm:pb-32 xl:pb-12"}`}>
+									} w-full h-full ${currentTab === "chat" ? "pb-0" : "pb-28 sm:pb-28 xl:pb-0"}`}>
 									{canGoBack && currentTab === "chat" && hasActiveConversation && (
 										<motion.button
 											initial={{ opacity: 0, x: -10 }}
@@ -1106,6 +1094,36 @@ export default function App() {
 											onClick={handleGoBack}
 											className="mb-4 flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200/10 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer shadow-sm shrink-0"
 											title="Go back"
+										>
+											<ArrowLeft className="h-3.5 w-3.5" />
+										</motion.button>
+									)}
+									{commentsOpen && (
+										<motion.button
+											initial={{ opacity: 0, x: -10 }}
+											animate={{ opacity: 1, x: 0 }}
+											exit={{ opacity: 0, x: -10 }}
+											onClick={() => window.dispatchEvent(new CustomEvent("closeComments"))}
+											className="mb-4 flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200/10 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer shadow-sm shrink-0"
+											title="Close comments"
+										>
+											<ArrowLeft className="h-3.5 w-3.5" />
+										</motion.button>
+									)}
+									{currentTab === "settings" && (
+										<motion.button
+											initial={{ opacity: 0, x: -10 }}
+											animate={{ opacity: 1, x: 0 }}
+											exit={{ opacity: 0, x: -10 }}
+											onClick={() => {
+												if (tabHistory.length > 0) {
+													handleGoBack();
+												} else {
+													setTab("home");
+												}
+											}}
+											className="mb-4 flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200/10 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer shadow-sm shrink-0"
+											title="Back to previous page"
 										>
 											<ArrowLeft className="h-3.5 w-3.5" />
 										</motion.button>
@@ -1149,6 +1167,7 @@ export default function App() {
 																			followingStates={
 																				followingStates
 																			}
+																			onCommentsOpenChange={setCommentsOpen}
 																		/>
 																	</div>
 																</motion.div>
@@ -1224,6 +1243,7 @@ export default function App() {
 																		followingStates={
 																			followingStates
 																		}
+																		onCommentsOpenChange={setCommentsOpen}
 																	/>
 																</motion.div>
 															)}
@@ -1251,6 +1271,7 @@ export default function App() {
 																		followingStates={
 																			followingStates
 																		}
+																		onCommentsOpenChange={setCommentsOpen}
 																	/>
 																</motion.div>
 															)}
@@ -1305,7 +1326,7 @@ export default function App() {
 																		}
 																		onLogout={
 																			handleLogout
-																		}
+																		}																		onEditProfileOpenChange={setSettingsEditProfileOpen}
 																	/>
 																</motion.div>
 															)}
@@ -1528,17 +1549,16 @@ export default function App() {
 								)}
 							</main>
 
-			{/* Center Apple Dock (Fixed bottom overlay) — hidden when chat is open */}
-							<Suspense fallback={null}>
-								{!(currentTab === "chat" && hasActiveConversation) && (
-									<Dock
-										currentTab={currentTab}
-										setTab={handleTabChange}
-										user={user}
-										badgeCount={badgeCount}
-										chatBadgeCount={chatBadgeCount}
-									/>
-								)}
+			{/* Center Apple Dock — hidden when chat or comments are open */}
+							<Suspense fallback={null}>								{!(currentTab === "chat" && hasActiveConversation) && !commentsOpen && !settingsEditProfileOpen && (
+										<Dock
+											currentTab={currentTab}
+											setTab={handleTabChange}
+											user={user}
+											badgeCount={badgeCount}
+											chatBadgeCount={chatBadgeCount}
+										/>
+									)}
 							</Suspense>
 						</motion.div>
 					)}

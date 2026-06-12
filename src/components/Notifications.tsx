@@ -23,7 +23,6 @@ import { Notification, User } from "../types";
 import GlassCard from "./GlassCard";
 import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
-import { triggerHaptic } from "../utils/haptics";
 
 interface NotificationsProps {
   user: User | null;
@@ -242,7 +241,6 @@ export default function Notifications({
     }
 
     if (isSwipingNotifRef.current && swipeOffsetRef.current > 50 && touchNotifRef) {
-      triggerHaptic();
       const notif = touchNotifRef;
       if (notif.post) {
         onPostClick(notif.post.slug);
@@ -351,7 +349,7 @@ export default function Notifications({
 
   if (loading) {
     return (
-      <div className="w-full px-2 pb-24 pt-6 space-y-4">
+      <div className="w-full px-2 pt-6 space-y-4">
         {[1, 2, 3].map((n) => (
           <div
             key={n}
@@ -363,7 +361,7 @@ export default function Notifications({
   }
 
   return (
-    <div className="w-full px-2 pb-24 pt-6">
+    <div className="w-full px-2 pt-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="font-sans text-2xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-100 md:text-3xl">

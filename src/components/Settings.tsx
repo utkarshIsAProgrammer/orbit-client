@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   User as UserIcon,
   Lock,
@@ -9,33 +9,40 @@ import {
   AlertCircle,
   Shield,
   Eye,
-  EyeOff,
-  Smartphone,
-  Vibrate
+  EyeOff
 } from "lucide-react";
-import { motion } from "motion/react";
 import { User as UserType } from "../types";
 import GlassCard from "./GlassCard";
 import ValidationMessage from "./ValidationMessage";
 import CharCounter from "./CharCounter";
 import { apiFetch } from "../utils/api";
 import { validateProfile, validatePasswordChange, validateDeleteAccount } from "../utils/validation";
-import { isHapticEnabled, setHapticEnabled as setHapticPref } from "../utils/haptics";
 
 interface SettingsProps {
   user: UserType;
   onUserUpdate: (newUser: UserType) => void;
   onLogout: () => void;
+  onEditProfileOpenChange?: (open: boolean) => void;
 }
 
-export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps) {
+export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOpenChange }: SettingsProps) {
   // Navigation Tabs for settings sections
-  const [activeSubTab, setActiveSubTab] = useState<"profile" | "password" | "account" | "gestures" | "logout">("profile");
+  const [activeSubTab, setActiveSubTab] = useState<"profile" | "password" | "account" | "logout">("profile");
 
-  const switchSubTab = (tab: "profile" | "password" | "account" | "gestures" | "logout") => {
+  const switchSubTab = (tab: "profile" | "password" | "account" | "logout") => {
     setActiveSubTab(tab);
     setFieldErrors({});
   };
+
+  // Notify parent when edit profile tab opens/closes (for dock hiding)
+  useEffect(() => {
+    onEditProfileOpenChange?.(activeSubTab === "profile");
+  }, [activeSubTab, onEditProfileOpenChange]);
+
+  // Also notify on mount/unmount
+  useEffect(() => {
+    return () => onEditProfileOpenChange?.(false);
+  }, [onEditProfileOpenChange]);
 
   // Profile Edit fields
   const [fullName, setFullName] = useState(user.fullName || "");
@@ -69,14 +76,6 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
-
-  // Gesture settings
-  const [hapticOn, setHapticOn] = useState(isHapticEnabled);
-
-  const toggleHaptic = () => {
-    const next = setHapticPref(!hapticOn);
-    setHapticOn(next);
-  };
 
   // Account actions
   const [deleteEmail, setDeleteEmail] = useState("");
@@ -260,7 +259,7 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                       />
                       <div className="text-center space-y-1">
                         {profilePicPreview ? (
-                         <img loading="lazy"
+                         <img loading="lazy" key={profilePicPreview}
                            src={profilePicPreview}
                             alt="Profile preview"
                             className="mx-auto h-12 w-12 rounded-full object-cover border border-zinc-700 shadow-sm"
@@ -294,7 +293,7 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
                       />
                       <div className="text-center space-y-1">
                         {bannerPicPreview ? (
-                         <img loading="lazy"
+                         <img loading="lazy" key={bannerPicPreview}
                            src={bannerPicPreview}
                             alt="Banner preview"
                             className="mx-auto h-12 w-24 rounded-2xl object-cover border border-zinc-700 shadow-sm"
@@ -545,60 +544,6 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
             </GlassCard>
           )}
 
-          {activeSubTab === "gestures" && (
-            <GlassCard animate={true} className="p-6">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4 border-b border-zinc-800 pb-2">
-                Gesture Controls
-              </h3>
-              <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
-                Customize touch gesture behavior across the app.
-              </p>
-
-              <div className="space-y-4">
-                {/* Haptic Feedback Toggle */}
-                <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-800 text-zinc-300">
-                      <Vibrate className="h-4.5 w-4.5" />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-bold text-zinc-200">Haptic Feedback</p>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">
-                        Vibrate on swipe-to-reply, double-tap like, and other gestures
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={toggleHaptic}
-                    className={`relative h-7 w-12 rounded-full transition-colors cursor-pointer ${hapticOn ? "bg-indigo-500" : "bg-zinc-700"}`}
-                  >
-                    <motion.div
-                      layout
-                      className={`absolute top-1 h-5 w-5 rounded-full shadow-md ${hapticOn ? "right-1 bg-white" : "left-1 bg-zinc-400"}`}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    />
-                  </button>
-                </div>
-
-                {/* Info card */}
-                <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/30 p-4">
-                  <div className="flex items-start gap-3">
-                    <Smartphone className="h-4 w-4 text-zinc-500 mt-0.5 shrink-0" />
-                    <div className="text-left">
-                      <p className="text-xs font-semibold text-zinc-300">Supported gestures:</p>
-                      <ul className="mt-1.5 space-y-1 text-[11px] text-zinc-500">
-                        <li>• Double-tap to like (comments)</li>
-                        <li>• Swipe-to-reply (comments, chat messages)</li>
-                        <li>• Swipe-to-open (notifications)</li>
-                        <li>• Swipe-to-like (feed posts)</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </GlassCard>
-          )}
-
           {activeSubTab === "logout" && (
             <GlassCard animate={true} className="p-8 text-center space-y-6 max-w-sm mx-auto my-6 border-red-500/20 dark:border-red-900/40">
               <div className="mx-auto h-12 w-12 rounded-full bg-red-100 dark:bg-red-950/20 flex items-center justify-center text-red-600 dark:text-red-400 animate-pulse">
@@ -670,18 +615,6 @@ export default function Settings({ user, onUserUpdate, onLogout }: SettingsProps
             >
               <Shield className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Account</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => switchSubTab("gestures")}
-              className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-2.5 text-[11px] font-extrabold transition-all uppercase tracking-wider cursor-pointer ${activeSubTab === "gestures"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-black shadow-sm scale-102"
-                : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
-                }`}
-            >
-              <Smartphone className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Gestures</span>
             </button>
 
             <button

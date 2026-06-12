@@ -272,7 +272,7 @@ export default function Explore({
   };
 
   return (
-    <div className="w-full px-2 pb-24 pt-6 content-visibility-auto">
+    <div className="w-full px-2 pt-6 content-visibility-auto">
       {/* Search Header */}
       <div className="mb-6 px-1.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

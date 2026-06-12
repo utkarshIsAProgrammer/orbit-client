@@ -28,7 +28,6 @@ import CharCounter from "./CharCounter";
 import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
 import { validatePost, validateComment } from "../utils/validation";
-import { triggerHaptic } from "../utils/haptics";
 
 interface FeedProps {
   user: User | null;
@@ -41,6 +40,7 @@ interface FeedProps {
   followingStates: Record<string, boolean>;
   autoOpenComments?: boolean;
   onClearAutoOpenComments?: () => void;
+  onCommentsOpenChange?: (open: boolean) => void;
 }
 
 export default function Feed({
@@ -54,6 +54,7 @@ export default function Feed({
   followingStates,
   autoOpenComments = false,
   onClearAutoOpenComments,
+  onCommentsOpenChange,
 }: FeedProps) {
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -188,6 +189,18 @@ export default function Feed({
 
   // Active expanded Post for comments Modal/Drawer
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  
+  // Notify parent when comments open/close
+  useEffect(() => {
+    onCommentsOpenChange?.(selectedPost !== null);
+  }, [selectedPost, onCommentsOpenChange]);
+
+  // Listen for closeComments event from App.tsx back button
+  useEffect(() => {
+    const handleCloseComments = () => setSelectedPost(null);
+    window.addEventListener("closeComments", handleCloseComments);
+    return () => window.removeEventListener("closeComments", handleCloseComments);
+  }, []);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [newCommentText, setNewCommentText] = useState("");
@@ -288,7 +301,6 @@ export default function Feed({
     const absOffset = Math.abs(swipeOffset);
 
     if (absOffset > 40) {
-      triggerHaptic();
       if (swipeOffset > 0) {
         // Swipe right → like
         handleLikeToggle(post._id, !!post.likedByMe);
@@ -1164,7 +1176,7 @@ export default function Feed({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="relative w-full px-2 pb-24 pt-6 content-visibility-auto"
+      className="relative w-full px-2 pt-6 content-visibility-auto"
       style={{ transform: `translateY(${pullDistance}px)`, transition: isPullingRef.current ? 'none' : 'transform 0.3s ease-out' }}
     >
       {/* Pull-to-refresh indicator */}

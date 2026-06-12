@@ -5,7 +5,6 @@ import { Reply, Smile, Heart, Pencil, Trash2, Check, X as XIcon, Copy, CornerDow
 import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
 import { extractEmoji } from "../utils/validation";
-import { triggerHaptic } from "../utils/haptics";
 
 interface CommentNodeProps {
   key?: React.Key;
@@ -331,8 +330,7 @@ export default function CommentNode({
     // Double-tap detection
     const now = Date.now();
     if (lastTapTimeRef.current && now - lastTapTimeRef.current < 300) {
-      // Double tap! Trigger like with haptic feedback
-      triggerHaptic();
+      // Double tap! Trigger like
       handleLikeToggle();
       lastTapTimeRef.current = 0;
       return;
@@ -395,8 +393,7 @@ export default function CommentNode({
     }
 
     if (isSwipingRef.current && swipeOffsetRef.current > 60) {
-      // Trigger reply with haptic feedback
-      triggerHaptic();
+      // Trigger reply
       onReply(comment._id);
     }
 

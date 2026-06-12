@@ -1,7 +1,6 @@
 import React, { useRef, useState } from "react";
 import { Check, CheckCheck, Loader2, CornerDownLeft } from "lucide-react";
 import type { Message } from "../types";
-import { triggerHaptic } from "../utils/haptics";
 
 interface MessageBubbleProps {
   msg: Message;
@@ -151,7 +150,6 @@ const MessageBubble = React.memo(function MessageBubble({
     }
 
     if (isSwipingRef.current && swipeOffsetRef.current > 60 && onSwipeToReply) {
-      triggerHaptic();
       onSwipeToReply(msg);
     }
 

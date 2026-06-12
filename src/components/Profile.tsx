@@ -1120,7 +1120,7 @@ export default function Profile({
 				onTouchStart={handleTouchStart}
 				onTouchMove={handleTouchMove}
 				onTouchEnd={handleTouchEnd}
-				className="w-full px-2 pb-24 pt-6"
+				className="w-full px-2 pt-6"
 				style={{ transform: `translateY(${pullDistance}px)`, transition: isPullingRef.current ? 'none' : 'transform 0.3s ease-out' }}
 			>
 				{/* Banner */}
