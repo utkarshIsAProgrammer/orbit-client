@@ -249,7 +249,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 pl-3">
                       Avatar Image
                     </span>
-                    <div className="relative flex h-28 items-center justify-center rounded-3xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group">
+                    <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto">
                       <input
                         type="file"
                         accept="image/*"
@@ -260,7 +260,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                             setProfilePicPreview(URL.createObjectURL(file));
                           }
                         }}
-                        className="absolute inset-0 opacity-0 cursor-pointer animate-none"
+                        className="absolute inset-0 opacity-0 cursor-pointer rounded-full animate-none"
                       />
                       <div className="text-center space-y-1">
                         {profilePicPreview ? (
@@ -268,7 +268,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                             <img loading="lazy" key={profilePicPreview}
                               src={profilePicPreview}
                               alt="Profile preview"
-                              className="mx-auto h-16 w-16 rounded-full object-cover border-2 border-zinc-600 shadow-md"
+                              className="mx-auto h-20 w-20 rounded-full object-cover border-2 border-zinc-600 shadow-md"
                             />
                             <button
                               type="button"
@@ -277,7 +277,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                                 setProfilePicFile(null);
                                 setProfilePicPreview("");
                               }}
-                              className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors"
+                              className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
                               title="Remove avatar"
                             >
                               <X className="h-3 w-3 text-white" />
@@ -286,7 +286,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                         ) : (
                           <Camera className="mx-auto h-6 w-6 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-300 transition-colors" />
                         )}
-                        <span className="block text-[9px] text-zinc-500 dark:text-zinc-400">
+                        <span className="block text-[9px] text-zinc-500 dark:text-zinc-400 mt-1">
                           {profilePicPreview ? 'Tap to change' : 'Upload avatar'}
                         </span>
                       </div>
@@ -297,7 +297,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 pl-3">
                       Banner Image
                     </span>
-                    <div className="relative flex h-28 items-center justify-center rounded-3xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group">
+                    <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto">
                       <input
                         type="file"
                         accept="image/*"
@@ -308,7 +308,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                             setBannerPicPreview(URL.createObjectURL(file));
                           }
                         }}
-                        className="absolute inset-0 opacity-0 cursor-pointer animate-none"
+                        className="absolute inset-0 opacity-0 cursor-pointer rounded-full animate-none"
                       />
                       <div className="text-center space-y-1">
                         {bannerPicPreview ? (
@@ -316,7 +316,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                             <img loading="lazy" key={bannerPicPreview}
                               src={bannerPicPreview}
                               alt="Banner preview"
-                              className="mx-auto h-16 w-32 rounded-2xl object-cover border-2 border-zinc-600 shadow-md"
+                              className="mx-auto h-20 w-20 rounded-full object-cover border-2 border-zinc-600 shadow-md"
                             />
                             <button
                               type="button"
@@ -325,7 +325,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                                 setBannerPicFile(null);
                                 setBannerPicPreview("");
                               }}
-                              className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors"
+                              className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
                               title="Remove banner"
                             >
                               <X className="h-3 w-3 text-white" />
@@ -334,7 +334,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                         ) : (
                           <Camera className="mx-auto h-6 w-6 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-300 transition-colors" />
                         )}
-                        <span className="block text-[9px] text-zinc-500 dark:text-zinc-400">
+                        <span className="block text-[9px] text-zinc-500 dark:text-zinc-400 mt-1">
                           {bannerPicPreview ? 'Tap to change' : 'Upload banner'}
                         </span>
                       </div>

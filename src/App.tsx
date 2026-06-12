@@ -33,10 +33,10 @@ const Settings = React.lazy(() => import("./components/Settings"));
 const Chat = React.lazy(() => import("./components/Chat"));
 const ImagePreviewRenderer = React.lazy(() => import("./components/ImagePreviewRenderer"));
 const Dock = React.lazy(() => import("./components/Dock"));
-const PostModal = React.lazy(() => import("./components/PostModal"));
-
-export default function App() {
+const PostModal = React.lazy(() => import("./components/PostModal"));	export default function App() {
 	const [user, setUser] = useState<User | null>(null);
+	const [sessionChecked, setSessionChecked] = useState(false);
+	const [showAuthForm, setShowAuthForm] = useState(false);
 	const [currentTab, setTab] = useState("home");
 	const [badgeCount, setBadgeCount] = useState(0);
 	const [chatBadgeCount, setChatBadgeCount] = useState(0);
@@ -349,7 +349,7 @@ export default function App() {
 	const prevUserRef = useRef(user);
 
 	useEffect(() => {
-		checkSession();
+		checkSession().finally(() => setSessionChecked(true));
 		return () => {
 			if (socketRef.current?.connected) {
 				socketRef.current.disconnect();
@@ -868,7 +868,7 @@ export default function App() {
 				</Suspense>
 
 				<AnimatePresence mode="wait">
-					{!user ? (
+					{sessionChecked && !user ? (
 						<motion.div
 								key="logged-out-section"
 								initial={{ opacity: 0 }}
@@ -878,17 +878,12 @@ export default function App() {
 								className="w-full flex flex-col justify-start overflow-y-auto scroll-smooth">
 								{/* Heavily Animated Landing Page with 3D components */}															<LandingPage
 																onScrollToAuth={() => {
-																	const target =
-																		document.getElementById("auth-section");
-																	if (target) {
-																		target.scrollIntoView({
-																			behavior: "smooth",
-																		});
-																	}
+																	setShowAuthForm(true);
 																}}
 															/>
 
-								{/* Auth form area (the scroll target) - perfectly centered and integrated without side animations */}
+								{/* Auth form area — only shown after user clicks "Get Started" or "Enter Social Hub" */}
+								{showAuthForm && (
 								<div
 									id="auth-section"
 									className="min-h-screen w-full flex flex-col items-center justify-center px-6 py-20 relative z-10 bg-transparent overflow-hidden">
@@ -972,8 +967,9 @@ export default function App() {
 												</motion.div>
 											)}
 										</AnimatePresence>
-									</div>
-								</div>
+							</div>
+						</div>
+						)}
 						</motion.div>
 					) : (
 						<motion.div

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Sparkles,
@@ -1832,8 +1833,9 @@ export default function Feed({
       )}
     </div>
 
-      {/* Floating sliding drawer for Comments Thread details - outside transform container */}
-      <AnimatePresence>
+      {/* Floating sliding drawer for Comments Thread details - rendered at document.body via portal to avoid stacking context issues with motion transforms */}
+      {typeof document !== "undefined" && createPortal(
+        <AnimatePresence>
         {selectedPost && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -1939,7 +1941,9 @@ export default function Feed({
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
 
       {/* Hidden file input for replacing an existing image */}
       <input
