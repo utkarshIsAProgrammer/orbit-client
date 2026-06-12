@@ -17,6 +17,7 @@ import {
 import type { User, Notification, Conversation } from "./types";
 import BackgroundGradients from "./components/BackgroundGradients";
 import LeftSidebar from "./components/LeftSidebar";
+import UserAvatar from "./components/UserAvatar";
 import GlassCard from "./components/GlassCard";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { apiFetch } from "./utils/api";
@@ -1000,21 +1001,18 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 											{/* Reflected glow sweep inside alert box */}
 											<div className="absolute inset-0 bg-linear-to-tr from-zinc-500/5 via-zinc-800/2 to-transparent -z-10" />
 
-											<img loading="lazy"
-												src={
-													alert.sender?.profilePic?.url ||
-													"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
+										<UserAvatar
+											src={alert.sender?.profilePic?.url}
+											alt=""
+											className="h-10 w-10 rounded-full object-cover border border-zinc-800 shrink-0 cursor-pointer shadow-sm"
+											onClick={() => {
+												if (alert.sender?.username) {
+													handleUserSelection(
+														alert.sender.username,
+													);
 												}
-												alt=""
-												className="h-10 w-10 rounded-full object-cover border border-zinc-800 shrink-0 cursor-pointer shadow-sm"
-												onClick={() => {
-													if (alert.sender?.username) {
-														handleUserSelection(
-															alert.sender.username,
-														);
-													}
-												}}
-											/>
+											}}
+										/>
 
 											<div className="space-y-1">
 												<span className="text-[9px] font-extrabold uppercase tracking-widest text-zinc-600 dark:text-zinc-400">
@@ -1409,14 +1407,8 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 																						sugUser.username,
 																					)
 																				}
-																				className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity">
-																				<img
-																					src={
-																						sugUser
-																							.profilePic
-																							?.url ||
-																						"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-																					}
+																				className="flex items-center gap-3 cursor-pointer hover:opacity-85 transition-opacity"><UserAvatar
+																					src={sugUser.profilePic?.url}
 																					alt=""
 																					className="h-9 w-9 rounded-full object-cover border border-zinc-800/60 shadow-sm shrink-0"
 																				/>

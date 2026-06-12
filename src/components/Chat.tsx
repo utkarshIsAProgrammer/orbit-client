@@ -19,6 +19,7 @@ import {
 import { Socket } from "socket.io-client";
 import { User as UserType, Conversation, Message, MessageReaction } from "../types";
 import GlassCard from "./GlassCard";
+import UserAvatar from "./UserAvatar";
 import Skeleton from "./Skeleton";
 import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
@@ -1125,8 +1126,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
                               onClick={() => startConversation(usr._id)}
                               className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 hover:bg-zinc-800/60 cursor-pointer transition-colors"
                             >
-                              <img loading="lazy" 
-                                src={usr.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                              <UserAvatar
+                                src={usr.profilePic?.url}
                                 alt={usr.fullName}
                                 className="h-7 w-7 rounded-full object-cover border border-zinc-800"
                               />
@@ -1175,8 +1176,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         className="flex items-center gap-3 rounded-2xl p-3 cursor-pointer transition-all border hover:bg-zinc-900/30 text-zinc-300 border-transparent"
                       >
                         <div className="relative shrink-0">
-                          <img loading="lazy" 
-                            src={partner.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                          <UserAvatar
+                            src={partner.profilePic?.url}
                             alt={partner.fullName}
                             className="h-10 w-10 rounded-full object-cover border border-zinc-800"
                           />
@@ -1251,8 +1252,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
                     className="relative cursor-pointer hover:opacity-85"
                     onClick={() => onUserSelected(getPartner(selectedConv).username)}
                   >
-                    <img loading="lazy" 
-                      src={getPartner(selectedConv).profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                    <UserAvatar
+                      src={getPartner(selectedConv).profilePic?.url}
                       alt={getPartner(selectedConv).fullName}
                       className="h-9 w-9 rounded-full object-cover border border-zinc-800"
                     />
@@ -1858,8 +1859,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         onClick={() => handleForwardMessage(conv._id)}
                         className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-800/60 text-left transition-colors"
                       >
-                        <img loading="lazy" 
-                          src={partner.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                        <UserAvatar
+                          src={partner.profilePic?.url}
                           alt={partner.fullName}
                           className="h-8 w-8 rounded-full object-cover border border-zinc-800"
                         />

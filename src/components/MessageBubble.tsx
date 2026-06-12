@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { Check, CheckCheck, Loader2, CornerDownLeft } from "lucide-react";
+import UserAvatar from "./UserAvatar";
 import type { Message } from "../types";
 
 interface MessageBubbleProps {
@@ -195,8 +196,8 @@ const MessageBubble = React.memo(function MessageBubble({
       )}
       {!isMe && (
         <div className="w-8 shrink-0 flex items-end">
-          <img loading="lazy"
-            src={msg.sender.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+          <UserAvatar
+            src={msg.sender.profilePic?.url}
             alt={msg.sender.fullName}
             className="h-7 w-7 rounded-full object-cover border border-zinc-800"
           />

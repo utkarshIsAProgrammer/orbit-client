@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { User, Comment, CommentReaction } from "../types";
 import { Reply, Smile, Heart, Pencil, Trash2, Check, X as XIcon, Copy, CornerDownLeft } from "lucide-react";
+import UserAvatar from "./UserAvatar";
 import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
 import { extractEmoji } from "../utils/validation";
@@ -501,8 +502,8 @@ export default function CommentNode({
         )}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img loading="lazy"
-              src={comment.author.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+            <UserAvatar
+              src={comment.author.profilePic?.url}
               alt={comment.author.fullName}
               onClick={() => onUserSelected(comment.author.username)}
               className="h-6 w-6 rounded-full object-cover border border-zinc-800 cursor-pointer shadow-sm"

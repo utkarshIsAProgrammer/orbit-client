@@ -1,3 +1,4 @@
+import UserAvatar from "./UserAvatar";
 import React, { useState, useEffect } from "react";
 import {
   User as UserIcon,
@@ -84,6 +85,19 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
   const [showDeletePassword, setShowDeletePassword] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Auto-clear error messages after 6 seconds
+  useEffect(() => {
+    if (!profileError) return;
+    const timer = setTimeout(() => setProfileError(null), 6000);
+    return () => clearTimeout(timer);
+  }, [profileError]);
+
+  useEffect(() => {
+    if (!passwordError) return;
+    const timer = setTimeout(() => setPasswordError(null), 6000);
+    return () => clearTimeout(timer);
+  }, [passwordError]);
 
   // Profile Submit handler
   const handleProfileSubmit = async (e: React.FormEvent) => {
@@ -249,7 +263,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 pl-3">
                       Avatar Image
                     </span>
-                    <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto">
+                    <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
                       <input
                         type="file"
                         accept="image/*"
@@ -262,34 +276,38 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                         }}
                         className="absolute inset-0 opacity-0 cursor-pointer rounded-full animate-none"
                       />
-                      <div className="text-center space-y-1">
-                        {profilePicPreview ? (
-                          <div className="relative">
-                            <img loading="lazy" key={profilePicPreview}
-                              src={profilePicPreview}
-                              alt="Profile preview"
-                              className="mx-auto h-20 w-20 rounded-full object-cover border-2 border-zinc-600 shadow-md"
-                            />
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setProfilePicFile(null);
-                                setProfilePicPreview("");
-                              }}
-                              className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
-                              title="Remove avatar"
-                            >
-                              <X className="h-3 w-3 text-white" />
-                            </button>
-                          </div>
-                        ) : (
+                      {profilePicPreview ? (
+                        <>
+                          <UserAvatar
+                            key={profilePicPreview}
+                            src={profilePicPreview}
+                            alt="Profile preview"
+                            className="absolute inset-0 h-full w-full rounded-full object-cover pointer-events-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProfilePicFile(null);
+                              setProfilePicPreview("");
+                            }}
+                            className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
+                            title="Remove avatar"
+                          >
+                            <X className="h-3 w-3 text-white" />
+                          </button>
+                          <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] text-zinc-500 dark:text-zinc-400 z-10 whitespace-nowrap pointer-events-none">
+                            Tap to change
+                          </span>
+                        </>
+                      ) : (
+                        <div className="text-center space-y-1">
                           <Camera className="mx-auto h-6 w-6 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-300 transition-colors" />
-                        )}
-                        <span className="block text-[9px] text-zinc-500 dark:text-zinc-400 mt-1">
-                          {profilePicPreview ? 'Tap to change' : 'Upload avatar'}
-                        </span>
-                      </div>
+                          <span className="block text-[9px] text-zinc-500 dark:text-zinc-400 mt-1">
+                            Upload avatar
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -297,7 +315,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 pl-3">
                       Banner Image
                     </span>
-                    <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto">
+                    <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
                       <input
                         type="file"
                         accept="image/*"
@@ -310,34 +328,38 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                         }}
                         className="absolute inset-0 opacity-0 cursor-pointer rounded-full animate-none"
                       />
-                      <div className="text-center space-y-1">
-                        {bannerPicPreview ? (
-                          <div className="relative">
-                            <img loading="lazy" key={bannerPicPreview}
-                              src={bannerPicPreview}
-                              alt="Banner preview"
-                              className="mx-auto h-20 w-20 rounded-full object-cover border-2 border-zinc-600 shadow-md"
-                            />
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setBannerPicFile(null);
-                                setBannerPicPreview("");
-                              }}
-                              className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
-                              title="Remove banner"
-                            >
-                              <X className="h-3 w-3 text-white" />
-                            </button>
-                          </div>
-                        ) : (
+                      {bannerPicPreview ? (
+                        <>
+                          <UserAvatar
+                            key={bannerPicPreview}
+                            src={bannerPicPreview}
+                            alt="Banner preview"
+                            className="absolute inset-0 h-full w-full rounded-full object-cover pointer-events-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setBannerPicFile(null);
+                              setBannerPicPreview("");
+                            }}
+                            className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
+                            title="Remove banner"
+                          >
+                            <X className="h-3 w-3 text-white" />
+                          </button>
+                          <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] text-zinc-500 dark:text-zinc-400 z-10 whitespace-nowrap pointer-events-none">
+                            Tap to change
+                          </span>
+                        </>
+                      ) : (
+                        <div className="text-center space-y-1">
                           <Camera className="mx-auto h-6 w-6 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-300 transition-colors" />
-                        )}
-                        <span className="block text-[9px] text-zinc-500 dark:text-zinc-400 mt-1">
-                          {bannerPicPreview ? 'Tap to change' : 'Upload banner'}
-                        </span>
-                      </div>
+                          <span className="block text-[9px] text-zinc-500 dark:text-zinc-400 mt-1">
+                            Upload banner
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

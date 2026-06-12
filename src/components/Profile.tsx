@@ -18,6 +18,7 @@ import {
 import { User as UserType, Post } from "../types";
 import GlassCard from "./GlassCard";
 import ImageCropModal from "./ImageCropModal";
+import UserAvatar from "./UserAvatar";
 import Skeleton from "./Skeleton";
 import ConfirmDialog from "./ConfirmDialog";
 import { apiFetch } from "../utils/api";
@@ -759,6 +760,13 @@ export default function Profile({
 		}
 	};
 
+	// Auto-clear error and success messages after timeout
+	useEffect(() => {
+		if (!error) return;
+		const timer = setTimeout(() => setError(null), 6000);
+		return () => clearTimeout(timer);
+	}, [error]);
+
 	useEffect(() => {
 		// Clear previous profile to prevent flash when switching users
 		setProfile(null);
@@ -1044,8 +1052,16 @@ export default function Profile({
 		formData.append("fullName", fullName);
 		formData.append("bio", bio);
 
-		if (profilePicFile) formData.append("profilePic", profilePicFile);
-		if (bannerPicFile) formData.append("bannerImage", bannerPicFile);
+		if (profilePicFile) {
+			formData.append("profilePic", profilePicFile);
+		} else if (!profilePicPreview && profile?.profilePic?.url) {
+			formData.append("removeProfilePic", "true");
+		}
+		if (bannerPicFile) {
+			formData.append("bannerImage", bannerPicFile);
+		} else if (!bannerPicPreview && profile?.bannerImage?.url) {
+			formData.append("removeBannerImage", "true");
+		}
 
 		try {
 			const res = await apiFetch("/api/users/update-profile", {
@@ -1150,26 +1166,26 @@ export default function Profile({
 				<div className="relative -mt-12 px-6 font-sans">
 					<div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
 						<div className="relative">
-							<img loading="lazy"
-								src={
-									profilePicPreview ||
-									"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"
-								}
-								alt={profile.fullName}
-								className="h-24 w-24 rounded-full border-4 border-white dark:border-zinc-900 object-cover shadow-md cursor-pointer hover:opacity-90 transition-opacity"
-								onClick={() => {
-									window.dispatchEvent(
-										new CustomEvent("openImagePreview", {
-											detail:
-												profilePicPreview ||
-												"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200",
-										}),
-									);
-								}}
-							/>
+						<UserAvatar
+							src={
+								profilePicPreview ||
+								""
+							}
+							alt={profile.fullName}
+							className="h-24 w-24 rounded-full border-4 border-white dark:border-zinc-900 object-cover shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+							onClick={() => {
+								window.dispatchEvent(
+									new CustomEvent("openImagePreview", {
+										detail:
+											profilePicPreview ||
+											"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200",
+									}),
+								);
+							}}
+						/>
 						</div>
 
-						<div className="flex items-center gap-2.5">
+						<div className="flex items-center gap-2.5 self-end sm:self-auto">
 							<button
 								onClick={handleShareProfile}
 								className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-150 transition-colors shadow-sm cursor-pointer">
@@ -1327,7 +1343,7 @@ export default function Profile({
 												showMacControls={false}>																	<>
 														{user?._id ===
 															profile?._id && (
-																<div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 z-20">
+																<div className="absolute top-4 right-4 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center gap-1.5 z-20">
 																<button
 																	onClick={(
 																		e,
@@ -1376,11 +1392,11 @@ export default function Profile({
 														{/* Author Context Line */}
 														<div className="mb-4 flex items-center justify-between">
 															<div className="flex items-center gap-3">
-																<img loading="lazy"
-																	src={profile.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-																	alt={profile.fullName}
-																	className="h-10 w-10 rounded-full object-cover border border-zinc-800 shadow-sm shrink-0"
-																/>
+															<UserAvatar
+																src={profile.profilePic?.url}
+																alt={profile.fullName}
+																className="h-10 w-10 rounded-full object-cover border border-zinc-800 shadow-sm shrink-0"
+															/>
 																<div className="text-left">
 																	<h4 className="text-sm font-semibold text-white">
 																		{profile.fullName}
@@ -1502,8 +1518,8 @@ export default function Profile({
 											{/* Author Context Line */}
 											<div className="mb-4 flex items-center justify-between">
 												<div className="flex items-center gap-3">
-													<img loading="lazy"
-														src={(post as any).author?.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+													<UserAvatar
+														src={(post as any).author?.profilePic?.url}
 														alt=""
 														className="h-10 w-10 rounded-full object-cover border border-zinc-800 shadow-sm shrink-0 cursor-pointer"
 														onClick={() => onUserClick((post as any).author?.username)}
@@ -1642,8 +1658,8 @@ export default function Profile({
 											{/* Author Context Line */}
 											<div className="mb-4 flex items-center justify-between">
 												<div className="flex items-center gap-3">
-													<img loading="lazy"
-														src={(post as any).author?.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+													<UserAvatar
+														src={(post as any).author?.profilePic?.url}
 														alt=""
 														className="h-10 w-10 rounded-full object-cover border border-zinc-800 shadow-sm shrink-0 cursor-pointer"
 														onClick={() => onUserClick((post as any).author?.username)}
@@ -1796,7 +1812,7 @@ export default function Profile({
 											<label className="text-xs font-medium text-zinc-400 pl-3">
 												Avatar
 											</label>
-											<div className="relative flex h-24 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 transition-colors">
+											<div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
 												<input
 													type="file"
 													accept="image/*"
@@ -1814,11 +1830,29 @@ export default function Profile({
 														}
 														e.target.value = "";
 													}}
-													className="absolute inset-0 opacity-0 cursor-pointer animate-none"
+													className="absolute inset-0 opacity-0 cursor-pointer animate-none z-10"
 												/>
-												<div className="text-center space-y-1">
-													<Camera className="mx-auto h-5 w-5 text-zinc-500" />
-												</div>
+												{profilePicPreview ? (
+													<>
+													<img loading="lazy" src={profilePicPreview} alt="Avatar preview" className="absolute inset-0 h-full w-full object-cover" />
+													<button
+														type="button"
+														onClick={(e) => {
+															e.stopPropagation();
+															setProfilePicFile(null);
+															setProfilePicPreview("");
+														}}
+														className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
+														title="Remove avatar"
+													>
+														<X className="h-3 w-3 text-white" />
+													</button>
+												</>
+												) : (
+													<div className="text-center space-y-1">
+														<Camera className="mx-auto h-5 w-5 text-zinc-500" />
+													</div>
+												)}
 											</div>
 										</div>
 
@@ -1827,7 +1861,7 @@ export default function Profile({
 											<label className="text-xs font-medium text-zinc-400 pl-3">
 												Banner
 											</label>
-											<div className="relative flex h-24 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 transition-colors">
+											<div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
 												<input
 													type="file"
 													accept="image/*"
@@ -1845,11 +1879,29 @@ export default function Profile({
 														}
 														e.target.value = "";
 													}}
-													className="absolute inset-0 opacity-0 cursor-pointer animate-none"
+													className="absolute inset-0 opacity-0 cursor-pointer animate-none z-10"
 												/>
-												<div className="text-center space-y-1">
-													<Camera className="mx-auto h-5 w-5 text-zinc-500" />
-												</div>
+												{bannerPicPreview ? (
+													<>
+													<img loading="lazy" src={bannerPicPreview} alt="Banner preview" className="absolute inset-0 h-full w-full object-cover" />
+													<button
+														type="button"
+														onClick={(e) => {
+															e.stopPropagation();
+															setBannerPicFile(null);
+															setBannerPicPreview("");
+														}}
+														className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
+														title="Remove banner"
+													>
+														<X className="h-3 w-3 text-white" />
+													</button>
+												</>
+												) : (
+													<div className="text-center space-y-1">
+														<Camera className="mx-auto h-5 w-5 text-zinc-500" />
+													</div>
+												)}
 											</div>
 										</div>
 									</div>
@@ -2103,15 +2155,14 @@ export default function Profile({
 												onClick={() => {
 													setActiveList(null);
 													onPostClick(post.slug);
-												}}>
-												<img loading="lazy" 
-													src={
-														post.author?.profilePic
-															?.url ||
-														"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-													}
-													className="w-10 h-10 rounded-full object-cover shrink-0"
-												/>
+												}}><UserAvatar
+														src={
+															post.author?.profilePic
+																?.url
+														}
+														alt=""
+														className="w-10 h-10 rounded-full object-cover shrink-0"
+													/>
 												<div>
 													<div className="font-bold text-sm text-white">
 														{post.author?.fullName}
@@ -2133,14 +2184,13 @@ export default function Profile({
 												onClick={() => {
 													setActiveList(null);
 													onUserClick(u.username);
-												}}>
-												<img loading="lazy" 
-													src={
-														u.profilePic?.url ||
-														"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-													}
-													className="w-10 h-10 rounded-full object-cover shrink-0"
-												/>
+												}}><UserAvatar
+														src={
+															u.profilePic?.url
+														}
+														alt=""
+														className="w-10 h-10 rounded-full object-cover shrink-0"
+													/>
 												<div className="flex flex-col text-left flex-1">
 													<span className="font-bold text-sm text-white">
 														{u.fullName}

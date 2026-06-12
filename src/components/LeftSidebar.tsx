@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { User } from "../types";
 import { Home, Compass, Bell, Bookmark, Feather, Repeat, MessageSquare, Settings } from "lucide-react";
+import UserAvatar from "./UserAvatar";
 import PostModal from "./PostModal";
 import GlassCard from "./GlassCard";
 
@@ -99,8 +100,8 @@ export default React.memo(function LeftSidebar({
               aria-label="View your profile"
               className="flex w-full items-center gap-3 rounded-2xl p-3 transition-all group hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
             >
-              <img loading="lazy"
-                src={user?.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+              <UserAvatar
+                src={user?.profilePic?.url}
                 alt={`${user?.fullName || 'User'} profile picture`}
                 className="h-9 w-9 shrink-0 rounded-full object-cover border border-zinc-800"
               />

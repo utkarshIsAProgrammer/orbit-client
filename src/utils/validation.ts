@@ -114,19 +114,27 @@ export function validateLogin(data: LoginData): Record<string, string> {
 export interface PostData {
   title: string;
   content: string;
+  hasImages?: boolean;
 }
 
 export function validatePost(data: PostData): Record<string, string> {
   const errors: Record<string, string> = {};
 
-  // title: max 500 (optional)
   const title = data.title?.trim() || "";
+  const content = data.content?.trim() || "";
+  const hasImages = data.hasImages || false;
+
+  // Require at least one of title, content, or images
+  if (!title && !content && !hasImages) {
+    errors.title = "Add a title, some content, or an image to create a post.";
+  }
+
+  // title: max 500 (optional)
   if (title.length > 500) {
     errors.title = "Title must be less than 500 characters.";
   }
 
   // content: max 5000 (optional)
-  const content = data.content?.trim() || "";
   if (content.length > 5000) {
     errors.content = "Content must be less than 5000 characters.";
   }

@@ -4,6 +4,7 @@ import { Search, Hash, Users, Compass, Heart, MessageSquare, Bookmark, Repeat2, 
 import { User, Post } from "../types";
 import GlassCard from "./GlassCard";
 import Skeleton from "./Skeleton";
+import UserAvatar from "./UserAvatar";
 import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
 
@@ -362,8 +363,8 @@ export default function Explore({
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <img loading="lazy"
-                          src={usr.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                        <UserAvatar
+                          src={usr.profilePic?.url}
                           alt={usr.fullName}
                           className="h-8 w-8 shrink-0 rounded-full object-cover border border-zinc-800 shadow-sm cursor-pointer"
                           onClick={() => onUserSelected(usr.username)}
@@ -417,8 +418,8 @@ export default function Explore({
                   {/* Author context line */}
                   <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <img loading="lazy"
-                        src={(pst as any).author?.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                      <UserAvatar
+                        src={(pst as any).author?.profilePic?.url}
                         alt={(pst as any).author?.fullName}
                         onClick={(e) => {
                           e.stopPropagation();

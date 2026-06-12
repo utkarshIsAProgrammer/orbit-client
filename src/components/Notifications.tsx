@@ -21,6 +21,7 @@ import {
 import { Socket } from "socket.io-client";
 import { Notification, User } from "../types";
 import GlassCard from "./GlassCard";
+import UserAvatar from "./UserAvatar";
 import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
 
@@ -449,11 +450,8 @@ export default function Notifications({
                     <div className="flex gap-4.5">
                       {/* Floating Bubble Type Indicator */}
                       <div className="relative shrink-0">
-                      <img loading="lazy"
-                        src={
-                            notif.sender?.profilePic?.url ||
-                            "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"
-                          }
+                      <UserAvatar
+                          src={notif.sender?.profilePic?.url}
                           alt={notif.sender?.fullName}
                           className="h-11 w-11 cursor-pointer rounded-full object-cover border border-zinc-800"
                           onClick={() => onUserClick(notif.sender!.username)}
@@ -551,11 +549,11 @@ export default function Notifications({
                   {/* Notification preview */}
                   <div className="px-6 py-3 border-b border-zinc-800/60">
                     <div className="flex items-center gap-3">
-                      <img loading="lazy"
-                        src={contextMenu.notif.sender?.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
-                        alt={contextMenu.notif.sender?.fullName}
-                        className="h-8 w-8 rounded-full object-cover border border-zinc-800"
-                      />
+                      <UserAvatar
+                          src={contextMenu.notif.sender?.profilePic?.url}
+                          alt={contextMenu.notif.sender?.fullName}
+                          className="h-8 w-8 rounded-full object-cover border border-zinc-800"
+                        />
                       <div className="text-left">
                         <p className="text-xs font-bold text-zinc-200">
                           {contextMenu.notif.sender?.fullName || "Anonymous"}

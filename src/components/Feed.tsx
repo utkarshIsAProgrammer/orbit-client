@@ -21,6 +21,7 @@ import {
 import { Post, Comment, User } from "../types";
 import GlassCard from "./GlassCard";
 import ImageCarousel from "./ImageCarousel";
+import UserAvatar from "./UserAvatar";
 import ImageCropModal from "./ImageCropModal";
 import CommentNode from "./CommentNode";
 import Skeleton from "./Skeleton";
@@ -733,7 +734,7 @@ export default function Feed({
   // Submit Post
   const handleCreatePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const errors = validatePost({ title, content });
+    const errors = validatePost({ title, content, hasImages: postImageFiles.length > 0 });
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       setError(null);
@@ -1231,8 +1232,8 @@ export default function Feed({
               <GlassCard className="shadow-sm rounded-4xl border-white/5 bg-zinc-950/20 backdrop-blur-xl">
                 <form onSubmit={handleCreatePostSubmit} noValidate className="space-y-4">
                   <div className="flex gap-4">
-                    <img loading="lazy"
-                      src={user.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                    <UserAvatar
+                      src={user.profilePic?.url}
                       alt="user avatar"
                       onClick={() => onUserSelected(user.username)}
                       className="h-10 w-10 shrink-0 rounded-full object-cover border border-zinc-800 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
@@ -1280,8 +1281,8 @@ export default function Feed({
                                   onClick={() => selectMentionCandidate(u.username)}
                                   className="flex items-center gap-2.5 rounded-full px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors cursor-pointer"
                                 >
-                                  <img loading="lazy"
-                                    src={u.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                                  <UserAvatar
+                                    src={u.profilePic?.url}
                                     alt=""
                                     className="h-5.5 w-5.5 rounded-full object-cover border border-zinc-800"
                                   />
@@ -1462,8 +1463,8 @@ export default function Feed({
                         {/* Author context line */}
                         <div className="mb-4 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <img loading="lazy" 
-                              src={post.author.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                            <UserAvatar
+                              src={post.author.profilePic?.url}
                               alt={post.author.fullName}
                               onClick={() => onUserSelected(post.author.username)}
                               className="h-10 w-10 cursor-pointer rounded-full object-cover border border-zinc-800 shadow-sm"
@@ -1685,8 +1686,8 @@ export default function Feed({
                       {/* Author context line */}
                       <div className="mb-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <img loading="lazy"
-                            src={post.author.profilePic?.url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100"}
+                          <UserAvatar
+                            src={post.author.profilePic?.url}
                             alt={post.author.fullName}
                             onClick={() => onUserSelected(post.author.username)}
                             className="h-10 w-10 cursor-pointer rounded-full object-cover border border-zinc-800 shadow-sm"

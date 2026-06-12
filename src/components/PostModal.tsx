@@ -113,7 +113,7 @@ export default function PostModal({ isOpen, onClose, onPostCreated }: PostModalP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const errors = validatePost({ title, content });
+    const errors = validatePost({ title, content, hasImages: postImageFiles.length > 0 });
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
