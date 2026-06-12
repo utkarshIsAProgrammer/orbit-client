@@ -261,7 +261,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1 col-span-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 pl-3">
-                      Avatar Image
+                      Profile Pic
                     </span>
                     <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
                       <input
@@ -315,7 +315,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 pl-3">
                       Banner Image
                     </span>
-                    <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
+                    <div className="relative flex h-20 w-full items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
                       <input
                         type="file"
                         accept="image/*"

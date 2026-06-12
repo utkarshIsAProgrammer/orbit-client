@@ -1810,7 +1810,7 @@ export default function Profile({
 										{/* Avatar Upload */}
 										<div className="space-y-1.5">
 											<label className="text-xs font-medium text-zinc-400 pl-3">
-												Avatar
+												Profile Pic
 											</label>
 											<div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
 												<input
@@ -1861,7 +1861,7 @@ export default function Profile({
 											<label className="text-xs font-medium text-zinc-400 pl-3">
 												Banner
 											</label>
-											<div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
+											<div className="relative flex h-20 w-full items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
 												<input
 													type="file"
 													accept="image/*"
