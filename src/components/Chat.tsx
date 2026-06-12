@@ -24,7 +24,7 @@ import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
 import ValidationMessage from "./ValidationMessage";
 import MessageBubble from "./MessageBubble";
-import { validateChatMessage } from "../utils/validation";
+import { validateChatMessage, extractEmoji } from "../utils/validation";
 
 interface ChatProps {
   user: UserType;
@@ -33,9 +33,10 @@ interface ChatProps {
   setConversations: React.Dispatch<React.SetStateAction<Conversation[]>>;
   onUserSelected: (username: string) => void;
   onBack: () => void;
+  onChatConversationChange?: (hasActive: boolean) => void;
 }
 
-export default function Chat({ user, socket, conversations, setConversations, onUserSelected, onBack }: ChatProps) {
+export default function Chat({ user, socket, conversations, setConversations, onUserSelected, onChatConversationChange }: ChatProps) {
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingConvs] = useState(false);
@@ -72,6 +73,9 @@ export default function Chat({ user, socket, conversations, setConversations, on
   // Message edit state
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [editText, setEditText] = useState("");
+
+  // Reply state
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
@@ -118,6 +122,11 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
   // Pending message IDs (optimistic messages not yet confirmed by server)
   const [, setPendingMessageIds] = useState<Set<string>>(new Set());
+
+  // Notify parent when active conversation changes (for dock visibility)
+  useEffect(() => {
+    onChatConversationChange?.(selectedConv !== null);
+  }, [selectedConv, onChatConversationChange]);
 
   // Fetch messages when conversation is selected or socket becomes available
   useEffect(() => {
@@ -252,6 +261,22 @@ export default function Chat({ user, socket, conversations, setConversations, on
       setConversations((prev) =>
         prev.map((c) => (c._id === message.conversation ? { ...c, lastMessage: message } : c))
       );
+    });
+
+    // Listen for delete-for-me events
+    s.on("message:delete-for-me", ({ messageId, deletedByUserId }: { messageId: string; deletedByUserId: string }) => {
+      const currentUser = userRef.current;
+      if (!currentUser) return;
+      if (deletedByUserId === currentUser._id) {
+        // This was our own delete-for-me action, mark as deleted
+        setMessages((prev) =>
+          prev.map((m) =>
+            m._id === messageId
+              ? { ...m, isDeleted: true, text: "This message was deleted", attachments: [], deletedFor: [...(m.deletedFor || []), deletedByUserId] }
+              : m
+          )
+        );
+      }
     });
 
     // Listen for message deletions
@@ -404,6 +429,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
       s.off("message:new");
       s.off("message:edit");
       s.off("message:delete");
+      s.off("message:delete-for-me");
       s.off("message:reaction");
       s.off("conversation:delete");
       s.off("conversation:clear");
@@ -583,6 +609,13 @@ export default function Chat({ user, socket, conversations, setConversations, on
       sender: { _id: user._id, username: user.username, fullName: user.fullName, profilePic: user.profilePic },
       recipient: getPartner(selectedConv)._id,
       text: inputText.trim(),
+      replyTo: replyToMessage ? {
+        _id: replyToMessage._id,
+        sender: replyToMessage.sender,
+        text: replyToMessage.text,
+        attachments: replyToMessage.attachments,
+        createdAt: replyToMessage.createdAt,
+      } : null,
       attachments: [],
       seen: false,
       _pending: true,
@@ -608,6 +641,9 @@ export default function Chat({ user, socket, conversations, setConversations, on
     try {
       const formData = new FormData();
       formData.append("text", inputText.trim());
+      if (replyToMessage) {
+        formData.append("replyTo", replyToMessage._id);
+      }
       attachments.forEach((file) => {
         formData.append("files", file);
       });
@@ -632,6 +668,9 @@ export default function Chat({ user, socket, conversations, setConversations, on
         });
         scrollToBottom();
 
+        // Clear reply state after successful send
+        setReplyToMessage(null);
+
         if (!showOptimistic) {
           // Clear input only after successful send (for attachment messages)
           setInputText("");
@@ -639,7 +678,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
           setAttachmentPreviews([]);
         }
       } else {
-        // Rollback on failure — remove pending message
+        // Rollback on failure — remove pending message, preserve reply
         setPendingMessageIds((prev) => {
           const next = new Set(prev);
           next.delete(pendingId);
@@ -718,9 +757,42 @@ export default function Chat({ user, socket, conversations, setConversations, on
     } catch (e) {
       logger.error(e);
     }
+  };  // Delete message for current user only
+  const handleDeleteForMe = async (messageId: string) => {
+    const currentUserId = user._id;
+    // Optimistic: mark as deleted for current user
+    setMessages((prev) =>
+      prev.map((m) =>
+        m._id === messageId
+          ? { ...m, isDeleted: true, text: "This message was deleted", attachments: [], deletedFor: [...(m.deletedFor || []), currentUserId] }
+          : m
+      )
+    );
+
+    try {
+      const res = await apiFetch(`/api/chats/messages/${messageId}/delete-for-me`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        logger.error("Delete for me failed");
+        window.dispatchEvent(
+          new CustomEvent("showToast", {
+            detail: { message: data.message || "Failed to delete message.", type: "error" },
+          })
+        );
+      }
+    } catch (e) {
+      logger.error(e);
+      window.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: { message: "Error deleting message.", type: "error" },
+        })
+      );
+    }
   };
 
-  // Delete message
+  // Delete message (for everyone - within 5 min)
   const handleDeleteMessage = async (messageId: string) => {
     // 1. Optimistic UI update
     setMessages((prev) =>
@@ -823,7 +895,9 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
   // Handle reaction
   const handleReaction = async (message: Message, emoji: string) => {
-    // 1. Optimistic UI update
+    // Don't allow reactions on deleted messages
+    if (message.isDeleted) return;
+
     const userId = user._id;
     const existingIndex = (message.reactions || []).findIndex((r) => {
       const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
@@ -886,13 +960,13 @@ export default function Chat({ user, socket, conversations, setConversations, on
     }
   };
 
-  // Handle custom emoji submission
-  const handleCustomEmoji = async (message: Message) => {
-    if (customEmoji.trim()) {
-      await handleReaction(message, customEmoji.trim());
-      setShowEmojiPicker(null);
-      setCustomEmoji("");
-    }
+  // Handle reply
+  const handleReplyMessage = (message: Message) => {
+    setReplyToMessage(message);
+    setContextMenu(null);
+    // Focus the input
+    const input = document.querySelector<HTMLInputElement>('input[placeholder="Type a message..."]');
+    input?.focus();
   };
 
   // Handle copy message
@@ -931,7 +1005,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
     return diffMs <= 5 * 60 * 1000; // 5 minutes
   };
 
-  const handleContextMenu = (e: React.MouseEvent, message: Message) => {
+  const handleContextMenu = (e: React.MouseEvent | { clientX: number; clientY: number; preventDefault: () => void }, message: Message) => {
     e.preventDefault();
     // Calculate safe position for mobile to prevent menu from being cut off
     const x = e.clientX;
@@ -971,25 +1045,24 @@ export default function Chat({ user, socket, conversations, setConversations, on
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  // Group reactions by emoji and count them
+  // Group reactions by emoji and count them (max 10 unique emojis)
   const getGroupedReactions = (reactions?: MessageReaction[]) => {
     if (!reactions || reactions.length === 0) return {};
-    const grouped: Record<string, { count: number; hasReacted: boolean }> = {};
-    reactions.forEach(r => {
-      if (!grouped[r.emoji]) {
-        grouped[r.emoji] = { count: 0, hasReacted: false };
-      }
-      grouped[r.emoji].count++;
-      const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
-      if (sId === user._id) {
-        grouped[r.emoji].hasReacted = true;
-      }
-    });
-    return grouped;
+    const entries = Object.entries(
+      reactions.reduce((acc, r) => {
+        if (!acc[r.emoji]) acc[r.emoji] = { count: 0, hasReacted: false };
+        acc[r.emoji].count++;
+        const sId = typeof r.sender === "string" ? r.sender : r.sender?._id;
+        if (sId === user._id) acc[r.emoji].hasReacted = true;
+        return acc;
+      }, {} as Record<string, { count: number; hasReacted: boolean }>)
+    );
+    // Sort by most reacted first, limit to 10
+    return Object.fromEntries(entries.slice(0, 10));
   };
 
   return (
-    <div className="w-full px-2 pb-24 pt-6 h-[calc(100vh-7rem)] h-screen-force relative select-text chat-container">
+    <div className="w-full h-full px-0 pt-3 pb-0 relative select-text chat-container">
       <GlassCard animate={true} className="w-full h-full p-0 flex rounded-4xl overflow-hidden border-white/5 bg-zinc-950/20 backdrop-blur-xl">
         <AnimatePresence mode="wait">
           {!selectedConv ? (
@@ -1001,13 +1074,6 @@ export default function Chat({ user, socket, conversations, setConversations, on
               className="w-full h-full flex flex-col"
             >
               <div className="p-4 pb-0 flex items-center gap-3 shrink-0">
-                <button
-                  onClick={onBack}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer shadow-sm"
-                  title="Go Back to Home Feed"
-                >
-                  <ArrowLeft className="h-4.5 w-4.5" />
-                </button>
                 <h3 className="font-sans text-xs font-black text-white uppercase tracking-widest">
                   Messages
                 </h3>
@@ -1170,7 +1236,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="w-full h-full flex flex-col"
+              className="w-full h-full flex flex-col min-h-0"
             >
               <div className="p-4 border-b border-zinc-800/30 flex items-center justify-between shrink-0 bg-zinc-950/20 backdrop-blur-md relative z-10">
                 <div className="flex items-center gap-3">
@@ -1218,7 +1284,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 scrollbar-thin">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 min-h-0">
                 {loadingMsgs ? (
                   <div className="space-y-4 p-2">
                     {/* First batch loading — show 4 message bubble skeletons */}
@@ -1261,10 +1327,12 @@ export default function Chat({ user, socket, conversations, setConversations, on
                           key={msg._id}
                           msg={msg}
                           isMe={isMe}
+                          userId={user._id}
                           groupedReactions={groupedReactions}
                           handleContextMenu={handleContextMenu}
                           handleReaction={handleReaction}
                           formatMessageTime={formatMessageTime}
+                          onSwipeToReply={handleReplyMessage}
                         />
                       );
                     })
@@ -1288,6 +1356,27 @@ export default function Chat({ user, socket, conversations, setConversations, on
               </AnimatePresence>
 
               <div className="p-4 border-t border-zinc-800/30 shrink-0 bg-zinc-950/20 backdrop-blur-md relative z-10 chat-input-area">
+                {replyToMessage && !replyToMessage.isDeleted && (
+                  <div className="flex items-start gap-2.5 mb-3 bg-zinc-900/60 p-3 rounded-2xl border border-zinc-800/60 max-w-md">
+                    <div className="w-0.5 h-full min-h-[2.5rem] rounded-full bg-blue-500/40 shrink-0" />
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-[10px] font-black text-blue-400 uppercase tracking-wider leading-tight">
+                        Replying to {replyToMessage.sender.fullName}
+                      </p>
+                      <p className="text-[11px] text-zinc-400 truncate mt-0.5 leading-relaxed">
+                        {replyToMessage.text || (replyToMessage.attachments && replyToMessage.attachments.length > 0 ? "📎 Attachment" : "")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setReplyToMessage(null)}
+                      className="h-5 w-5 rounded-full flex items-center justify-center hover:bg-zinc-800 text-zinc-500 hover:text-white transition-all shrink-0 mt-0.5 cursor-pointer"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+
                 {attachmentPreviews.length > 0 && (
                   <div className="flex gap-2 mb-3 bg-zinc-900/50 p-2.5 rounded-2xl border border-zinc-800 max-w-sm">
                     {attachmentPreviews.map((url, idx) => (
@@ -1437,6 +1526,15 @@ export default function Chat({ user, socket, conversations, setConversations, on
                     <>
                       <button
                         onClick={() => {
+                          handleReplyMessage(contextMenu.message);
+                        }}
+                        className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                      >
+                        <CornerDownLeft className="h-4 w-4 text-zinc-400" />
+                        Reply
+                      </button>
+                      <button
+                        onClick={() => {
                           handleCopyMessage(contextMenu.message);
                           setContextMenu(null);
                         }}
@@ -1459,29 +1557,43 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         <Share2 className="h-4 w-4 text-zinc-400" />
                         Forward Message
                       </button>
-                      {contextMenu.message.sender._id === user._id && isEditable(contextMenu.message.createdAt) && (
+                      {contextMenu.message.sender._id === user._id && (
                         <>
+                          {isEditable(contextMenu.message.createdAt) && (
+                            <button
+                              onClick={() => {
+                                setEditingMessage(contextMenu.message);
+                                setEditText(contextMenu.message.text);
+                                setContextMenu(null);
+                              }}
+                              className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                            >
+                              <Edit2 className="h-4 w-4 text-zinc-400" />
+                              Edit Message
+                            </button>
+                          )}
                           <button
                             onClick={() => {
-                              setEditingMessage(contextMenu.message);
-                              setEditText(contextMenu.message.text);
+                              handleDeleteForMe(contextMenu.message._id);
                               setContextMenu(null);
                             }}
-                            className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                            className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-300 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
                           >
-                            <Edit2 className="h-4 w-4 text-zinc-400" />
-                            Edit Message
+                            <Trash2 className="h-4 w-4 text-zinc-400" />
+                            Delete for me
                           </button>
-                          <button
-                            onClick={() => {
-                              handleDeleteMessage(contextMenu.message._id);
-                              setContextMenu(null);
-                            }}
-                            className="w-full px-4 py-3 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-3 cursor-pointer"
-                          >
-                            <Trash2 className="h-4 w-4 text-red-400" />
-                            Delete Message
-                          </button>
+                          {isEditable(contextMenu.message.createdAt) && (
+                            <button
+                              onClick={() => {
+                                handleDeleteMessage(contextMenu.message._id);
+                                setContextMenu(null);
+                              }}
+                              className="w-full px-4 py-3 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-3 cursor-pointer"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-400" />
+                              Delete for everyone
+                            </button>
+                          )}
                         </>
                       )}
                     </>
@@ -1534,52 +1646,72 @@ export default function Chat({ user, socket, conversations, setConversations, on
               </div>
 
               <div className="p-1">
-                {!contextMenu.message.isDeleted && (
-                  <>
-                    <button
-                      onClick={() => handleCopyMessage(contextMenu.message)}
-                      className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2 cursor-pointer"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                      Copy Message
-                    </button>
-                    <button
-                      onClick={() => {
-                        setForwardModal({
-                          message: contextMenu.message,
-                          x: contextMenu.x,
-                          y: contextMenu.y,
-                        });
-                        setContextMenu(null);
-                      }}
-                      className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2 cursor-pointer"
-                    >
-                      <Share2 className="h-3.5 w-3.5" />
-                      Forward Message
-                    </button>
-                    {contextMenu.message.sender._id === user._id && isEditable(contextMenu.message.createdAt) && (
+                {!contextMenu.message.isDeleted && (                    <>
+                      <button
+                        onClick={() => handleReplyMessage(contextMenu.message)}
+                        className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2 cursor-pointer"
+                      >
+                        <CornerDownLeft className="h-3.5 w-3.5" />
+                        Reply
+                      </button>
+                      <button
+                        onClick={() => handleCopyMessage(contextMenu.message)}
+                        className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2 cursor-pointer"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        Copy Message
+                      </button>
+                      <button
+                        onClick={() => {
+                          setForwardModal({
+                            message: contextMenu.message,
+                            x: contextMenu.x,
+                            y: contextMenu.y,
+                          });
+                          setContextMenu(null);
+                        }}
+                        className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2 cursor-pointer"
+                      >
+                        <Share2 className="h-3.5 w-3.5" />
+                        Forward Message
+                      </button>
+                    {contextMenu.message.sender._id === user._id && (
                       <>
+                        {isEditable(contextMenu.message.createdAt) && (
+                          <button
+                            onClick={() => {
+                              setEditingMessage(contextMenu.message);
+                              setEditText(contextMenu.message.text);
+                              setContextMenu(null);
+                            }}
+                            className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2 cursor-pointer"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                            Edit Message
+                          </button>
+                        )}
                         <button
                           onClick={() => {
-                            setEditingMessage(contextMenu.message);
-                            setEditText(contextMenu.message.text);
+                            handleDeleteForMe(contextMenu.message._id);
                             setContextMenu(null);
                           }}
-                          className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2 cursor-pointer"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                          Edit Message
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleDeleteMessage(contextMenu.message._id);
-                            setContextMenu(null);
-                          }}
-                          className="w-full px-3 py-2.5 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-2 cursor-pointer"
+                          className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-300 hover:bg-zinc-800/60 rounded-xl flex items-center gap-2 cursor-pointer"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-                          Delete Message
+                          Delete for me
                         </button>
+                        {isEditable(contextMenu.message.createdAt) && (
+                          <button
+                            onClick={() => {
+                              handleDeleteMessage(contextMenu.message._id);
+                              setContextMenu(null);
+                            }}
+                            className="w-full px-3 py-2.5 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-2 cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete for everyone
+                          </button>
+                        )}
                       </>
                     )}
                   </>
@@ -1597,14 +1729,14 @@ export default function Chat({ user, socket, conversations, setConversations, on
         </>
       )}
 
-      {/* Custom Emoji Picker Modal */}
+      {/* Native Emoji Picker (opens device emoji keyboard) */}
       <AnimatePresence>
         {showEmojiPicker && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] bg-black/50 flex items-end sm:items-center justify-center p-4"
             onClick={() => {
               setShowEmojiPicker(null);
               setCustomEmoji("");
@@ -1618,7 +1750,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
               className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-4 w-full max-w-sm shadow-2xl"
             >
               <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-widest">Add Emoji</h4>
+                <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-widest">Pick an Emoji</h4>
                 <button
                   onClick={() => {
                     setShowEmojiPicker(null);
@@ -1628,30 +1760,57 @@ export default function Chat({ user, socket, conversations, setConversations, on
                   <X className="h-3.5 w-3.5 text-zinc-500 hover:text-white" />
                 </button>
               </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const msg = messages.find((m) => m._id === showEmojiPicker);
-                  if (msg) handleCustomEmoji(msg);
+              
+              {/* Hidden input that triggers native emoji keyboard on mobile */}
+              <input
+                type="text"
+                // @ts-ignore-next-line - emoji is valid HTML but missing from React types
+                inputMode="emoji"
+                value={customEmoji}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCustomEmoji(val);
+                  // If user typed/pasted an emoji, use it immediately
+                  if (val.trim()) {
+                    const msg = messages.find((m) => m._id === showEmojiPicker);
+                    if (msg) {
+                      const emoji = extractEmoji(val);
+                      if (emoji) {
+                        handleReaction(msg, emoji);
+                        setShowEmojiPicker(null);
+                        setCustomEmoji("");
+                      }
+                    }
+                  }
                 }}
-                className="space-y-3"
-              >
-                <input
-                  type="text"
-                  placeholder="Type any emoji..."
-                  value={customEmoji}
-                  onChange={(e) => setCustomEmoji(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-sm text-white placeholder-zinc-500 outline-none focus:border-white"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  disabled={!customEmoji.trim()}
-                  className="w-full rounded-xl bg-white text-black font-bold px-4 py-2.5 text-xs uppercase tracking-widest hover:bg-zinc-200 transition-colors disabled:opacity-50"
-                >
-                  Add Reaction
-                </button>
-              </form>
+                className="w-full rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2.5 text-sm text-white outline-none focus:border-white text-center"
+                autoFocus
+                autoComplete="off"
+                placeholder="Tap for emoji"
+              />
+              
+              {/* Quick emoji grid for desktop users */}
+              <div className="mt-3">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500 mb-2 text-center">Or pick one</p>
+                <div className="flex flex-wrap gap-1.5 justify-center">
+                  {["👍", "❤️", "😂", "😮", "😢", "😠", "🎉", "🔥", "💀", "🙏", "✨", "🥳", "💯", "🏆", "👏", "💪", "🤝", "😍", "🥺", "🤔"].map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => {
+                        const msg = messages.find((m) => m._id === showEmojiPicker);
+                        if (msg) {
+                          handleReaction(msg, emoji);
+                          setShowEmojiPicker(null);
+                          setCustomEmoji("");
+                        }
+                      }}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-lg hover:bg-zinc-800 transition-all hover:scale-110 cursor-pointer"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}

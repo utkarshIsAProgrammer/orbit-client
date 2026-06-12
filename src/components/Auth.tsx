@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+
 import {
   Lock,
   User,
@@ -27,7 +27,6 @@ export default function Auth({
   onAuthSuccess,
   onForgotPasswordClick,
 }: AuthProps) {
-  const [tab, setTab] = useState<"login" | "signup">("login");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -170,16 +169,14 @@ export default function Auth({
         </p>
       </div>
 
-      <GlassCard className="w-full max-w-md border-white/10 p-8 shadow-[0_25px_65px_-15px_rgba(0,0,0,0.85)] hover:border-white/20 transition-all duration-300 rounded-4xl">
+      <GlassCard className="w-full max-w-4xl border-white/10 p-8 lg:p-10 shadow-[0_25px_65px_-15px_rgba(0,0,0,0.85)] hover:border-white/20 transition-all duration-300 rounded-4xl">
         {/* Informative Header Title inside card */}
         <div className="mb-6 text-center">
           <h2 className="text-xl font-normal tracking-wide text-white font-display">
-            {tab === "login" ? "Welcome Back!" : "Join Orbit Today!"}
+            Join Orbit Today!
           </h2>
           <p className="text-[10px] text-zinc-400 mt-1 uppercase tracking-wider font-mono">
-            {tab === "login"
-              ? "Sign in to see latest updates from friends"
-              : "Create a simple account to post and share moments"}
+            Create an account to post and share moments with friends
           </p>
         </div>
 
@@ -190,305 +187,270 @@ export default function Auth({
           </div>
         )}
 
-        <form onSubmit={tab === "login" ? handleLoginSubmit : handleSignupSubmit} noValidate className="space-y-5">
-          <AnimatePresence mode="wait">
-            {tab === "login" ? (
-              <motion.div
-                key="login"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-4 font-sans"
-              >
-                <div className="space-y-2 text-left">
-                  <label htmlFor="login-identity" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Username or Email</label>
-                  <div className="relative group">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-5 text-zinc-400 group-focus-within:text-black dark:group-focus-within:text-white transition-colors">
-                      <User className="h-4.5 w-4.5" />
-                    </span>
-                    <input
-                      id="login-identity"
-                      type="text"
-                      required
-                      placeholder="alice@gmail.com"
-                      value={identity}
-                      onChange={(e) => { setIdentity(e.target.value); clearFieldError("identity"); }}
-                      className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 pl-12 pr-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 transition-all focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:outline-none focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10"
-                    />
-                  </div>
-                  <ValidationMessage message={fieldErrors.identity} />
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
+          {/* Login Column */}
+          <form onSubmit={handleLoginSubmit} noValidate className="space-y-4 font-sans">
+            <h3 className="text-base font-bold text-white/80 tracking-wide mb-4">Sign In</h3>
+            <div className="space-y-2 text-left">
+              <label htmlFor="login-identity" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Username or Email</label>
+              <div className="relative group">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-5 text-zinc-400 group-focus-within:text-black dark:group-focus-within:text-white transition-colors">
+                  <User className="h-4.5 w-4.5" />
+                </span>
+                <input
+                  id="login-identity"
+                  type="text"
+                  required
+                  placeholder="alice@gmail.com"
+                  value={identity}
+                  onChange={(e) => { setIdentity(e.target.value); clearFieldError("identity"); }}
+                  className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 pl-12 pr-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 transition-all focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:outline-none focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10"
+                />
+              </div>
+              <ValidationMessage message={fieldErrors.identity} />
+            </div>
 
-                <div className="space-y-2 text-left">
-                  <div className="flex items-center justify-between pl-4">
-                    <label htmlFor="login-password" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Password</label>
-                    <button
-                      type="button"
-                      onClick={onForgotPasswordClick}
-                      className="text-xs font-bold text-zinc-400 dark:text-zinc-400 hover:text-white dark:hover:text-zinc-200 transition-colors focus:outline-none cursor-pointer"
-                    >
-                      Forgot Password?
-                    </button>
-                  </div>
-                  <div className="relative group">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-5 text-zinc-400 group-focus-within:text-black dark:group-focus-within:text-white transition-colors">
-                      <Lock className="h-4.5 w-4.5" />
-                    </span>
-                    <input
-                      id="login-password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      required
-                      placeholder="••••••••••••"
-                      value={password}
-                      onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
-                      className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 pl-12 pr-12 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 transition-all focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:outline-none focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-5 text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white cursor-pointer transition-colors"
-                    >
-                      {showPassword ? <Eye className="h-4.5 w-4.5" /> : <EyeOff className="h-4.5 w-4.5" />}
-                    </button>
-                  </div>
-                  <ValidationMessage message={fieldErrors.password} />
-                </div>
-
+            <div className="space-y-2 text-left">
+              <div className="flex items-center justify-between pl-4">
+                <label htmlFor="login-password" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Password</label>
                 <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-full bg-black py-4 text-xs font-bold tracking-widest uppercase text-white dark:bg-white dark:text-black shadow-md transition-all hover:bg-zinc-900 dark:hover:bg-zinc-100 hover:shadow-lg focus:outline-none disabled:opacity-40 cursor-pointer"
+                  type="button"
+                  onClick={onForgotPasswordClick}
+                  className="text-xs font-bold text-zinc-400 dark:text-zinc-400 hover:text-white dark:hover:text-zinc-200 transition-colors focus:outline-none cursor-pointer"
                 >
-                  {loading ? "Signing In..." : "Sign In"}
-                  <ArrowRight className="h-4 w-4" />
+                  Forgot Password?
                 </button>
-
-                <div className="mt-6 text-center text-xs text-zinc-400 font-sans">
-                  Don't have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={() => { setTab("signup"); setError(null); setFieldErrors({}); }}
-                    className="text-white hover:text-cyan-400 font-semibold underline underline-offset-4 pl-1 hover:scale-102 transition-all cursor-pointer bg-transparent border-0 outline-none"
-                  >
-                    Create Account
-                  </button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="signup"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-4 max-h-[52vh] overflow-y-auto pr-1 font-sans scrollbar-thin"
-              >
-                {/* Image upload boxes */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5 text-center flex flex-col items-center">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                      Profile Photo
-                    </span>
-                    <div className="relative flex h-24 w-24 items-center justify-center rounded-full border-2 border-dashed border-zinc-800 bg-zinc-950/20 hover:bg-zinc-900/50 hover:border-zinc-600 transition-all duration-300 shadow-sm cursor-pointer group overflow-hidden">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setProfilePicFile(file);
-                            setProfilePicPreview(URL.createObjectURL(file));
-                          }
-                        }}
-                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                      />
-                      {profilePicPreview ? (
-                        <img loading="lazy"
-                          src={profilePicPreview}
-                          className="h-full w-full rounded-full object-cover"
-                          alt="preview"
-                        />
-                      ) : (
-                        <div className="text-center space-y-1 select-none pointer-events-none">
-                          <Camera className="mx-auto h-5 w-5 text-zinc-400 group-hover:text-black dark:group-hover:text-white transition-colors" />
-                          <span className="text-[9px] font-bold text-zinc-500 block uppercase tracking-wider">Select Image</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 text-center flex flex-col items-center">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                      Banner Image
-                    </span>
-                    <div className="relative flex h-24 w-full items-center justify-center rounded-full border-2 border-dashed border-zinc-800 bg-zinc-950/20 hover:bg-zinc-900/50 hover:border-zinc-600 transition-all duration-300 shadow-sm cursor-pointer group overflow-hidden">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setBannerFile(file);
-                            setBannerPreview(URL.createObjectURL(file));
-                          }
-                        }}
-                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                      />
-                      {bannerPreview ? (
-                        <img loading="lazy"
-                          src={bannerPreview}
-                          className="h-full w-full rounded-full object-cover"
-                          alt="preview"
-                        />
-                      ) : (
-                        <div className="text-center space-y-1 select-none pointer-events-none">
-                          <Camera className="mx-auto h-5 w-5 text-zinc-400 group-hover:text-black dark:group-hover:text-white transition-colors" />
-                          <span className="text-[9px] font-bold text-zinc-500 block uppercase tracking-wider">Select Image</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 text-left">
-                  <label htmlFor="signup-username" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Username</label>
-                  <input
-                    id="signup-username"
-                    type="text"
-                    required
-                    placeholder="alice"
-                    value={username}
-                    onChange={(e) => { setUsername(e.target.value.toLowerCase().replace(/\s+/g, "")); clearFieldError("username"); }}
-                    maxLength={100}
-                    className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 px-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
-                  />
-                  <div className="flex items-center justify-between px-1">
-                    <ValidationMessage message={fieldErrors.username} />
-                    <CharCounter current={username.length} max={100} />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 text-left">
-                  <label htmlFor="signup-fullname" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Full Name</label>
-                  <input
-                    id="signup-fullname"
-                    type="text"
-                    required
-                    placeholder="Alice Smith"
-                    value={fullName}
-                    onChange={(e) => { setFullName(e.target.value); clearFieldError("fullName"); }}
-                    maxLength={50}
-                    className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 px-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
-                  />
-                  <div className="flex items-center justify-between px-1">
-                    <ValidationMessage message={fieldErrors.fullName} />
-                    <CharCounter current={fullName.length} max={50} />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 text-left">
-                  <label htmlFor="signup-email" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Email Address</label>
-                  <input
-                    id="signup-email"
-                    type="email"
-                    required
-                    placeholder="alice@gmail.com"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
-                    className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 px-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
-                  />
-                  <ValidationMessage message={fieldErrors.email} />
-                </div>
-
-                <div className="space-y-1.5 text-left">
-                  <label htmlFor="signup-password" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Password</label>
-                  <div className="relative">
-                    <input
-                      id="signup-password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      required
-                      placeholder="••••••••••••"
-                      value={password}
-                      onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
-                      className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 pl-5 pr-12 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-5 text-zinc-400 hover:text-black dark:hover:text-white cursor-pointer"
-                    >
-                      {showPassword ? <Eye className="h-4.5 w-4.5" /> : <EyeOff className="h-4.5 w-4.5" />}
-                    </button>
-                  </div>
-                  <ValidationMessage message={fieldErrors.password} />
-                </div>
-
-                <div className="space-y-1.5 text-left">
-                  <label htmlFor="signup-confirm-password" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Confirm Password</label>
-                  <div className="relative">
-                    <input
-                      id="signup-confirm-password"
-                      type={showConfirmPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      required
-                      placeholder="••••••••••••"
-                      value={confirmPassword}
-                      onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}
-                      className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 pl-5 pr-12 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-5 text-zinc-400 hover:text-black dark:hover:text-white cursor-pointer"
-                    >
-                      {showConfirmPassword ? <Eye className="h-4.5 w-4.5" /> : <EyeOff className="h-4.5 w-4.5" />}
-                    </button>
-                  </div>
-                  <ValidationMessage message={fieldErrors.confirmPassword} />
-                </div>
-
-                <div className="space-y-1.5 text-left">
-                  <label htmlFor="signup-bio" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Bio / About</label>
-                  <textarea
-                    id="signup-bio"
-                    rows={2}
-                    placeholder="A short snippet about yourself..."
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    maxLength={300}
-                    className="w-full rounded-3xl border border-zinc-800 bg-zinc-950/20 py-3.5 px-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all resize-none"
-                  />
-                  <div className="flex justify-end px-1">
-                    <CharCounter current={bio.length} max={300} />
-                  </div>
-                </div>
-
+              </div>
+              <div className="relative group">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-5 text-zinc-400 group-focus-within:text-black dark:group-focus-within:text-white transition-colors">
+                  <Lock className="h-4.5 w-4.5" />
+                </span>
+                <input
+                  id="login-password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  placeholder="••••••••••••"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
+                  className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 pl-12 pr-12 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 transition-all focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:outline-none focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10"
+                />
                 <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-full bg-black py-4 text-xs font-bold tracking-widest uppercase text-white dark:bg-white dark:text-black transition-all hover:bg-zinc-900 dark:hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-40 cursor-pointer shadow-md"
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-5 text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white cursor-pointer transition-colors"
                 >
-                  {loading ? "Creating Account..." : "Create Account"}
-                  <ShieldCheck className="h-4.5 w-4.5" />
+                  {showPassword ? <Eye className="h-4.5 w-4.5" /> : <EyeOff className="h-4.5 w-4.5" />}
                 </button>
+              </div>
+              <ValidationMessage message={fieldErrors.password} />
+            </div>
 
-                <div className="mt-6 text-center text-xs text-zinc-400 font-sans">
-                  Already have an account?{" "}
-                  <button
-                    type="button"
-                    onClick={() => { setTab("login"); setError(null); setFieldErrors({}); }}
-                    className="text-white hover:text-cyan-400 font-semibold underline underline-offset-4 pl-1 hover:scale-102 transition-all cursor-pointer bg-transparent border-0 outline-none"
-                  >
-                    Sign In
-                  </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-black py-4 text-xs font-bold tracking-widest uppercase text-white dark:bg-white dark:text-black shadow-md transition-all hover:bg-zinc-900 dark:hover:bg-zinc-100 hover:shadow-lg focus:outline-none disabled:opacity-40 cursor-pointer"
+            >
+              {loading ? "Signing In..." : "Sign In"}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </form>
+
+          {/* Signup Column */}
+          <form onSubmit={handleSignupSubmit} noValidate className="space-y-4 font-sans max-h-[60vh] overflow-y-auto pr-1 scrollbar-thin">
+            <h3 className="text-base font-bold text-white/80 tracking-wide mb-4">Create Account</h3>
+
+            {/* Image upload boxes */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5 text-center flex flex-col items-center">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                  Profile Photo
+                </span>
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed border-zinc-800 bg-zinc-950/20 hover:bg-zinc-900/50 hover:border-zinc-600 transition-all duration-300 shadow-sm cursor-pointer group overflow-hidden">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setProfilePicFile(file);
+                        setProfilePicPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  />
+                  {profilePicPreview ? (
+                    <img loading="lazy"
+                      src={profilePicPreview}
+                      className="h-full w-full rounded-full object-cover"
+                      alt="preview"
+                    />
+                  ) : (
+                    <div className="text-center space-y-1 select-none pointer-events-none">
+                      <Camera className="mx-auto h-5 w-5 text-zinc-400 group-hover:text-black dark:group-hover:text-white transition-colors" />
+                      <span className="text-[9px] font-bold text-zinc-500 block uppercase tracking-wider">Profile</span>
+                    </div>
+                  )}
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </form>
+              </div>
+
+              <div className="space-y-1.5 text-center flex flex-col items-center">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                  Banner Image
+                </span>
+                <div className="relative flex h-20 w-full items-center justify-center rounded-2xl border-2 border-dashed border-zinc-800 bg-zinc-950/20 hover:bg-zinc-900/50 hover:border-zinc-600 transition-all duration-300 shadow-sm cursor-pointer group overflow-hidden">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setBannerFile(file);
+                        setBannerPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  />
+                  {bannerPreview ? (
+                    <img loading="lazy"
+                      src={bannerPreview}
+                      className="h-full w-full rounded-2xl object-cover"
+                      alt="preview"
+                    />
+                  ) : (
+                    <div className="text-center space-y-1 select-none pointer-events-none">
+                      <Camera className="mx-auto h-5 w-5 text-zinc-400 group-hover:text-black dark:group-hover:text-white transition-colors" />
+                      <span className="text-[9px] font-bold text-zinc-500 block uppercase tracking-wider">Banner</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="signup-username" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Username</label>
+              <input
+                id="signup-username"
+                type="text"
+                required
+                placeholder="alice"
+                value={username}
+                onChange={(e) => { setUsername(e.target.value.toLowerCase().replace(/\s+/g, "")); clearFieldError("username"); }}
+                maxLength={100}
+                className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 px-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
+              />
+              <div className="flex items-center justify-between px-1">
+                <ValidationMessage message={fieldErrors.username} />
+                <CharCounter current={username.length} max={100} />
+              </div>
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="signup-fullname" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Full Name</label>
+              <input
+                id="signup-fullname"
+                type="text"
+                required
+                placeholder="Alice Smith"
+                value={fullName}
+                onChange={(e) => { setFullName(e.target.value); clearFieldError("fullName"); }}
+                maxLength={50}
+                className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 px-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
+              />
+              <div className="flex items-center justify-between px-1">
+                <ValidationMessage message={fieldErrors.fullName} />
+                <CharCounter current={fullName.length} max={50} />
+              </div>
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="signup-email" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Email Address</label>
+              <input
+                id="signup-email"
+                type="email"
+                required
+                placeholder="alice@gmail.com"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
+                className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 px-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
+              />
+              <ValidationMessage message={fieldErrors.email} />
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="signup-password" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Password</label>
+              <div className="relative">
+                <input
+                  id="signup-password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  placeholder="••••••••••••"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
+                  className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 pl-5 pr-12 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-5 text-zinc-400 hover:text-black dark:hover:text-white cursor-pointer"
+                >
+                  {showPassword ? <Eye className="h-4.5 w-4.5" /> : <EyeOff className="h-4.5 w-4.5" />}
+                </button>
+              </div>
+              <ValidationMessage message={fieldErrors.password} />
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="signup-confirm-password" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Confirm Password</label>
+              <div className="relative">
+                <input
+                  id="signup-confirm-password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  required
+                  placeholder="••••••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}
+                  className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3.5 pl-5 pr-12 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-5 text-zinc-400 hover:text-black dark:hover:text-white cursor-pointer"
+                >
+                  {showConfirmPassword ? <Eye className="h-4.5 w-4.5" /> : <EyeOff className="h-4.5 w-4.5" />}
+                </button>
+              </div>
+              <ValidationMessage message={fieldErrors.confirmPassword} />
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="signup-bio" className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pl-4">Bio / About</label>
+              <textarea
+                id="signup-bio"
+                rows={2}
+                placeholder="A short snippet about yourself..."
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                maxLength={300}
+                className="w-full rounded-3xl border border-zinc-800 bg-zinc-950/20 py-3.5 px-5 text-sm font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 focus:outline-none focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all resize-none"
+              />
+              <div className="flex justify-end px-1">
+                <CharCounter current={bio.length} max={300} />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-black py-4 text-xs font-bold tracking-widest uppercase text-white dark:bg-white dark:text-black transition-all hover:bg-zinc-900 dark:hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-40 cursor-pointer shadow-md"
+            >
+              {loading ? "Creating Account..." : "Create Account"}
+              <ShieldCheck className="h-4.5 w-4.5" />
+            </button>
+          </form>
+        </div>
       </GlassCard>
     </div>
   );

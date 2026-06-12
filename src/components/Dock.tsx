@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
-import { Home, Search, Bell, User, Settings, MessageSquare, Plus } from "lucide-react";
+import { Home, Search, Bell, User, MessageSquare, Plus, Settings } from "lucide-react";
 import { User as UserType } from "../types";
 
 interface DockItem {

@@ -39,6 +39,9 @@ export default function ImageCropModal({
   const [aspect, setAspect] = useState<number | undefined>(aspectRatio);
   const [originalAspect, setOriginalAspect] = useState<number>(aspectRatio || 1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [outputWidth, setOutputWidth] = useState<number | "">("");
+  const [outputHeight, setOutputHeight] = useState<number | "">("");
+  const [lockAspect, setLockAspect] = useState(true);
 
   // Escape key + focus trap
   const cropModalRef = React.useRef<HTMLDivElement>(null);
@@ -89,6 +92,8 @@ export default function ImageCropModal({
     setZoom(1);
     setRotation(0);
     setCrop({ x: 0, y: 0 });
+    setOutputWidth("");
+    setOutputHeight("");
   }, [aspectRatio, imageSrc]);
 
   const handleCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
@@ -129,12 +134,33 @@ export default function ImageCropModal({
         height
       );
 
-      canvas.toBlob((blob) => {
-        if (blob) {
-          onCropComplete(blob);
-          onClose();
+      // Apply user-specified output dimensions (resize), maintaining quality
+      const outW = outputWidth || width;
+      const outH = outputHeight || height;
+      if (outW !== width || outH !== height) {
+        const resizedCanvas = document.createElement("canvas");
+        resizedCanvas.width = outW;
+        resizedCanvas.height = outH;
+        const resizedCtx = resizedCanvas.getContext("2d");
+        if (resizedCtx) {
+          resizedCtx.imageSmoothingEnabled = true;
+          resizedCtx.imageSmoothingQuality = "high";
+          resizedCtx.drawImage(canvas, 0, 0, outW, outH);
+          resizedCanvas.toBlob((blob) => {
+            if (blob) {
+              onCropComplete(blob);
+              onClose();
+            }
+          }, "image/jpeg", 0.95);
         }
-      }, "image/jpeg", 0.95);
+      } else {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            onCropComplete(blob);
+            onClose();
+          }
+        }, "image/jpeg", 0.95);
+      }
     } catch (e) {
       logger.error("Crop failed", e);
     }
@@ -244,6 +270,7 @@ export default function ImageCropModal({
           {/* Controls Footer */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-zinc-800 bg-black p-4 sm:p-6 relative z-10">
             <div className="flex flex-col w-full sm:w-1/2 gap-3">
+              {/* Zoom slider */}
               <div className="flex items-center gap-4">
                 <span className="text-xs font-semibold text-zinc-500 w-12 text-left">Zoom</span>
                 <input
@@ -258,6 +285,7 @@ export default function ImageCropModal({
                   [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-black dark:[&::-webkit-slider-thumb]:bg-white"
                 />
               </div>
+              {/* Rotate slider */}
               <div className="flex items-center gap-4">
                 <span className="text-xs font-semibold text-zinc-500 w-12 text-left">Rotate</span>
                 <input
@@ -271,6 +299,82 @@ export default function ImageCropModal({
                   className="h-1.5 w-full appearance-none rounded-full bg-zinc-200 dark:bg-zinc-700 outline-none
                   [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-black dark:[&::-webkit-slider-thumb]:bg-white"
                 />
+              </div>
+              {/* Output dimensions row */}
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-zinc-500 w-12 text-left shrink-0">Resize</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={10000}
+                  value={outputWidth}
+                  placeholder={croppedAreaPixels ? String(Math.round(croppedAreaPixels.width)) : "W"}
+                  aria-label="Output width in pixels"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const num = parseInt(val, 10);
+                    setOutputWidth(val === "" ? "" : (isNaN(num) ? outputWidth : num));
+                    if (
+                      lockAspect &&
+                      croppedAreaPixels &&
+                      !isNaN(num) &&
+                      num > 0
+                    ) {
+                      const ratio = croppedAreaPixels.height / croppedAreaPixels.width;
+                      const newH = Math.round(num * ratio);
+                      setOutputHeight(newH);
+                    }
+                  }}
+                  className="w-18 rounded-lg border border-zinc-700 bg-zinc-900/60 px-2 py-1.5 text-xs text-white text-center outline-none focus:border-zinc-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+                <span className="text-[10px] text-zinc-500 font-bold">×</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={10000}
+                  value={outputHeight}
+                  placeholder={croppedAreaPixels ? String(Math.round(croppedAreaPixels.height)) : "H"}
+                  aria-label="Output height in pixels"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const num = parseInt(val, 10);
+                    setOutputHeight(val === "" ? "" : (isNaN(num) ? outputHeight : num));
+                    if (
+                      lockAspect &&
+                      croppedAreaPixels &&
+                      !isNaN(num) &&
+                      num > 0
+                    ) {
+                      const ratio = croppedAreaPixels.width / croppedAreaPixels.height;
+                      const newW = Math.round(num * ratio);
+                      setOutputWidth(newW);
+                    }
+                  }}
+                  className="w-18 rounded-lg border border-zinc-700 bg-zinc-900/60 px-2 py-1.5 text-xs text-white text-center outline-none focus:border-zinc-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+                <span className="text-[10px] text-zinc-500">px</span>
+                <button
+                  type="button"
+                  onClick={() => setLockAspect(!lockAspect)}
+                  className={`flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-bold transition-colors cursor-pointer ${lockAspect
+                    ? "bg-white text-black"
+                    : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                    }`}
+                  title={lockAspect ? "Aspect ratio locked" : "Aspect ratio unlocked"}
+                >
+                  🔒
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOutputWidth("");
+                    setOutputHeight("");
+                  }}
+                  className="flex h-6 items-center gap-1 rounded-md bg-zinc-800 px-2 text-[10px] font-bold text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer"
+                  title="Reset resize dimensions to auto"
+                >
+                  Reset
+                </button>
               </div>
             </div>
             <button

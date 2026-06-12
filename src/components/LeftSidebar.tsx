@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { User } from "../types";
-import { Home, Compass, Bell, Bookmark, Settings, Feather, Repeat, MessageSquare } from "lucide-react";
+import { Home, Compass, Bell, Bookmark, Feather, Repeat, MessageSquare, Settings } from "lucide-react";
 import PostModal from "./PostModal";
 import GlassCard from "./GlassCard";
 

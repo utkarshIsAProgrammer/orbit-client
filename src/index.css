@@ -140,6 +140,14 @@ textarea:focus:invalid {
   box-shadow: none;
 }
 
+/* Remove outline from all input fields */
+input,
+textarea,
+select {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

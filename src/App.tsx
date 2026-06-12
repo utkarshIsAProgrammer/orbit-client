@@ -40,6 +40,7 @@ export default function App() {
 	const [currentTab, setTab] = useState("home");
 	const [badgeCount, setBadgeCount] = useState(0);
 	const [chatBadgeCount, setChatBadgeCount] = useState(0);
+	const [isCheckingSession, setIsCheckingSession] = useState(true);
 
 	// Preload all lazy components after mount to prevent Suspense flash on navigation
 	useEffect(() => {
@@ -63,6 +64,7 @@ export default function App() {
 	const [socket, setSocket] = useState<ReturnType<typeof io> | null>(null);
 	const [conversations, setConversations] = useState<Conversation[]>([]);
 	const [composeOpen, setComposeOpen] = useState(false);
+	const [hasActiveConversation, setHasActiveConversation] = useState(false);
 	const [isMobileDevice, setIsMobileDevice] = useState(() => {
 		if (typeof window === "undefined") return false;
 		return window.innerWidth < 768 || window.matchMedia("(pointer: coarse)").matches;
@@ -204,6 +206,8 @@ export default function App() {
 			}
 		} catch (e) {
 			logger.warn("Session check failed", e);
+		} finally {
+			setIsCheckingSession(false);
 		}
 	};
 
@@ -744,6 +748,23 @@ export default function App() {
 		if (tab === "home") {
 			setSinglePostSlug(null);
 		}
+		// Reset notification badge when navigating to notifications tab
+		if (tab === "notifications") {
+			setBadgeCount(0);
+		}
+		// Clear chat badge when navigating to chat tab — clear unread counts so badge stays clear
+		if (tab === "chat") {
+			setChatBadgeCount(0);
+			setConversations((prev) =>
+				prev.map((c) => ({
+					...c,
+					unreadCounts: {
+						...c.unreadCounts,
+						[user?._id || ""]: 0,
+					},
+				}))
+			);
+		}
 		navigateToTab(tab);
 	}, [user?.username, navigateToTab]);
 
@@ -822,6 +843,15 @@ export default function App() {
 		}
 	}, [tabHistory, singlePostSlug, selectedUserUsername, user?.username]);
 
+	// Prevent landing page flash for logged-in users — all hooks must be declared before this point
+	if (isCheckingSession) {
+		return (
+			<ErrorBoundary>
+				<div className="relative min-h-screen bg-black" />
+			</ErrorBoundary>
+		);
+	}
+
 	return (
 		<ErrorBoundary>
 			<div className="relative min-h-screen text-slate-800 dark:text-zinc-100 selection:bg-zinc-800/10 dark:selection:bg-white/10 antialiased font-ui flex flex-col justify-start bg-transparent transition-colors duration-500 overflow-x-hidden">
@@ -895,7 +925,7 @@ export default function App() {
 										)}
 									</div>
 									{/* Center Auth Card with super clean backplate */}
-									<div className="w-full max-w-md my-6 relative z-10 shrink-0">
+									<div className="w-full max-w-4xl my-6 relative z-10 shrink-0">
 										<AnimatePresence mode="wait">
 											{forgotPasswordOpen ? (
 												<motion.div
@@ -1064,22 +1094,22 @@ export default function App() {
 											</div>
 											{/* Middle Main Content Pane: Tab content scales fluidly */}
 											<div
-												className={`${currentTab === "chat"
-														? "lg:col-span-9 overflow-hidden"
-														: "lg:col-span-6 xl:col-span-6 overflow-y-auto"
-													} w-full h-full pb-32 xl:pb-12`}>
-												{canGoBack && (
-													<motion.button
-														initial={{ opacity: 0, x: -10 }}
-														animate={{ opacity: 1, x: 0 }}
-														exit={{ opacity: 0, x: -10 }}
-														onClick={handleGoBack}
-														className="mb-4 flex h-8 items-center gap-1.5 rounded-full border border-zinc-200/10 bg-white/5 hover:bg-white/10 px-3 text-zinc-400 hover:text-white transition-all cursor-pointer shadow-sm text-xs font-bold uppercase tracking-wider select-none shrink-0"
-													>
-														<ArrowLeft className="h-3.5 w-3.5" />
-														<span>Back</span>
-													</motion.button>
-												)}
+								className={`${currentTab === "chat"
+										? "lg:col-span-9 overflow-hidden"
+										: "lg:col-span-6 xl:col-span-6 overflow-y-auto"
+									} w-full h-full ${currentTab === "chat" ? "pb-0" : "pb-36 sm:pb-32 xl:pb-12"}`}>
+									{canGoBack && currentTab === "chat" && hasActiveConversation && (
+										<motion.button
+											initial={{ opacity: 0, x: -10 }}
+											animate={{ opacity: 1, x: 0 }}
+											exit={{ opacity: 0, x: -10 }}
+											onClick={handleGoBack}
+											className="mb-4 flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200/10 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer shadow-sm shrink-0"
+											title="Go back"
+										>
+											<ArrowLeft className="h-3.5 w-3.5" />
+										</motion.button>
+									)}
 												<ErrorBoundary>
 													<Suspense fallback={<div className="h-32 animate-pulse rounded-3xl border border-zinc-800 bg-zinc-950/20" />}>
 														<AnimatePresence mode="wait">
@@ -1087,10 +1117,10 @@ export default function App() {
 																<motion.div
 																	key="home"
 																	className="relative min-h-[calc(100vh-2rem)]"
-																	initial={false}
-																	animate={{ opacity: 1 }}
-																	exit={{ opacity: 0, y: -15 }}
-																	transition={{ duration: 0.15 }}>
+														initial={{ opacity: 0, y: 20 }}
+														animate={{ opacity: 1, y: 0 }}
+														exit={{ opacity: 0, y: -15 }}
+														transition={{ duration: 0.35, ease: "easeOut" }}>
 																	<div className="relative z-10 w-full h-full">
 																		<Feed
 																			user={user}
@@ -1127,10 +1157,10 @@ export default function App() {
 															{currentTab === "explore" && (
 																<motion.div
 																	key="explore"
-																	initial={false}
-																	animate={{ opacity: 1 }}
-																	exit={{ opacity: 0, y: -15 }}
-																	transition={{ duration: 0.15 }}>
+														initial={{ opacity: 0, y: 20 }}
+														animate={{ opacity: 1, y: 0 }}
+														exit={{ opacity: 0, y: -15 }}
+														transition={{ duration: 0.35, ease: "easeOut" }}>
 																	<Explore
 																		onUserSelected={
 																			handleUserSelection
@@ -1176,10 +1206,10 @@ export default function App() {
 															{currentTab === "saved" && (
 																<motion.div
 																	key="saved"
-																	initial={false}
-																	animate={{ opacity: 1 }}
-																	exit={{ opacity: 0, y: -15 }}
-																	transition={{ duration: 0.15 }}>
+														initial={{ opacity: 0, y: 20 }}
+														animate={{ opacity: 1, y: 0 }}
+														exit={{ opacity: 0, y: -15 }}
+														transition={{ duration: 0.35, ease: "easeOut" }}>
 																	<Feed
 																		user={user}
 																		onUserSelected={
@@ -1201,10 +1231,10 @@ export default function App() {
 															{currentTab === "reposts" && (
 																<motion.div
 																	key="reposts"
-																	initial={false}
-																	animate={{ opacity: 1 }}
-																	exit={{ opacity: 0, y: -15 }}
-																	transition={{ duration: 0.15 }}>
+														initial={{ opacity: 0, y: 20 }}
+														animate={{ opacity: 1, y: 0 }}
+														exit={{ opacity: 0, y: -15 }}
+														transition={{ duration: 0.35, ease: "easeOut" }}>
 																	<Feed
 																		user={user}
 																		onUserSelected={
@@ -1228,10 +1258,10 @@ export default function App() {
 															{currentTab === "profile" && (
 																<motion.div
 																	key="profile"
-																	initial={false}
-																	animate={{ opacity: 1 }}
-																	exit={{ opacity: 0, y: -15 }}
-																	transition={{ duration: 0.15 }}>
+														initial={{ opacity: 0, y: 20 }}
+														animate={{ opacity: 1, y: 0 }}
+														exit={{ opacity: 0, y: -15 }}
+														transition={{ duration: 0.35, ease: "easeOut" }}>
 																	<Profile
 																		user={user}
 																		targetUsername={
@@ -1264,10 +1294,10 @@ export default function App() {
 															{currentTab === "settings" && (
 																<motion.div
 																	key="settings"
-																	initial={false}
-																	animate={{ opacity: 1 }}
-																	exit={{ opacity: 0, y: -15 }}
-																	transition={{ duration: 0.15 }}>
+														initial={{ opacity: 0, y: 20 }}
+														animate={{ opacity: 1, y: 0 }}
+														exit={{ opacity: 0, y: -15 }}
+														transition={{ duration: 0.35, ease: "easeOut" }}>
 																	<Settings
 																		user={user}
 																		onUserUpdate={(u) =>
@@ -1280,13 +1310,14 @@ export default function App() {
 																</motion.div>
 															)}
 
-															{currentTab === "chat" && (
-																<motion.div
-																	key="chat"
-																	initial={false}
-																	animate={{ opacity: 1 }}
-																	exit={{ opacity: 0, y: -15 }}
-																	transition={{ duration: 0.15 }}>
+									{currentTab === "chat" && (
+										<motion.div
+											key="chat"
+								initial={{ opacity: 0, y: 20 }}
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0, y: -15 }}
+								transition={{ duration: 0.35, ease: "easeOut" }}
+							className="h-full">
 																	<Chat
 																		user={user}
 																		socket={
@@ -1301,10 +1332,11 @@ export default function App() {
 																		onUserSelected={
 																			handleUserSelection
 																		}
-																		onBack={() =>
-																			setTab("home")
-																		}
-																	/>
+																	onBack={() =>
+																		setTab("home")
+																	}
+																	onChatConversationChange={setHasActiveConversation}
+																/>
 																</motion.div>
 															)}
 														</AnimatePresence>
@@ -1496,15 +1528,17 @@ export default function App() {
 								)}
 							</main>
 
-			{/* Center Apple Dock (Fixed bottom overlay) */}
+			{/* Center Apple Dock (Fixed bottom overlay) — hidden when chat is open */}
 							<Suspense fallback={null}>
-								<Dock
-									currentTab={currentTab}
-									setTab={handleTabChange}
-									user={user}
-									badgeCount={badgeCount}
-									chatBadgeCount={chatBadgeCount}
-								/>
+								{!(currentTab === "chat" && hasActiveConversation) && (
+									<Dock
+										currentTab={currentTab}
+										setTab={handleTabChange}
+										user={user}
+										badgeCount={badgeCount}
+										chatBadgeCount={chatBadgeCount}
+									/>
+								)}
 							</Suspense>
 						</motion.div>
 					)}
