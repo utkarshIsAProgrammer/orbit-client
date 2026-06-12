@@ -136,16 +136,16 @@ export default React.memo(function Dock({
       <style>{shimmerStyle}</style>
       <div className="fixed bottom-4 left-1/2 z-40 w-full max-w-90 -translate-x-1/2 px-3 sm:max-w-lg xl:hidden">
         <div
-          className="relative overflow-hidden flex items-center justify-between rounded-2xl sm:rounded-3xl border border-white/15 dark:border-zinc-800/50 bg-white/30 dark:bg-zinc-950/40 backdrop-blur-xl px-3 py-2.5 sm:px-5 sm:py-3 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] gap-1 sm:gap-1.5"
+          className="relative overflow-hidden flex items-center justify-between rounded-3xl sm:rounded-4xl border border-white/15 dark:border-zinc-800/50 bg-white/30 dark:bg-zinc-950/40 backdrop-blur-xl px-3 py-3 sm:px-5 sm:py-4 shadow-[0_20px_60px_-15px rgba(0,0,0,0.4)] gap-1 sm:gap-1.5"
         >
           {/* Liquid glass shimmer overlay — slow animated gradient */}
-          <div className="absolute inset-0 opacity-30 dark:opacity-20 pointer-events-none z-0 animate-[liquidShimmer_8s_ease-in-out_infinite] bg-[length:200%_100%] bg-linear-to-r from-transparent via-white/20 to-transparent rounded-2xl sm:rounded-3xl" />
+          <div className="absolute inset-0 opacity-30 dark:opacity-20 pointer-events-none z-0 animate-[liquidShimmer_8s_ease-in-out_infinite] bg-[length:200%_100%] bg-linear-to-r from-transparent via-white/20 to-transparent rounded-3xl sm:rounded-4xl" />
 
           {/* Cylindrical edge-light sheen */}
           <div className="absolute inset-x-0 top-0 h-[1.5px] bg-linear-to-r from-transparent via-white/40 dark:via-white/10 to-transparent pointer-events-none z-10" />
 
           {/* Top light ambient glare */}
-          <div className="absolute inset-x-0 top-0 h-[35%] bg-linear-to-b from-white/25 dark:from-white/3 to-transparent pointer-events-none z-10 rounded-t-2xl sm:rounded-t-3xl" />
+          <div className="absolute inset-x-0 top-0 h-[35%] bg-linear-to-b from-white/25 dark:from-white/3 to-transparent pointer-events-none z-10 rounded-t-3xl sm:rounded-t-4xl" />
 
           {/* Left items */}
           <div className="flex items-center gap-1 sm:gap-1.5 z-20">

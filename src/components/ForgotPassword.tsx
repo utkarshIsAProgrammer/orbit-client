@@ -169,7 +169,7 @@ export default function ForgotPassword({
           onClick={onBackToLogin}
           className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 cursor-pointer"
         >
-          <ArrowLeft className="h-4.5 w-4.5" /> Back to Sign In
+          <ArrowLeft className="h-4.5 w-4.5" />
         </button>
         <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-black dark:text-white">
           <ShieldCheck className="h-3.5 w-3.5" /> SECURITY
