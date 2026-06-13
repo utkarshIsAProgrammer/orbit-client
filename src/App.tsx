@@ -406,9 +406,13 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 
 		// Skip socket connection if no socket URL configured (e.g. frontend-only Vercel deploy)
 		if (!socketUrl) {
-			logger.info("No VITE_SOCKET_URL or VITE_API_URL configured — skipping socket connection (real-time disabled)");
+			console.warn("[ORBIT SOCKET] No VITE_SOCKET_URL or VITE_API_URL configured — skipping connection. Real-time features disabled.");
 			return;
 		}
+
+		const socket = io(socketUrl, {
+			// TODO: revert these console logs back to logger after socket diagnostics complete
+			console.log("[ORBIT SOCKET] Connecting to:", socketUrl);
 
 		const socket = io(socketUrl, {
 			auth: token ? { token } : undefined,
@@ -423,15 +427,16 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 		setSocket(socket);
 
 		socket.on("connect", () => {
-			logger.info("Socket connected successfully", { socketId: socket.id, userId });
+			console.log("[ORBIT SOCKET] Connected successfully", { socketId: socket.id, userId });
 		});
 
 		socket.on("disconnect", (reason) => {
-			logger.warn("Socket disconnected", { reason, userId });
+			console.warn("[ORBIT SOCKET] Disconnected:", { reason, userId });
 		});
 
 		socket.on("connect_error", (error) => {
-			logger.error("Socket connection error:", error);
+			// Bypass logger — use real console.error so it's visible in production for diagnostics
+			console.error("[ORBIT SOCKET] Connection error:", error.message, error);
 		});
 
 		// ── Realtime message updates when Chat.tsx is not mounted ──
