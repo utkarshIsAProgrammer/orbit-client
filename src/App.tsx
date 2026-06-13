@@ -403,6 +403,13 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 		const socketUrl = import.meta.env.PROD
 			? (import.meta.env.VITE_SOCKET_URL || "")
 			: "";
+
+		// Skip socket connection if no socket URL configured (e.g. frontend-only Vercel deploy)
+		if (!socketUrl) {
+			logger.info("No socket URL configured — skipping socket connection");
+			return;
+		}
+
 		const socket = io(socketUrl, {
 			auth: token ? { token } : undefined,
 			transports: ["polling", "websocket"],

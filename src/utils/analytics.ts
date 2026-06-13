@@ -52,7 +52,7 @@ class Analytics {
 
       observer.observe({ entryTypes: ['paint', 'navigation', 'largest-contentful-paint', 'first-input', 'layout-shift'] });
     } catch (error) {
-      console.warn('Performance Observer not supported:', error);
+      // console.warn('Performance Observer not supported:', error);
     }
   }
 

@@ -130,7 +130,7 @@ export default function Notifications({
         setContextMenu(null);
       }
     } catch (e) {
-      console.error(e);
+      // console.error(e);
     }
   };
 
