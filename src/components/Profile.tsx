@@ -1805,10 +1805,10 @@ export default function Profile({
 									className="space-y-4">
 									<div className="grid grid-cols-2 gap-4">
 										{/* Avatar Upload */}
-										<div className="space-y-1.5">
-											<label className="text-xs font-medium text-zinc-400 pl-3">
-												Profile Pic
-											</label>											<div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
+									<div className="space-y-1.5 text-center">
+										<label className="text-xs font-medium text-zinc-400">
+											Profile Pic
+										</label>											<div className="relative flex h-20 w-20 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
 												<input
 													type="file"
 													accept="image/*"
@@ -1841,7 +1841,7 @@ export default function Profile({
 															e.stopPropagation();
 															setProfilePicFile(null);
 															setProfilePicPreview("");
-														}}className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
+														}}className="absolute top-3 right-3 h-4 w-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-20"
 															title="Remove avatar"
 														>
 															<X className="h-2.5 w-2.5 text-white" />
@@ -1856,10 +1856,10 @@ export default function Profile({
 										</div>
 
 										{/* Banner Upload */}
-										<div className="space-y-1.5">
-											<label className="text-xs font-medium text-zinc-400 pl-3">
-												Banner
-											</label>
+									<div className="space-y-1.5 text-center">
+										<label className="text-xs font-medium text-zinc-400">
+											Banner
+										</label>
 											<div className="relative flex h-20 w-full items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
 												<input
 													type="file"
@@ -1893,11 +1893,10 @@ export default function Profile({
 															e.stopPropagation();
 															setBannerPicFile(null);
 															setBannerPicPreview("");
-														}}
-														className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
-														title="Remove banner"
-													>
-														<X className="h-2.5 w-2.5 text-white" />
+														}}className="absolute top-3 right-3 h-4 w-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-20"
+															title="Remove banner"
+														>
+															<X className="h-2.5 w-2.5 text-white" />
 													</button>
 												</>
 												) : (
@@ -2013,7 +2012,7 @@ export default function Profile({
 														<button
 															type="button"
 															onClick={() => handleEditPostRemoveExistingImage(img.public_id)}
-															className="absolute top-0.5 right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 hover:bg-black transition-all"
+															className="absolute top-1.5 right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 hover:bg-black transition-all z-20"
 														>
 															<X className="h-2.5 w-2.5" />
 														</button>
@@ -2034,7 +2033,7 @@ export default function Profile({
 														<button
 															type="button"
 															onClick={() => handleEditPostRemoveNewImage(idx)}
-															className="absolute top-0.5 right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 hover:bg-black transition-all"
+															className="absolute top-1.5 right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 hover:bg-black transition-all z-20"
 														>
 															<X className="h-2.5 w-2.5" />
 														</button>

@@ -1390,7 +1390,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         <button
                           type="button"
                           onClick={() => removeAttachment(idx)}
-                          className="absolute top-0.5 right-0.5 h-4 w-4 bg-zinc-950/80 hover:bg-zinc-900 text-zinc-300 hover:text-white rounded-full flex items-center justify-center scale-90"
+                          className="absolute top-1 right-1 h-4 w-4 bg-zinc-950/80 hover:bg-zinc-900 text-zinc-300 hover:text-white rounded-full flex items-center justify-center scale-90 z-20"
                         >
                           <X className="h-2.5 w-2.5" />
                         </button>

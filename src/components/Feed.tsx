@@ -1338,7 +1338,7 @@ export default function Feed({
                               setPostImageFiles((prev) => prev.filter((_, i) => i !== idx));
                               setPostImagePreviews((prev) => prev.filter((_, i) => i !== idx));
                             }}
-                            className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black z-10"
+                            className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black z-20"
                           >
                             <X className="h-3 w-3" />
                           </button>

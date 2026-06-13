@@ -367,7 +367,7 @@ export default function Auth({
                   placeholder="alice@gmail.com"
                   value={identity}
                   onChange={(e) => { setIdentity(e.target.value); clearFieldError("identity"); }}
-                  className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3 pl-11 pr-4.5 text-xs font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 transition-all focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:outline-none focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10"
+                  className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3 max-sm:py-2 pl-11 max-sm:pl-9 pr-4.5 max-sm:pr-3.5 text-xs max-sm:text-[11px] font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 transition-all focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:outline-none focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10"
                 />
               </div>
               <ValidationMessage message={fieldErrors.identity} />
@@ -396,7 +396,7 @@ export default function Auth({
                   placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
-                  className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3 pl-11 pr-11 text-xs font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 transition-all focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:outline-none focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10"
+                  className="w-full rounded-full border border-zinc-800 bg-zinc-950/20 py-3 max-sm:py-2 pl-11 max-sm:pl-9 pr-11 max-sm:pr-9 text-xs max-sm:text-[11px] font-medium text-black dark:text-white placeholder-zinc-400 dark:placeholder-zinc-650 transition-all focus:border-zinc-500 dark:focus:border-white focus:bg-white dark:focus:bg-black focus:outline-none focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10"
                 />
                 <button
                   type="button"
@@ -412,7 +412,7 @@ export default function Auth({
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-black py-3.5 text-[11px] font-bold tracking-widest uppercase text-white dark:bg-white dark:text-black shadow-md transition-all hover:bg-zinc-900 dark:hover:bg-zinc-100 hover:shadow-lg focus:outline-none disabled:opacity-40 cursor-pointer"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-black py-3.5 max-sm:py-2.5 text-[11px] max-sm:text-[10px] font-bold tracking-widest uppercase text-white dark:bg-white dark:text-black shadow-md transition-all hover:bg-zinc-900 dark:hover:bg-zinc-100 hover:shadow-lg focus:outline-none disabled:opacity-40 cursor-pointer"
             >
               {loading ? "Signing In..." : "Sign In"}
               <ArrowRight className="h-3.5 w-3.5" />

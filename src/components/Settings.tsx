@@ -269,8 +269,8 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
               }`}>
                 {/* Images Upload */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1 col-span-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 pl-3">
+                  <div className="space-y-1 col-span-1 text-center">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                       Profile Pic
                     </span>
                     <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
@@ -301,7 +301,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                               setProfilePicFile(null);
                               setProfilePicPreview("");
                             }}
-                            className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
+                            className="absolute top-3 right-3 h-4 w-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-20"
                             title="Remove avatar"
                           >
                             <X className="h-2.5 w-2.5 text-white" />
@@ -321,8 +321,8 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                     </div>
                   </div>
 
-                  <div className="space-y-1 col-span-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 pl-3">
+                  <div className="space-y-1 col-span-1 text-center">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                       Banner Image
                     </span>
                     <div className="relative flex h-16 w-full items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 transition-colors group mx-auto overflow-hidden">
@@ -353,7 +353,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                               setBannerPicFile(null);
                               setBannerPicPreview("");
                             }}
-                            className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-10"
+                            className="absolute top-3 right-3 h-4 w-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-md cursor-pointer transition-colors z-20"
                             title="Remove banner"
                           >
                             <X className="h-2.5 w-2.5 text-white" />
@@ -385,7 +385,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                     value={fullName}
                     onChange={(e) => { setFullName(e.target.value); clearFieldError("fullName"); }}
                     maxLength={50}
-                    className="w-full rounded-full border border-zinc-800 bg-zinc-900/55 py-3 px-4.5 text-xs font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
+                    className="w-full rounded-full border border-zinc-800 bg-zinc-900/55 py-3 max-sm:py-2 px-4.5 max-sm:px-3.5 text-xs max-sm:text-[11px] font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
                   />
                   <div className="flex items-center justify-between px-1">
                     <ValidationMessage message={fieldErrors.fullName} />
@@ -403,7 +403,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
                     placeholder="A brief snippet about yourself..."
-                    className="w-full rounded-3xl border border-zinc-800 bg-zinc-900/55 py-3 px-4.5 text-xs font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all resize-none"
+                    className="w-full rounded-3xl border border-zinc-800 bg-zinc-900/55 py-3 max-sm:py-2 px-4.5 max-sm:px-3.5 text-xs max-sm:text-[11px] font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all resize-none"
                     maxLength={300}
                   />
                   <div className="flex justify-end px-1">
@@ -414,7 +414,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                 <button
                   type="submit"
                   disabled={savingProfile}
-                  className="w-full rounded-full bg-black py-3 text-[11px] font-bold tracking-widest uppercase text-white dark:bg-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-100 font-sans transition-all disabled:opacity-40 shadow-md cursor-pointer"
+                  className="w-full rounded-full bg-black py-3 max-sm:py-2 text-[11px] max-sm:text-[10px] font-bold tracking-widest uppercase text-white dark:bg-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-100 font-sans transition-all disabled:opacity-40 shadow-md cursor-pointer"
                 >
                   {savingProfile ? "Saving..." : "Save Changes"}
                 </button>
@@ -461,7 +461,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                       required
                       value={currentPassword}
                       onChange={(e) => { setCurrentPassword(e.target.value); clearFieldError("currentPassword"); }}
-                      className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3 pl-4.5 pr-11 text-xs font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
+                      className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3 max-sm:py-2 pl-4.5 max-sm:pl-3.5 pr-11 max-sm:pr-9 text-xs max-sm:text-[11px] font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
                     />
                     <button
                       type="button"
@@ -490,7 +490,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                       required
                       value={newPassword}
                       onChange={(e) => { setNewPassword(e.target.value); clearFieldError("newPassword"); }}
-                      className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3 pl-4.5 pr-11 text-xs font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
+                      className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3 max-sm:py-2 pl-4.5 max-sm:pl-3.5 pr-11 max-sm:pr-9 text-xs max-sm:text-[11px] font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
                     />
                     <button
                       type="button"
@@ -517,7 +517,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                     required
                     value={confirmPassword}
                     onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}
-                    className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3 px-4.5 text-xs font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
+                    className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3 max-sm:py-2 px-4.5 max-sm:px-3.5 text-xs max-sm:text-[11px] font-medium text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-black transition-all"
                   />
                   <ValidationMessage message={fieldErrors.confirmPassword} />
                 </div>
@@ -525,7 +525,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                 <button
                   type="submit"
                   disabled={savingPassword}
-                  className="w-full rounded-full bg-black py-3 text-[11px] font-bold tracking-widest uppercase text-white dark:bg-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-100 font-sans transition-all disabled:opacity-40 shadow-md cursor-pointer"
+                  className="w-full rounded-full bg-black py-3 max-sm:py-2 text-[11px] max-sm:text-[10px] font-bold tracking-widest uppercase text-white dark:bg-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-100 font-sans transition-all disabled:opacity-40 shadow-md cursor-pointer"
                 >
                   {savingPassword ? "Updating password..." : "Update Password"}
                 </button>
@@ -570,7 +570,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                     placeholder="user@example.com"
                     value={deleteEmail}
                     onChange={(e) => { setDeleteEmail(e.target.value); clearFieldError("deleteEmail"); }}
-                    className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3 px-4.5 text-xs font-medium text-black dark:text-white focus:outline-none focus:border-rose-500 focus:bg-white dark:focus:bg-black transition-all"
+                    className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3 max-sm:py-2 px-4.5 max-sm:px-3.5 text-xs max-sm:text-[11px] font-medium text-black dark:text-white focus:outline-none focus:border-rose-500 focus:bg-white dark:focus:bg-black transition-all"
                   />
                   <ValidationMessage message={fieldErrors.deleteEmail} />
                 </div>
@@ -588,7 +588,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                       placeholder="Enter password"
                       value={deletePassword}
                       onChange={(e) => { setDeletePassword(e.target.value); clearFieldError("deletePassword"); }}
-                      className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3 pl-4.5 pr-11 text-xs font-medium text-black dark:text-white focus:outline-none focus:border-rose-500 focus:bg-white dark:focus:bg-black transition-all"
+                      className="w-full rounded-full border border-zinc-800 bg-zinc-900/50 py-3 max-sm:py-2 pl-4.5 max-sm:pl-3.5 pr-11 max-sm:pr-9 text-xs max-sm:text-[11px] font-medium text-black dark:text-white focus:outline-none focus:border-rose-500 focus:bg-white dark:focus:bg-black transition-all"
                     />
                     <button
                       type="button"
@@ -609,7 +609,7 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
                   type="button"
                   onClick={handleDeleteAccount}
                   disabled={deletingAccount || !deleteEmail || !deletePassword}
-                  className="w-full rounded-full bg-rose-600 hover:bg-rose-700 py-3 text-[11px] font-bold uppercase tracking-widest text-white transition-all disabled:opacity-30 disabled:hover:bg-rose-600"
+                  className="w-full rounded-full bg-rose-600 hover:bg-rose-700 py-3 max-sm:py-2 text-[11px] max-sm:text-[10px] font-bold uppercase tracking-widest text-white transition-all disabled:opacity-30 disabled:hover:bg-rose-600"
                 >
                   {deletingAccount ? "Deleting account..." : "Permanently Delete Account"}
                 </button>
