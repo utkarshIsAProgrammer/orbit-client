@@ -194,6 +194,16 @@ export default function Chat({ user, socket, conversations, setConversations, on
     const s = socket;
     if (!s) return;
 
+    // Rejoin the active conversation room when socket reconnects (e.g. mobile after sleep)
+    // This ensures isRecipientActiveInConversation works on the server for read receipts
+    s.on("connect", () => {
+      const currentConv = selectedConvRef.current;
+      if (currentConv) {
+        logger.info("Chat: Socket reconnected, rejoining conversation room", { conversationId: currentConv._id });
+        s.emit("chat:join", { conversationId: currentConv._id });
+      }
+    });
+
     // Listen for presence updates
     s.on("user:presence", ({ userId: presenceUserId, status }: { userId: string; status: "online" | "offline" }) => {
       logger.info("Chat: Received user:presence event", { presenceUserId, status });
@@ -226,6 +236,10 @@ export default function Chat({ user, socket, conversations, setConversations, on
           const filtered = prev.filter((m) => !m._id.startsWith("pending-") || (m as any)._pendingConv !== message.conversation);
           return [...filtered, message];
         });
+        // Auto-scroll to bottom so messages are visible (and thus get marked as seen)
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 50);
       }
 
       // Update conversations list to show last message
@@ -427,6 +441,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
     });
 
     return () => {
+      s.off("connect");
       s.off("user:presence");
       s.off("message:new");
       s.off("message:edit");

@@ -424,14 +424,15 @@ export default function Feed({
   const followingStatesRef = useRef(followingStates);
   followingStatesRef.current = followingStates;
 
-  // Listen for realtime new posts from followed users
+  // Listen for realtime new posts from other users
   useEffect(() => {
     const handleNewPost = (e: CustomEvent<{ post: Post }>) => {
       const { post } = e.detail;
       // Only prepend on the main home feed (not search, saves-only, reposts-only, or single post)
       if (searchQuery || showSavesOnly || showRepostsOnly || singlePostSlug) return;
-      // Only show posts from users we follow
-      if (user && followingStatesRef.current[post.author?._id]) {
+      // Show all posts from other users in real-time (not just followed ones)
+      // Own posts are already handled by the createPost response
+      if (user && post.author?._id !== user._id) {
         setPosts((prev) => {
           if (prev.some((p) => p._id === post._id)) return prev; // deduplicate
           return [{ ...post, likedByMe: false, savedByMe: false, repostedByMe: false } as Post, ...prev];

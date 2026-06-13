@@ -418,8 +418,9 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 			transports: ["polling", "websocket"],
 			withCredentials: true,
 			reconnection: true,
-			reconnectionAttempts: 5,
+			reconnectionAttempts: Infinity,
 			reconnectionDelay: 1000,
+			reconnectionDelayMax: 30000,
 		});
 
 		socketRef.current = socket;
@@ -427,10 +428,29 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 
 		socket.on("connect", () => {
 			console.log("[ORBIT SOCKET] Connected successfully", { socketId: socket.id, userId });
+
+			// Mobile: when user returns to tab after phone was locked / app was backgrounded,
+			// the WebSocket may have been killed. Visibility change forces proactive reconnect.
+			const handleVisibility = () => {
+				if (document.visibilityState === "visible" && socketRef.current && !socketRef.current.connected) {
+					console.log("[ORBIT SOCKET] Tab became visible — reconnecting socket");
+					socketRef.current.connect();
+				}
+			};
+			document.addEventListener("visibilitychange", handleVisibility);
+
+			// Clean up the listener when socket disconnects
+			socket.once("disconnect", () => {
+				document.removeEventListener("visibilitychange", handleVisibility);
+			});
 		});
 
 		socket.on("disconnect", (reason) => {
 			console.warn("[ORBIT SOCKET] Disconnected:", { reason, userId });
+		});
+
+		socket.on("reconnect_attempt", (attempt) => {
+			console.warn("[ORBIT SOCKET] Reconnection attempt #" + attempt, { userId });
 		});
 
 		socket.on("connect_error", (error) => {
@@ -475,7 +495,7 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 
 		// ── Realtime user presence status changes ──
 		socket.on("user:presence", ({ userId: presenceUserId, status }: { userId: string; status: "online" | "offline" }) => {
-			logger.info("Received user:presence event", { presenceUserId, status });
+			console.log("[ORBIT DIAG] user:presence received", { presenceUserId, status, uid });
 			setConversations((prev) =>
 				prev.map((c) => {
 					const other = c.participants.find((p) => p && p._id === presenceUserId);
@@ -614,7 +634,7 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 		// ── Realtime new posts in feed (prepend to home feed) ──
 		// Skip own posts since they're already in the local state from createPost response
 		socket.on("post:created", (post: any) => {
-			logger.info("Received post:created event", post);
+			console.log("[ORBIT DIAG] post:created received", { postId: post._id, authorId: post.author?._id, uid });
 			if (post.author?._id === uid) return;
 			window.dispatchEvent(new CustomEvent("newPostCreated", { detail: { post } }));
 		});

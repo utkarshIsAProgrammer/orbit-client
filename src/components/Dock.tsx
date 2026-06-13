@@ -151,7 +151,7 @@ export default React.memo(function Dock({
   return (
     <>
       <style>{shimmerStyle}</style>
-      <div className={`fixed left-1/2 z-40 w-full max-w-90 -translate-x-1/2 px-3 sm:max-w-lg xl:hidden transition-all duration-200 ${isKeyboardOpen ? "bottom-2" : "bottom-4"}`}>
+      <div className={`fixed left-1/2 z-40 w-full max-w-90 -translate-x-1/2 px-3 sm:max-w-lg lg:hidden transition-all duration-200 ${isKeyboardOpen ? "bottom-2" : "bottom-4"}`}>
         <div
           className={`relative overflow-hidden flex items-center justify-between rounded-3xl sm:rounded-4xl border border-white/15 dark:border-zinc-800/50 bg-white/30 dark:bg-zinc-950/40 backdrop-blur-xl shadow-[0_20px_60px_-15px rgba(0,0,0,0.4)] transition-all duration-200 ${isKeyboardOpen ? "px-2 py-1.5 gap-0.5" : "px-3 py-2.5 gap-0.5 sm:gap-1.5"}`}
         >
