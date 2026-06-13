@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useKeyboardOpen } from "../hooks/useKeyboardOpen";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -43,6 +44,7 @@ interface FeedProps {
   autoOpenComments?: boolean;
   onClearAutoOpenComments?: () => void;
   onCommentsOpenChange?: (open: boolean) => void;
+  readOnly?: boolean;
 }
 
 export default function Feed({
@@ -57,7 +59,10 @@ export default function Feed({
   autoOpenComments = false,
   onClearAutoOpenComments,
   onCommentsOpenChange,
+  readOnly = false,
 }: FeedProps) {
+  const isKeyboardOpen = useKeyboardOpen();
+
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.innerWidth < 768 || window.matchMedia("(pointer: coarse)").matches;
@@ -1194,7 +1199,7 @@ export default function Feed({
       )}
       {/* Title */}
       <div className="mb-6 px-1.5 flex items-center justify-between">
-        <div>                  <h2 className="font-sans text-2xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
+        <div>                          <h2 className="font-sans text-xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
             {searchQuery ? `Search Results: "${searchQuery}"` : showSavesOnly ? "Saved Posts" : showRepostsOnly ? "Your Reposts" : "Home Feed"}
           </h2>
           <p className="text-sm text-slate-500 dark:text-zinc-400">
@@ -1230,13 +1235,15 @@ export default function Feed({
             {/* Post Composer Card — hidden on mobile per user request */}
             {user && !isMobile && (
               <GlassCard className="shadow-sm rounded-4xl border-white/5 bg-zinc-950/20 backdrop-blur-xl">
-                <form onSubmit={handleCreatePostSubmit} noValidate className="space-y-4">
+                <form onSubmit={handleCreatePostSubmit} noValidate className={`transition-all duration-200 ${
+                  isKeyboardOpen ? "space-y-2.5" : "space-y-4"
+                }`}>
                   <div className="flex gap-4">
                     <UserAvatar
                       src={user.profilePic?.url}
                       alt="user avatar"
                       onClick={() => onUserSelected(user.username)}
-                      className="h-10 w-10 shrink-0 rounded-full object-cover border border-zinc-800 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                      className="h-9 w-9 shrink-0 rounded-full object-cover border border-zinc-800 shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
                     />
 
                     <div className="w-full space-y-3">
@@ -1248,7 +1255,7 @@ export default function Feed({
                           placeholder="Add a title... (optional)"
                           value={title}
                           onChange={(e) => { setTitle(e.target.value); clearFieldError("title"); }}
-                          className="flex-1 bg-transparent text-sm font-bold text-white placeholder-zinc-500 outline-none focus:placeholder-zinc-400"
+                          className="flex-1 bg-transparent text-xs font-bold text-white placeholder-zinc-500 outline-none focus:placeholder-zinc-400"
                         />
                         <CharCounter current={title.length} max={500} />
                       </div>
@@ -1261,7 +1268,7 @@ export default function Feed({
                           placeholder="Share your thoughts... Use #hashtags and @mentions (optional)"
                           value={content}
                           onChange={handleContentChange}
-                          className="w-full bg-transparent text-xs text-zinc-300 placeholder-zinc-500 outline-none resize-none leading-relaxed focus:placeholder-zinc-400 relative"
+                          className="w-full bg-transparent text-[11px] text-zinc-300 placeholder-zinc-500 outline-none resize-none leading-relaxed focus:placeholder-zinc-400 relative"
                         />
                         <div className="flex items-center justify-end">
                           <CharCounter current={content.length} max={5000} />
@@ -1341,7 +1348,9 @@ export default function Feed({
                   )}
 
                   {/* Bottom Actions of Composer */}
-                  <div className="flex items-center justify-between border-t border-zinc-800 pt-3.5">
+                  <div className={`flex items-center justify-between border-t border-zinc-800 transition-all duration-200 ${
+                    isKeyboardOpen ? "pt-2.5" : "pt-3.5"
+                  }`}>
                     <div className="relative">
                       <input
                         type="file"
@@ -1354,9 +1363,17 @@ export default function Feed({
                           const toAdd = files.slice(0, remaining);
                           // Reset any leftover re-crop state from previous replace attempt
                           setReCropIndex(-1);
+                          // GIFs bypass cropping — add directly with previews
+                          const gifFiles = toAdd.filter((f) => f.type === "image/gif");
+                          const cropFiles = toAdd.filter((f) => f.type !== "image/gif");
+                          if (gifFiles.length > 0) {
+                            setPostImageFiles((prev) => [...prev, ...gifFiles]);
+                            const gifPreviews = gifFiles.map((f) => URL.createObjectURL(f));
+                            setPostImagePreviews((prev) => [...prev, ...gifPreviews]);
+                          }
                           // Queue files for sequential cropping
-                          const newUrls = toAdd.map((f) => URL.createObjectURL(f));
-                          const newNames = toAdd.map((f) => f.name);
+                          const newUrls = cropFiles.map((f) => URL.createObjectURL(f));
+                          const newNames = cropFiles.map((f) => f.name);
                           setCropQueue((prev) => [...prev, ...newUrls]);
                           setCropQueueNames((prev) => [...prev, ...newNames]);
                           if (cropQueue.length === 0 && !cropModalOpen && newUrls.length > 0) {
@@ -1377,7 +1394,7 @@ export default function Feed({
                       >
                         <Image className="h-4.5 w-4.5" />
                       </button>
-                      {postImageFiles.length > 0 && (
+                      {postImageFiles.length > 0 && !isKeyboardOpen && (
                         <span className="text-[9px] text-zinc-500 ml-1">{postImageFiles.length}/5</span>
                       )}
                     </div>
@@ -1385,7 +1402,9 @@ export default function Feed({
                     <button
                       type="submit"
                       disabled={submittingPost}
-                      className="flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-xs font-bold text-black hover:bg-zinc-100 transition-all disabled:opacity-40 cursor-pointer shadow-sm animate-none"
+                      className={`flex items-center gap-1.5 rounded-full bg-white text-xs font-bold text-black hover:bg-zinc-100 transition-all disabled:opacity-40 cursor-pointer shadow-sm animate-none ${
+                        isKeyboardOpen ? "px-4 py-2" : "px-5 py-2.5"
+                      }`}
                     >
                       {submittingPost ? "Posting..." : "Post"}{" "}
                       <Send className="h-3.5 w-3.5" />
@@ -1467,7 +1486,7 @@ export default function Feed({
                               src={post.author.profilePic?.url}
                               alt={post.author.fullName}
                               onClick={() => onUserSelected(post.author.username)}
-                              className="h-10 w-10 cursor-pointer rounded-full object-cover border border-zinc-800 shadow-sm"
+                              className="h-9 w-9 cursor-pointer rounded-full object-cover border border-zinc-800 shadow-sm"
                               role="button"
                               tabIndex={0}
                               onKeyPress={(e) => e.key === 'Enter' && onUserSelected(post.author.username)}
@@ -1475,7 +1494,7 @@ export default function Feed({
                             <div>
                               <h4
                                 onClick={() => onUserSelected(post.author.username)}
-                                className="font-sans text-sm font-bold text-white cursor-pointer hover:underline"
+                                className="font-sans text-xs font-bold text-white cursor-pointer hover:underline"
                                 role="button"
                                 tabIndex={0}
                                 onKeyPress={(e) => e.key === 'Enter' && onUserSelected(post.author.username)}
@@ -1486,17 +1505,17 @@ export default function Feed({
                             </div>
                           </div>
 
-                          <span className="text-[10px] font-medium text-zinc-500" aria-label={`Posted ${getRelativeDate(post.createdAt)}`}>
+                          <span className="text-[9px] font-medium text-zinc-500" aria-label={`Posted ${getRelativeDate(post.createdAt)}`}>
                             {getRelativeDate(post.createdAt)}
                           </span>
                         </div>
 
                         {/* Content block */}
                         <div className="space-y-2.5">
-                          <h3 className="font-sans text-base md:text-lg font-bold text-zinc-100 tracking-tight leading-snug">
+                          <h3 className="font-sans text-sm md:text-base font-bold text-zinc-100 tracking-tight leading-snug">
                             {post.title}
                           </h3>
-                          <p className="text-sm md:text-base text-zinc-300 leading-relaxed whitespace-pre-wrap select-text">
+                          <p className="text-xs md:text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap select-text">
                             {renderFormattedContent(post.content)}
                           </p>
                         </div>
@@ -1532,17 +1551,17 @@ export default function Feed({
                         <div className="mt-5 flex items-center justify-between border-t border-zinc-800 pt-3.5 text-zinc-400">
                           {/* Likes button */}
                           <button
-                            onClick={() => handleLikeToggle(post._id, !!post.likedByMe)}
-                            className="flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none cursor-pointer"
+                            onClick={() => !readOnly && handleLikeToggle(post._id, !!post.likedByMe)}
+                            className={`flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none ${readOnly ? "cursor-default" : "cursor-pointer"}`}
                             aria-label={`${post.likedByMe ? 'Unlike' : 'Like'} post (${post.likesCount} likes)`}
                           >
-                            <motion.span whileTap={{ scale: 1.4 }} whileHover={{ scale: 1.1 }} className="flex">
+                            <motion.span whileTap={!readOnly ? { scale: 1.4 } : undefined} whileHover={!readOnly ? { scale: 1.1 } : undefined} className="flex">
                               <Heart
-                                className={`h-4 w-4 transition-colors group-hover:text-red-500 ${post.likedByMe ? "fill-red-500 text-red-500" : "text-zinc-500"
+                                className={`h-4 w-4 transition-colors ${readOnly ? "text-zinc-500" : "group-hover:text-red-500"} ${post.likedByMe ? "fill-red-500 text-red-500" : "text-zinc-500"
                                   }`}
                               />
                             </motion.span>
-                            <span className={post.likedByMe ? "text-red-400 font-bold" : "group-hover:text-red-400 text-zinc-400"}>
+                            <span className={post.likedByMe ? "text-red-400 font-bold" : "text-zinc-400"}>
                               {post.likesCount}
                             </span>
                           </button>
@@ -1550,48 +1569,49 @@ export default function Feed({
                           {/* Comment trigger */}
                           <button
                             onClick={() => {
+                              if (readOnly) return;
                               setSelectedPost(post);
                               loadComments(post._id);
                             }}
-                            className="flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none cursor-pointer"
+                            className={`flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none ${readOnly ? "cursor-default" : "cursor-pointer"}`}
                             aria-label={`View comments (${post.commentsCount} comments)`}
                           >
-                            <motion.span whileHover={{ scale: 1.1 }}>
-                              <MessageSquare className="h-4 w-4 text-zinc-500 group-hover:text-white" />
+                            <motion.span whileHover={!readOnly ? { scale: 1.1 } : undefined}>
+                              <MessageSquare className={`h-4 w-4 ${readOnly ? "text-zinc-500" : "text-zinc-500 group-hover:text-white"}`} />
                             </motion.span>
-                            <span className="group-hover:text-white text-zinc-400">{post.commentsCount}</span>
+                            <span className="text-zinc-400">{post.commentsCount}</span>
                           </button>
 
                           {/* Repost trigger */}
                           <button
-                            onClick={() => handleRepostToggle(post._id, !!post.repostedByMe)}
-                            className="flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none cursor-pointer"
+                            onClick={() => !readOnly && handleRepostToggle(post._id, !!post.repostedByMe)}
+                            className={`flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none ${readOnly ? "cursor-default" : "cursor-pointer"}`}
                             aria-label={`${post.repostedByMe ? 'Undo repost' : 'Repost'} post (${post.repostsCount} reposts)`}
                           >
-                            <motion.span whileTap={{ rotate: 180 }} whileHover={{ scale: 1.1 }} className="flex">
+                            <motion.span whileTap={!readOnly ? { rotate: 180 } : undefined} whileHover={!readOnly ? { scale: 1.1 } : undefined} className="flex">
                               <Repeat2
-                                className={`h-4 w-4 ${post.repostedByMe ? "text-green-500 font-bold" : "text-zinc-500 group-hover:text-white"
+                                className={`h-4 w-4 ${readOnly ? "text-zinc-500" : ""} ${post.repostedByMe ? "text-green-500 font-bold" : readOnly ? "text-zinc-500" : "text-zinc-500 group-hover:text-white"
                                   }`}
                               />
                             </motion.span>
-                            <span className={post.repostedByMe ? "text-green-500 font-bold" : "group-hover:text-white text-zinc-400"}>
+                            <span className={post.repostedByMe ? "text-green-500 font-bold" : "text-zinc-400"}>
                               {post.repostsCount}
                             </span>
                           </button>
 
                           {/* Save trigger */}
                           <button
-                            onClick={() => handleSaveToggle(post._id, !!post.savedByMe)}
-                            className="flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none cursor-pointer"
+                            onClick={() => !readOnly && handleSaveToggle(post._id, !!post.savedByMe)}
+                            className={`flex items-center gap-1.5 text-xs font-semibold select-none group focus:outline-none ${readOnly ? "cursor-default" : "cursor-pointer"}`}
                             aria-label={`${post.savedByMe ? 'Remove from saved' : 'Save post'} (${post.savesCount} saves)`}
                           >
-                            <motion.span whileTap={{ scale: 1.3 }} whileHover={{ scale: 1.1 }} className="flex">
+                            <motion.span whileTap={!readOnly ? { scale: 1.3 } : undefined} whileHover={!readOnly ? { scale: 1.1 } : undefined} className="flex">
                               <Bookmark
-                                className={`h-4 w-4 transition-colors ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : "text-zinc-500 group-hover:text-white"
+                                className={`h-4 w-4 transition-colors ${readOnly ? "text-zinc-500" : ""} ${post.savedByMe ? "fill-yellow-500 text-yellow-500" : "text-zinc-500"
                                   }`}
                               />
                             </motion.span>
-                            <span className={post.savedByMe ? "text-yellow-500 font-medium" : "text-zinc-400 group-hover:text-white"}>
+                            <span className={post.savedByMe ? "text-yellow-500 font-medium" : "text-zinc-400"}>
                               {post.savesCount}
                             </span>
                           </button>
@@ -1604,8 +1624,8 @@ export default function Feed({
 
                           {/* Share trigger icon */}
                           <button
-                            onClick={() => handleSharePost(post._id)}
-                            className="flex h-7.5 w-7.5 items-center justify-center rounded-full hover:bg-zinc-800 transition-colors cursor-pointer text-zinc-500 hover:text-white"
+                            onClick={() => !readOnly && handleSharePost(post._id)}
+                            className={`flex h-7.5 w-7.5 items-center justify-center rounded-full transition-colors ${readOnly ? "cursor-default text-zinc-500" : "cursor-pointer hover:bg-zinc-800 text-zinc-500 hover:text-white"}`}
                             aria-label="Share post"
                           >
                             <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1689,13 +1709,12 @@ export default function Feed({
                           <UserAvatar
                             src={post.author.profilePic?.url}
                             alt={post.author.fullName}
-                            onClick={() => onUserSelected(post.author.username)}
-                            className="h-10 w-10 cursor-pointer rounded-full object-cover border border-zinc-800 shadow-sm"
+                            onClick={() => onUserSelected(post.author.username)}                              className="h-9 w-9 cursor-pointer rounded-full object-cover border border-zinc-800 shadow-sm"
                           />
                           <div>
                             <h4
                               onClick={() => onUserSelected(post.author.username)}
-                              className="font-sans text-sm font-bold text-white cursor-pointer hover:underline"
+                              className="font-sans text-xs font-bold text-white cursor-pointer hover:underline"
                             >
                               {post.author.fullName}
                             </h4>
@@ -1710,7 +1729,7 @@ export default function Feed({
 
                       {/* Content block */}
                       <div className="space-y-2.5">
-                        <h3 className="font-sans text-base md:text-lg font-bold text-zinc-100 tracking-tight leading-snug">
+                        <h3 className="font-sans text-sm md:text-base font-bold text-zinc-100 tracking-tight leading-snug">
                           {post.title}
                         </h3>
                         <p className="text-sm md:text-base text-zinc-300 leading-relaxed whitespace-pre-wrap select-text">

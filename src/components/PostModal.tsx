@@ -179,8 +179,8 @@ export default function PostModal({ isOpen, onClose, onPostCreated }: PostModalP
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           className="relative w-full max-w-lg bg-zinc-950/45 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden border border-zinc-800/50"
         >
-          <div className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-900">
-            <h2 className="text-lg font-bold text-black dark:text-white">Create Post</h2>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-900">
+            <h2 className="text-base font-bold text-black dark:text-white">Create Post</h2>
             <button onClick={onClose} className="p-2 bg-zinc-100 dark:bg-zinc-900 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500">
               <X className="w-5 h-5" />
             </button>
@@ -195,7 +195,7 @@ export default function PostModal({ isOpen, onClose, onPostCreated }: PostModalP
                   value={title}
                   onChange={(e) => { setTitle(e.target.value); clearFieldError("title"); }}
                   autoFocus
-                  className="flex-1 bg-transparent text-xl font-bold text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-600 outline-none"
+                  className="flex-1 bg-transparent text-lg font-bold text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-600 outline-none"
                 />
                 <CharCounter current={title.length} max={500} />
               </div>
@@ -206,7 +206,7 @@ export default function PostModal({ isOpen, onClose, onPostCreated }: PostModalP
                 value={content}
                 onChange={(e) => { setContent(e.target.value); clearFieldError("content"); }}
                 maxLength={5000}
-                className="w-full resize-none bg-transparent text-sm text-slate-800 dark:text-zinc-300 placeholder-slate-500 dark:placeholder-zinc-500 outline-none"
+                className="w-full resize-none bg-transparent text-xs text-slate-800 dark:text-zinc-300 placeholder-slate-500 dark:placeholder-zinc-500 outline-none"
               />
               <div className="flex items-center justify-end mt-1">
                 <CharCounter current={content.length} max={5000} />
@@ -245,8 +245,16 @@ export default function PostModal({ isOpen, onClose, onPostCreated }: PostModalP
                       const files = Array.from(e.target.files || []);
                       const remaining = 5 - postImageFiles.length;
                       const toAdd = files.slice(0, remaining);
-                      const newUrls = toAdd.map((f) => URL.createObjectURL(f));
-                      const newNames = toAdd.map((f) => f.name);
+                      // GIFs bypass cropping — add directly with previews
+                      const gifFiles = toAdd.filter((f) => f.type === "image/gif");
+                      const cropFiles = toAdd.filter((f) => f.type !== "image/gif");
+                      if (gifFiles.length > 0) {
+                        setPostImageFiles((prev) => [...prev, ...gifFiles]);
+                        const gifPreviews = gifFiles.map((f) => URL.createObjectURL(f));
+                        setPostImagePreviews((prev) => [...prev, ...gifPreviews]);
+                      }
+                      const newUrls = cropFiles.map((f) => URL.createObjectURL(f));
+                      const newNames = cropFiles.map((f) => f.name);
                       setCropQueue((prev) => [...prev, ...newUrls]);
                       setCropQueueNames((prev) => [...prev, ...newNames]);
                       if (cropQueue.length === 0 && !cropModalOpen && newUrls.length > 0) {

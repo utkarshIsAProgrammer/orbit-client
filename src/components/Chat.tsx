@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useKeyboardOpen } from "../hooks/useKeyboardOpen";
 import { motion, AnimatePresence } from "motion/react";
 import {
   MessageSquare,
@@ -1062,6 +1063,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
     return Object.fromEntries(entries.slice(0, 10));
   };
 
+  const isKeyboardOpen = useKeyboardOpen();
+
   return (
     <div className="w-full h-full px-0 pt-3 pb-0 relative select-text chat-container">
       <GlassCard animate={true} className="w-full h-full p-0 flex rounded-4xl overflow-hidden border-white/5 bg-zinc-950/20 backdrop-blur-xl">
@@ -1146,7 +1149,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                 </AnimatePresence>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-1 p-3 scrollbar-thin">
+              <div className="flex-1 overflow-y-auto space-y-1 p-2.5 scrollbar-thin">
                 {loadingConvs ? (
                   <div className="space-y-3 p-2">
                     <Skeleton variant="profile-row" />
@@ -1155,8 +1158,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
                   </div>
                 ) : conversations.length === 0 ? (
                   <div className="text-center py-20 px-4">
-                    <MessageSquare className="mx-auto h-10 w-10 text-zinc-600 mb-3" />
-                    <h4 className="text-xs font-extrabold text-zinc-400 uppercase tracking-widest leading-relaxed">
+                    <MessageSquare className="mx-auto h-8 w-8 text-zinc-600 mb-2" />
+                    <h4 className="text-[11px] font-extrabold text-zinc-400 uppercase tracking-widest leading-relaxed">
                       No conversations yet
                     </h4>
                     <p className="text-[10px] text-zinc-550 mt-1 font-mono uppercase">
@@ -1173,13 +1176,13 @@ export default function Chat({ user, socket, conversations, setConversations, on
                       <div
                         key={conv._id}
                         onClick={() => setSelectedConv(conv)}
-                        className="flex items-center gap-3 rounded-2xl p-3 cursor-pointer transition-all border hover:bg-zinc-900/30 text-zinc-300 border-transparent"
+                        className="flex items-center gap-3 rounded-2xl p-2.5 cursor-pointer transition-all border hover:bg-zinc-900/30 text-zinc-300 border-transparent"
                       >
                         <div className="relative shrink-0">
                           <UserAvatar
                             src={partner.profilePic?.url}
                             alt={partner.fullName}
-                            className="h-10 w-10 rounded-full object-cover border border-zinc-800"
+                            className="h-9 w-9 rounded-full object-cover border border-zinc-800"
                           />
                           {presence === "online" && (
                             <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-zinc-950 shadow-md" />
@@ -1188,7 +1191,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
                         <div className="flex-1 min-w-0 text-left">
                           <div className="flex justify-between items-start gap-1">
-                            <span className="text-xs font-black leading-tight truncate text-zinc-100 uppercase tracking-wide">
+                            <span className="text-[11px] font-black leading-tight truncate text-zinc-100 uppercase tracking-wide">
                               {partner.fullName}
                             </span>
                             {conv.lastMessage && (
@@ -1198,7 +1201,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                             )}
                           </div>
                           <div className="flex justify-between items-center gap-2 mt-1">
-                            <p className="text-[10.5px] truncate leading-tight flex-1 text-zinc-400">
+                            <p className="text-[10px] truncate leading-tight flex-1 text-zinc-400">
                               {conv.lastMessage?.isDeleted ? (
                                 <span className="italic">deleted message</span>
                               ) : conv.lastMessage?.text ? (
@@ -1239,11 +1242,11 @@ export default function Chat({ user, socket, conversations, setConversations, on
               exit={{ opacity: 0, x: -20 }}
               className="w-full h-full flex flex-col min-h-0"
             >
-              <div className="p-4 border-b border-zinc-800/30 flex items-center justify-between shrink-0 bg-zinc-950/20 backdrop-blur-md relative z-10">
+              <div className="px-4 py-3 border-b border-zinc-800/30 flex items-center justify-between shrink-0 bg-zinc-950/20 backdrop-blur-md relative z-10">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setSelectedConv(null)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer shadow-sm"
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer shadow-sm"
                     title="Back to Conversations List"
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -1277,7 +1280,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleClearChat}
-                    className="flex h-8 px-3 items-center gap-1.5 rounded-full border border-zinc-200/10 hover:border-red-500/20 bg-white/5 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition-all cursor-pointer shadow-sm text-[10px] font-black uppercase tracking-wider"
+                    className="flex h-7 px-2.5 items-center gap-1.5 rounded-full border border-zinc-200/10 hover:border-red-500/20 bg-white/5 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition-all cursor-pointer shadow-sm text-[9px] font-black uppercase tracking-wider"
                     title="Clear All Chat History"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -1285,7 +1288,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 min-h-0">
+              <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
                 {loadingMsgs ? (
                   <div className="space-y-4 p-2">
                     {/* First batch loading — show 4 message bubble skeletons */}
@@ -1296,8 +1299,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                    <MessageSquare className="h-8 w-8 text-zinc-700 animate-bounce mb-3" />
-                    <h4 className="text-xs font-extrabold text-zinc-400 uppercase tracking-widest">
+                    <MessageSquare className="h-7 w-7 text-zinc-700 animate-bounce mb-2" />
+                    <h4 className="text-[11px] font-extrabold text-zinc-400 uppercase tracking-widest">
                       Say hello!
                     </h4>
                     <p className="text-[10px] text-zinc-550 mt-1 font-mono uppercase max-w-xs leading-relaxed">
@@ -1343,8 +1346,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                 <div ref={messagesEndRef} />
               </div>
 
-              <AnimatePresence>
-                {partnerTyping && (
+              <AnimatePresence>                    {partnerTyping && !isKeyboardOpen && (
                   <motion.div
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1356,7 +1358,9 @@ export default function Chat({ user, socket, conversations, setConversations, on
                 )}
               </AnimatePresence>
 
-              <div className="p-4 border-t border-zinc-800/30 shrink-0 bg-zinc-950/20 backdrop-blur-md relative z-10 chat-input-area">
+              <div className={`border-t border-zinc-800/30 shrink-0 bg-zinc-950/20 backdrop-blur-md relative z-10 chat-input-area transition-all duration-200 ${
+                isKeyboardOpen ? "px-3 py-2" : "px-4 py-3"
+              }`}>
                 {replyToMessage && !replyToMessage.isDeleted && (
                   <div className="flex items-start gap-2.5 mb-3 bg-zinc-900/60 p-3 rounded-2xl border border-zinc-800/60 max-w-md">
                     <div className="w-0.5 h-full min-h-[2.5rem] rounded-full bg-blue-500/40 shrink-0" />
@@ -1402,24 +1406,23 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         type="text"
                         required
                         value={editText}
-                        onChange={(e) => { setEditText(e.target.value); clearFieldError("edit"); }}
-                        className="w-full rounded-full border border-white/20 bg-zinc-900 px-4.5 py-3 text-xs text-white outline-none"
-                      />
-                      <span className="absolute right-4.5 top-3.5 text-[8.5px] font-mono text-zinc-550 uppercase">
+                        onChange={(e) => { setEditText(e.target.value); clearFieldError("edit"); }}                      className="w-full rounded-full border border-white/20 bg-zinc-900 px-4 py-2.5 text-[11px] text-white outline-none"
+                    />
+                      <span className="absolute right-4 top-3 text-[8.5px] font-mono text-zinc-550 uppercase">
                         Editing
                       </span>
                       <ValidationMessage message={fieldErrors.edit} />
                     </div>
                     <button
                       type="submit"
-                      className="bg-white text-black text-xs font-bold px-4 py-2.5 rounded-full hover:bg-zinc-250 cursor-pointer shadow-md"
+                      className="bg-white text-black text-[11px] font-bold px-3.5 py-2 rounded-full hover:bg-zinc-250 cursor-pointer shadow-md"
                     >
                       Update
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingMessage(null)}
-                      className="bg-zinc-800 text-zinc-300 text-xs font-bold px-4 py-2.5 rounded-full hover:bg-zinc-750 cursor-pointer"
+                      className="bg-zinc-800 text-zinc-300 text-[11px] font-bold px-3.5 py-2 rounded-full hover:bg-zinc-750 cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -1452,19 +1455,25 @@ export default function Chat({ user, socket, conversations, setConversations, on
                           clearFieldError("message");
                           handleTyping();
                         }}
-                        className="w-full rounded-full border border-zinc-800 bg-zinc-950/40 py-3 px-5 text-xs text-slate-100 placeholder-zinc-500 outline-none focus:border-white focus:bg-zinc-900/80 transition-all focus:ring-1 focus:ring-zinc-700"
+                        className={`w-full rounded-full border border-zinc-800 bg-zinc-950/40 text-[11px] text-slate-100 placeholder-zinc-500 outline-none focus:border-white focus:bg-zinc-900/80 transition-all focus:ring-1 focus:ring-zinc-700 ${
+                          isKeyboardOpen ? "py-2 px-3" : "py-2.5 px-4"
+                        }`}
                       />
                       <ValidationMessage message={fieldErrors.message} />
 
-                      <span className="absolute right-4 top-3 text-[9px] text-zinc-650 hidden md:flex items-center gap-0.5 border border-zinc-800 px-1 rounded bg-zinc-950 select-none">
-                        <CornerDownLeft className="h-2 w-2" /> Enter
-                      </span>
+                      {!isKeyboardOpen && (
+                        <span className="absolute right-4 top-3 text-[9px] text-zinc-650 hidden md:flex items-center gap-0.5 border border-zinc-800 px-1 rounded bg-zinc-950 select-none">
+                          <CornerDownLeft className="h-2 w-2" /> Enter
+                        </span>
+                      )}
                     </div>
 
                     <button
                       type="submit"
                       disabled={sendingMessage || (!inputText.trim() && attachments.length === 0)}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black hover:bg-zinc-250 cursor-pointer shadow-md disabled:opacity-30 disabled:hover:bg-white"
+                      className={`flex shrink-0 items-center justify-center rounded-full bg-white text-black hover:bg-zinc-250 cursor-pointer shadow-md disabled:opacity-30 disabled:hover:bg-white transition-all duration-200 ${
+                        isKeyboardOpen ? "h-8 w-8" : "h-9 w-9"
+                      }`}
                     >
                       <Send className="h-4 w-4" />
                     </button>
@@ -1505,19 +1514,18 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         handleReaction(contextMenu.message, emoji);
                         setContextMenu(null);
                       }}
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-2xl hover:bg-zinc-800 active:scale-90 transition-all shrink-0 cursor-pointer"
+                      className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl hover:bg-zinc-800 active:scale-90 transition-all shrink-0 cursor-pointer"
                     >
                       {emoji}
                     </button>
                   ))}
-                  <button
-                    onClick={() => {
+                  <button                      onClick={() => {
                       setShowEmojiPicker(contextMenu.message._id);
                       setContextMenu(null);
                     }}
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl hover:bg-zinc-800 active:scale-90 transition-all shrink-0 bg-zinc-800/40 border border-zinc-700/30 cursor-pointer"
+                    className="w-10 h-10 rounded-2xl flex items-center justify-center text-lg hover:bg-zinc-800 active:scale-90 transition-all shrink-0 bg-zinc-800/40 border border-zinc-700/30 cursor-pointer"
                   >
-                    <Smile className="h-5 w-5 text-zinc-300" />
+                    <Smile className="h-4.5 w-4.5 text-zinc-300" />
                   </button>
                 </div>
 
@@ -1748,17 +1756,17 @@ export default function Chat({ user, socket, conversations, setConversations, on
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-4 w-full max-w-sm shadow-2xl"
+              className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-3 w-full max-w-xs shadow-2xl"
             >
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-widest">Pick an Emoji</h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[11px] font-bold text-zinc-200 uppercase tracking-widest">Pick an Emoji</h4>
                 <button
                   onClick={() => {
                     setShowEmojiPicker(null);
                     setCustomEmoji("");
                   }}
                 >
-                  <X className="h-3.5 w-3.5 text-zinc-500 hover:text-white" />
+                  <X className="h-3 w-3 text-zinc-500 hover:text-white" />
                 </button>
               </div>
               
@@ -1784,16 +1792,16 @@ export default function Chat({ user, socket, conversations, setConversations, on
                     }
                   }
                 }}
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2.5 text-sm text-white outline-none focus:border-white text-center"
+                className="w-full rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-white outline-none focus:border-white text-center"
                 autoFocus
                 autoComplete="off"
                 placeholder="Tap for emoji"
               />
               
               {/* Quick emoji grid for desktop users */}
-              <div className="mt-3">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500 mb-2 text-center">Or pick one</p>
-                <div className="flex flex-wrap gap-1.5 justify-center">
+              <div className="mt-2">
+                <p className="text-[8px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5 text-center">Or pick one</p>
+                <div className="flex flex-wrap gap-1 justify-center">
                   {["👍", "❤️", "😂", "😮", "😢", "😠", "🎉", "🔥", "💀", "🙏", "✨", "🥳", "💯", "🏆", "👏", "💪", "🤝", "😍", "🥺", "🤔"].map((emoji) => (
                     <button
                       key={emoji}
@@ -1805,7 +1813,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                           setCustomEmoji("");
                         }
                       }}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-lg hover:bg-zinc-800 transition-all hover:scale-110 cursor-pointer"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-base hover:bg-zinc-800 transition-all hover:scale-110 cursor-pointer"
                     >
                       {emoji}
                     </button>
@@ -1832,24 +1840,24 @@ export default function Chat({ user, socket, conversations, setConversations, on
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-4 w-full max-w-sm shadow-2xl max-h-[80vh] flex flex-col"
+              className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-3 w-full max-w-xs shadow-2xl max-h-[80vh] flex flex-col"
             >
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-widest">Forward Message</h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[11px] font-bold text-zinc-200 uppercase tracking-widest">Forward Message</h4>
                 <button
                   onClick={() => setForwardModal(null)}
                 >
-                  <X className="h-3.5 w-3.5 text-zinc-500 hover:text-white" />
+                  <X className="h-3 w-3 text-zinc-500 hover:text-white" />
                 </button>
               </div>
 
-              <div className="mb-4 p-3 rounded-xl bg-zinc-800/50 border border-zinc-700">
-                <p className="text-xs text-zinc-300 leading-relaxed">{forwardModal.message.text}</p>
+              <div className="mb-3 p-2.5 rounded-xl bg-zinc-800/50 border border-zinc-700">
+                <p className="text-[11px] text-zinc-300 leading-relaxed">{forwardModal.message.text}</p>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-1.5">
+              <div className="flex-1 overflow-y-auto space-y-1">
                 {conversations.length === 0 ? (
-                  <p className="text-center text-[10px] text-zinc-500 font-mono uppercase py-4">No conversations yet</p>
+                  <p className="text-center text-[9px] text-zinc-500 font-mono uppercase py-3">No conversations yet</p>
                 ) : (
                   conversations.map((conv) => {
                     const partner = getPartner(conv);
@@ -1857,16 +1865,16 @@ export default function Chat({ user, socket, conversations, setConversations, on
                       <button
                         key={conv._id}
                         onClick={() => handleForwardMessage(conv._id)}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-800/60 text-left transition-colors"
+                        className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-zinc-800/60 text-left transition-colors"
                       >
                         <UserAvatar
                           src={partner.profilePic?.url}
                           alt={partner.fullName}
-                          className="h-8 w-8 rounded-full object-cover border border-zinc-800"
+                          className="h-7 w-7 rounded-full object-cover border border-zinc-800"
                         />
                         <div>
-                          <p className="text-xs font-bold text-zinc-200">{partner.fullName}</p>
-                          <p className="text-[9px] text-zinc-500 font-bold">@{partner.username}</p>
+                          <p className="text-[11px] font-bold text-zinc-200">{partner.fullName}</p>
+                          <p className="text-[8px] text-zinc-500 font-bold">@{partner.username}</p>
                         </div>
                       </button>
                     );
@@ -1874,17 +1882,17 @@ export default function Chat({ user, socket, conversations, setConversations, on
                 )}
               </div>
 
-              <div className="mt-4 pt-3 border-t border-zinc-800">
-                <div className="text-[9px] font-mono text-zinc-500 uppercase mb-2">Or</div>
+              <div className="mt-3 pt-2.5 border-t border-zinc-800">
+                <div className="text-[8px] font-mono text-zinc-500 uppercase mb-1.5">Or</div>
                 <button
                   onClick={() => {
                     setForwardModal(null);
                     setSelectedConv(null);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-zinc-800/60"
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-2 rounded-xl hover:bg-zinc-800/60"
                 >
-                  <User className="h-3.5 w-3.5 text-zinc-400" />
-                  <span className="text-xs font-bold text-zinc-200">Start a new conversation</span>
+                  <User className="h-3 w-3 text-zinc-400" />
+                  <span className="text-[11px] font-bold text-zinc-200">Start a new conversation</span>
                 </button>
               </div>
             </motion.div>

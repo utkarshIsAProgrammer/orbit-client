@@ -365,7 +365,7 @@ export default function Notifications({
     <div className="w-full px-2 pt-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="font-sans text-2xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-100 md:text-3xl">
+          <h2 className="font-sans text-xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-100 md:text-2xl">
             Notifications
           </h2>
           <p className="text-sm text-slate-500 dark:text-zinc-400">Keep track of updates and interactions</p>
@@ -566,61 +566,61 @@ export default function Notifications({
                   </div>
 
                   {/* Actions */}
-                  <div className="p-4 space-y-1">
+                  <div className="p-3 space-y-0.5">
                     {contextMenu.notif.post && (
                       <button
                         onClick={() => { onPostClick(contextMenu.notif.post!.slug); setContextMenu(null); }}
-                        className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                        className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-2.5 cursor-pointer"
                       >
-                        <ExternalLink className="h-4 w-4 text-zinc-400" />
+                        <ExternalLink className="h-3.5 w-3.5 text-zinc-400" />
                         Go to post
                       </button>
                     )}
                     {contextMenu.notif.sender && (
                       <button
                         onClick={() => { onUserClick(contextMenu.notif.sender!.username); setContextMenu(null); }}
-                        className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                        className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-2.5 cursor-pointer"
                       >
-                        <ExternalLink className="h-4 w-4 text-zinc-400" />
+                        <ExternalLink className="h-3.5 w-3.5 text-zinc-400" />
                         View profile
                       </button>
                     )}
                     {!contextMenu.notif.isRead ? (
                       <button
                         onClick={() => { handleMarkSingleRead(contextMenu.notif._id); setContextMenu(null); }}
-                        className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                        className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-2.5 cursor-pointer"
                       >
-                        <Eye className="h-4 w-4 text-zinc-400" />
+                        <Eye className="h-3.5 w-3.5 text-zinc-400" />
                         Mark as read
                       </button>
                     ) : (
                       <button
                         onClick={() => { setContextMenu(null); }}
-                        className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                        className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-2.5 cursor-pointer"
                       >
-                        <EyeOff className="h-4 w-4 text-zinc-400" />
+                        <EyeOff className="h-3.5 w-3.5 text-zinc-400" />
                         Already read
                       </button>
                     )}
                     <button
                       onClick={() => handleCopyNotifText(contextMenu.notif)}
-                      className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                      className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-2.5 cursor-pointer"
                     >
-                      <Copy className="h-4 w-4 text-zinc-400" />
+                      <Copy className="h-3.5 w-3.5 text-zinc-400" />
                       Copy text
                     </button>
                     <button
                       onClick={() => { handleDeleteSingle(contextMenu.notif._id); }}
-                      className="w-full px-4 py-3 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-3 cursor-pointer"
+                      className="w-full px-3 py-2.5 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-2.5 cursor-pointer"
                     >
-                      <Trash2 className="h-4 w-4 text-red-400" />
+                      <Trash2 className="h-3.5 w-3.5 text-red-400" />
                       Delete
                     </button>
                     <button
                       onClick={() => setContextMenu(null)}
-                      className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-400 hover:bg-zinc-850 rounded-xl flex items-center gap-3 border border-zinc-800/50 mt-2 cursor-pointer"
+                      className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-400 hover:bg-zinc-850 rounded-xl flex items-center gap-2.5 border border-zinc-800/50 mt-1.5 cursor-pointer"
                     >
-                      <X className="h-4 w-4 text-zinc-400" />
+                      <X className="h-3.5 w-3.5 text-zinc-400" />
                       Cancel
                     </button>
                   </div>

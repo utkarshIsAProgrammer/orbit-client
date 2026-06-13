@@ -37,7 +37,7 @@ const Dock = React.lazy(() => import("./components/Dock"));
 const PostModal = React.lazy(() => import("./components/PostModal"));	export default function App() {
 	const [user, setUser] = useState<User | null>(null);
 	const [sessionChecked, setSessionChecked] = useState(false);
-	const [showAuthForm, setShowAuthForm] = useState(false);
+	const [showAuthForm] = useState(true);
 	const [currentTab, setTab] = useState("home");
 	const [badgeCount, setBadgeCount] = useState(0);
 	const [chatBadgeCount, setChatBadgeCount] = useState(0);
@@ -140,6 +140,12 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 
 	// Security Form View Controller
 	const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+
+	// Signup-first mode (from Get Started / Enter Social Hub)
+	const [showSignupForm, setShowSignupForm] = useState(false);
+
+	// Public read-only feed mode (from Explore Public Feed)
+	const [publicFeedMode, setPublicFeedMode] = useState(false);
 
 	// In-app floating macOS alert banner lists
 	const [floatingAlerts, setFloatingAlerts] = useState<
@@ -843,6 +849,15 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 		}
 	}, [tabHistory, singlePostSlug, selectedUserUsername, user?.username]);
 
+	const scrollToAuthSection = useCallback(() => {
+		document.getElementById('auth-section')?.scrollIntoView({ behavior: 'smooth' });
+	}, []);
+
+	const scrollToSignupSection = useCallback(() => {
+		setShowSignupForm(true);
+		requestAnimationFrame(scrollToAuthSection);
+	}, []);
+
 	return (
 		<ErrorBoundary>
 			<div className="relative min-h-screen text-slate-800 dark:text-zinc-100 selection:bg-zinc-800/10 dark:selection:bg-white/10 antialiased font-ui flex flex-col justify-start bg-transparent transition-colors duration-500 overflow-x-hidden">
@@ -869,7 +884,7 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 				</Suspense>
 
 				<AnimatePresence mode="wait">
-					{sessionChecked && !user ? (
+					{sessionChecked && !user && !publicFeedMode ? (
 						<motion.div
 								key="logged-out-section"
 								initial={{ opacity: 0 }}
@@ -878,8 +893,10 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 								transition={{ duration: 0.5 }}
 								className="w-full flex flex-col justify-start overflow-y-auto scroll-smooth">
 								{/* Heavily Animated Landing Page with 3D components */}															<LandingPage
-																onScrollToAuth={() => {
-																	setShowAuthForm(true);
+																onScrollToAuth={scrollToAuthSection}
+																onScrollToSignup={scrollToSignupSection}
+																onExplorePublicFeed={() => {
+																	setPublicFeedMode(true);
 																}}
 															/>
 
@@ -890,23 +907,25 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 									className="min-h-screen w-full flex flex-col items-center justify-center px-6 py-20 relative z-10 bg-transparent overflow-hidden">
 									<div className="absolute inset-0 w-full h-full pointer-events-none select-none z-0 opacity-40 mix-blend-screen">
 										{!isMobileDevice && (
-											<LiquidEther
-												colors={["#ffffff", "#a1a1aa", "#3f3f46"]}
-												mouseForce={20}
-												cursorSize={110}
-												isViscous={false}
-												viscous={30}
-												iterationsViscous={32}
-												iterationsPoisson={32}
-												resolution={0.5}
-												isBounce={false}
-												autoDemo={true}
-												autoSpeed={0.55}
-												autoIntensity={2.2}
-												takeoverDuration={0.25}
-												autoResumeDelay={2500}
-												autoRampDuration={0.6}
-											/>
+											<Suspense fallback={null}>
+												<LiquidEther
+													colors={["#ffffff", "#a1a1aa", "#3f3f46"]}
+													mouseForce={20}
+													cursorSize={110}
+													isViscous={false}
+													viscous={30}
+													iterationsViscous={32}
+													iterationsPoisson={32}
+													resolution={0.5}
+													isBounce={false}
+													autoDemo={true}
+													autoSpeed={0.55}
+													autoIntensity={2.2}
+													takeoverDuration={0.25}
+													autoResumeDelay={2500}
+													autoRampDuration={0.6}
+												/>
+											</Suspense>
 										)}
 									</div>
 									{/* Center Auth Card with super clean backplate */}
@@ -956,15 +975,15 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 														scale: 0.96,
 														y: -30,
 													}}
-													transition={{ duration: 0.25 }}>
-													<Auth
-														onAuthSuccess={
-															handleAuthSuccess
-														}
-														onForgotPasswordClick={() =>
-															setForgotPasswordOpen(true)
-														}
-													/>
+													transition={{ duration: 0.25 }}>													<Auth
+														initialShowSignup={showSignupForm}
+															onAuthSuccess={
+																handleAuthSuccess
+															}
+															onForgotPasswordClick={() =>
+																setForgotPasswordOpen(true)
+															}
+														/>
 												</motion.div>
 											)}
 										</AnimatePresence>
@@ -1049,12 +1068,35 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 							</div>
 
 							{/* Main Content Area Routing with Global Full Widescreen Grid */}
+							{publicFeedMode && !user && (
+								<div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur-xl">
+									<div>
+										<h2 className="text-sm font-bold text-white">Explore Public Feed</h2>
+										<p className="text-[10px] text-zinc-400 mt-0.5">Browsing posts — sign in to interact</p>
+									</div>
+									<div className="flex items-center gap-3">
+										<button
+											onClick={() => { setPublicFeedMode(false); setShowSignupForm(false); scrollToAuthSection(); }}
+											className="rounded-full bg-white/10 hover:bg-white/20 border border-zinc-700/50 px-4 py-1.5 text-[10px] font-bold text-zinc-200 transition-all cursor-pointer"
+										>
+											Sign In
+										</button>
+										<button
+											onClick={() => { setPublicFeedMode(false); setShowSignupForm(true); scrollToSignupSection(); }}
+											className="rounded-full bg-white text-black hover:bg-zinc-200 px-4 py-1.5 text-[10px] font-bold transition-all cursor-pointer"
+										>
+											Create Account
+										</button>
+									</div>
+								</div>
+							)}
 							<main className="grow h-[calc(100vh-7rem)] overflow-hidden flex items-start justify-center py-6 w-full">
-								{user && (
+								{(user || publicFeedMode) && (
 									<div className="w-full h-full max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto overflow-hidden">
 										<div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-7 items-start w-full h-full">
-											<div className="hidden lg:block lg:col-span-3 h-full overflow-hidden shrink-0 pb-12">
-												<LeftSidebar
+											{user && (
+												<div className="hidden lg:block lg:col-span-3 h-full overflow-hidden shrink-0 pb-12">
+													<LeftSidebar
 													user={user}
 													currentTab={currentTab}
 													setTab={(tab) => {
@@ -1074,11 +1116,13 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 													chatBadgeCount={chatBadgeCount}
 												/>
 											</div>
-											{/* Middle Main Content Pane: Tab content scales fluidly */}
-											<div
-								className={`${currentTab === "chat"
+											)}
+											{/* Middle Main Content Pane: Tab content scales fluidly */}							<div
+				className={`${currentTab === "chat"
 										? "lg:col-span-9 overflow-hidden"
-										: "lg:col-span-6 xl:col-span-6 overflow-y-auto"
+										: !user
+											? "lg:col-span-9 xl:col-span-9 overflow-y-auto"
+											: "lg:col-span-6 xl:col-span-6 overflow-y-auto"
 									} w-full h-full ${currentTab === "chat" ? "pb-0" : "pb-28 sm:pb-28 xl:pb-0"}`}>
 									{canGoBack && currentTab === "chat" && hasActiveConversation && (
 										<motion.button
@@ -1134,35 +1178,36 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 														exit={{ opacity: 0, y: -15 }}
 														transition={{ duration: 0.35, ease: "easeOut" }}>
 																	<div className="relative z-10 w-full h-full">
-																		<Feed
-																			user={user}
-																			onUserSelected={
-																				handleUserSelection
-																			}
-																			singlePostSlug={
-																				singlePostSlug
-																			}
-																			autoOpenComments={
-																				autoOpenComments
-																			}
-																			onClearAutoOpenComments={() => {
-																				setAutoOpenComments(
-																					false,
-																				);
-																			}}
-																			onClearSinglePost={() => {
-																				setSinglePostSlug(
-																					null,
-																				);
-																				setAutoOpenComments(
-																					false,
-																				);
-																			}}
-																			followingStates={
-																				followingStates
-																			}
-																			onCommentsOpenChange={setCommentsOpen}
-																		/>
+												<Feed
+													user={user}
+													readOnly={publicFeedMode && !user}
+													onUserSelected={
+														handleUserSelection
+													}
+													singlePostSlug={
+														singlePostSlug
+													}
+													autoOpenComments={
+														autoOpenComments
+													}
+													onClearAutoOpenComments={() => {
+														setAutoOpenComments(
+															false,
+														);
+													}}
+													onClearSinglePost={() => {
+														setSinglePostSlug(
+															null,
+														);
+														setAutoOpenComments(
+															false,
+														);
+													}}
+													followingStates={
+														followingStates
+													}
+													onCommentsOpenChange={setCommentsOpen}
+												/>
 																	</div>
 																</motion.div>
 															)}
@@ -1270,7 +1315,7 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 																</motion.div>
 															)}
 
-															{currentTab === "profile" && (
+															{user && currentTab === "profile" && (
 																<motion.div
 																	key="profile"
 														initial={{ opacity: 0, y: 20 }}
@@ -1306,7 +1351,7 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 																</motion.div>
 															)}
 
-															{currentTab === "settings" && (
+															{user && currentTab === "settings" && (
 																<motion.div
 																	key="settings"
 														initial={{ opacity: 0, y: 20 }}
@@ -1325,7 +1370,7 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 																</motion.div>
 															)}
 
-									{currentTab === "chat" && (
+									{user && currentTab === "chat" && (
 										<motion.div
 											key="chat"
 								initial={{ opacity: 0, y: 20 }}
@@ -1359,7 +1404,7 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 												</ErrorBoundary>
 											</div>{" "}
 											{/* Right Sidebar: Dual Liquid Glass Containers for Suggestions & Features */}
-											{currentTab !== "chat" && (
+											{user && currentTab !== "chat" && (
 												<div className="lg:col-span-3 w-full space-y-5 hidden lg:flex flex-col h-full overflow-hidden select-none shrink-0 pb-24">
 													{/* 1. People Recommendations Box with macOS spring animations */}
 													<GlassCard
@@ -1538,7 +1583,8 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 							</main>
 
 			{/* Center Apple Dock — hidden when chat or comments are open */}
-							<Suspense fallback={null}>								{!(currentTab === "chat" && hasActiveConversation) && !commentsOpen && !settingsEditProfileOpen && (
+							{user && (
+								<Suspense fallback={null}>								{!(currentTab === "chat" && hasActiveConversation) && !commentsOpen && !settingsEditProfileOpen && (
 										<Dock
 											currentTab={currentTab}
 											setTab={handleTabChange}
@@ -1548,6 +1594,7 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 										/>
 									)}
 							</Suspense>
+							)}
 						</motion.div>
 					)}
 				</AnimatePresence>

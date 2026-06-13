@@ -1172,15 +1172,14 @@ export default function Profile({
 								""
 							}
 							alt={profile.fullName}
-							className="h-24 w-24 rounded-full border-4 border-white dark:border-zinc-900 object-cover shadow-md cursor-pointer hover:opacity-90 transition-opacity"
-							onClick={() => {
-								window.dispatchEvent(
-									new CustomEvent("openImagePreview", {
-										detail:
-											profilePicPreview ||
-											"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200",
-									}),
-								);
+							className="h-20 w-20 rounded-full border-4 border-white dark:border-zinc-900 object-cover shadow-md cursor-pointer hover:opacity-90 transition-opacity"							onClick={() => {
+								if (profilePicPreview) {
+									window.dispatchEvent(
+										new CustomEvent("openImagePreview", {
+											detail: profilePicPreview,
+										}),
+									);
+								}
 							}}
 						/>
 						</div>
@@ -1406,10 +1405,10 @@ export default function Profile({
 															</div>
 														</div>
 
-														<div onClick={() => onPostClick(post.slug)} className="cursor-pointer space-y-3">									<h4 className="font-sans text-lg md:text-xl font-bold text-white leading-tight text-left">
+														<div onClick={() => onPostClick(post.slug)} className="cursor-pointer space-y-3">									<h4 className="font-sans text-sm md:text-base font-bold text-white leading-tight text-left">
 									{post.title}
 								</h4>
-								<p className="text-sm md:text-base text-zinc-300 leading-relaxed whitespace-pre-wrap text-left select-text">
+								<p className="text-xs md:text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap text-left select-text">
 									{post.content}
 								</p>
 															{post.image && (
@@ -1813,19 +1812,23 @@ export default function Profile({
 												<input
 													type="file"
 													accept="image/*"
-													onChange={(e) => {
-														const file =
-															e.target.files?.[0];
-														if (file) {
-															setCropImageSrc(
-																URL.createObjectURL(
-																	file,
-																),
-															);
+													onChange={(e) => {													const file =
+														e.target.files?.[0];
+												if (file) {
+													if (file.type === "image/gif") {
+														setProfilePicFile(file);
+														setProfilePicPreview(URL.createObjectURL(file));
+													} else {
+														setCropImageSrc(
+															URL.createObjectURL(
+																file,
+															),
+														);
 														setCropType("profile");
 														setCropModalOpen(true);
 													}
-													e.target.value = "";
+												}
+												e.target.value = "";
 												}}
 												className="absolute inset-0 opacity-0 cursor-pointer animate-none z-10"
 											/>
@@ -1861,19 +1864,23 @@ export default function Profile({
 												<input
 													type="file"
 													accept="image/*"
-													onChange={(e) => {
-														const file =
-															e.target.files?.[0];
-														if (file) {
-															setCropImageSrc(
-																URL.createObjectURL(
-																	file,
-																),
-															);
-															setCropType("banner");
-															setCropModalOpen(true);
-														}
-														e.target.value = "";
+													onChange={(e) => {													const file =
+														e.target.files?.[0];
+												if (file) {
+													if (file.type === "image/gif") {
+														setBannerPicFile(file);
+														setBannerPicPreview(URL.createObjectURL(file));
+													} else {
+														setCropImageSrc(
+															URL.createObjectURL(
+																file,
+															),
+														);
+														setCropType("banner");
+														setCropModalOpen(true);
+													}
+												}
+												e.target.value = "";
 													}}
 													className="absolute inset-0 opacity-0 cursor-pointer animate-none z-10"
 												/>

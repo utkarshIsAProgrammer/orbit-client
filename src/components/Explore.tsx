@@ -280,7 +280,7 @@ export default function Explore({
           <span className="text-[9px] font-mono tracking-[0.25em] font-black text-zinc-400 uppercase flex items-center gap-1.5">
             <Compass className="h-6 w-6 text-white shrink-0" /> EXPLORE
           </span>
-          <h2 className="font-sans text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-zinc-100 md:text-3xl mt-1">
+          <h2 className="font-sans text-xl font-black uppercase tracking-tight text-slate-900 dark:text-zinc-100 md:text-2xl mt-1">
             Discover
           </h2>
         </div>

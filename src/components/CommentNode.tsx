@@ -265,6 +265,13 @@ export default function CommentNode({
       const data = await res.json();
       if (res.ok && data.success) {
         setShowDeleteConfirm(false);
+        setContextMenu(null);
+        // Notify parent to remove this comment from the list
+        window.dispatchEvent(
+          new CustomEvent("commentDeleted", {
+            detail: { commentId: comment._id },
+          })
+        );
       }
     } catch (e) {
       logger.error("Failed to delete comment", e);
@@ -477,7 +484,7 @@ export default function CommentNode({
           </div>
         </div>
       )}
-      <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-3 space-y-2 relative backdrop-blur-lg shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:border-white/20 hover:bg-zinc-950/50 transition-all duration-300">
+      <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-2.5 space-y-1.5 relative backdrop-blur-lg shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:border-white/20 hover:bg-zinc-950/50 transition-all duration-300">
         {/* Delete Confirmation Overlay */}
         {showDeleteConfirm && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-zinc-950/90 backdrop-blur-sm">
@@ -506,16 +513,16 @@ export default function CommentNode({
               src={comment.author.profilePic?.url}
               alt={comment.author.fullName}
               onClick={() => onUserSelected(comment.author.username)}
-              className="h-6 w-6 rounded-full object-cover border border-zinc-800 cursor-pointer shadow-sm"
+              className="h-5 w-5 rounded-full object-cover border border-zinc-800 cursor-pointer shadow-sm"
             />
             <div>
               <h5
                 onClick={() => onUserSelected(comment.author.username)}
-                className="font-sans text-xs font-semibold text-slate-900 dark:text-zinc-100 leading-none cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                className="font-sans text-[11px] font-semibold text-slate-900 dark:text-zinc-100 leading-none cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
               >
                 {comment.author.fullName}
               </h5>
-              <span className="text-[10px] text-slate-500 dark:text-zinc-500 font-medium">@{comment.author.username}</span>
+              <span className="text-[9px] text-slate-500 dark:text-zinc-500 font-medium">@{comment.author.username}</span>
             </div>
           </div>
 
@@ -538,7 +545,7 @@ export default function CommentNode({
                 </button>
               </>
             )}
-            <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">
+            <span className="text-[9px] text-slate-400 dark:text-zinc-500 font-medium">
               {getRelativeDate(comment.createdAt)}
               {comment.isEdited && (
                 <span className="ml-1 italic opacity-60">(edited)</span>
@@ -722,7 +729,7 @@ export default function CommentNode({
                   <div className="w-12 h-1 bg-zinc-700 rounded-full mx-auto my-3" />
 
                   {/* Emoji reactions row */}
-                  <div className="flex justify-between px-6 py-2 border-b border-zinc-800/60 overflow-x-auto gap-2 scrollbar-none">
+                  <div className="flex justify-between px-4 py-1.5 border-b border-zinc-800/60 overflow-x-auto gap-2 scrollbar-none">
                     {["👍", "❤️", "😂", "😮", "😢", "😠"].map((emoji) => (
                       <button
                         key={emoji}
@@ -730,7 +737,7 @@ export default function CommentNode({
                           handleReaction(emoji);
                           setContextMenu(null);
                         }}
-                        className="w-11 h-11 rounded-2xl flex items-center justify-center text-2xl hover:bg-zinc-800 active:scale-90 transition-all shrink-0 cursor-pointer"
+                        className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl hover:bg-zinc-800 active:scale-90 transition-all shrink-0 cursor-pointer"
                       >
                         {emoji}
                       </button>
@@ -740,51 +747,51 @@ export default function CommentNode({
                         setShowEmojiPicker(true);
                         setContextMenu(null);
                       }}
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl hover:bg-zinc-800 active:scale-90 transition-all shrink-0 bg-zinc-800/40 border border-zinc-700/30 cursor-pointer"
+                      className="w-10 h-10 rounded-2xl flex items-center justify-center text-lg hover:bg-zinc-800 active:scale-90 transition-all shrink-0 bg-zinc-800/40 border border-zinc-700/30 cursor-pointer"
                     >
-                      <Smile className="h-5 w-5 text-zinc-300" />
+                      <Smile className="h-4.5 w-4.5 text-zinc-300" />
                     </button>
                   </div>
 
                   {/* Actions */}
-                  <div className="p-4 space-y-1">
+                  <div className="p-3 space-y-0.5">
                     <button
                       onClick={() => { onReply(comment._id); setContextMenu(null); }}
-                      className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                      className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-2.5 cursor-pointer"
                     >
-                      <CornerDownLeft className="h-4 w-4 text-zinc-400" />
+                      <CornerDownLeft className="h-3.5 w-3.5 text-zinc-400" />
                       Reply
                     </button>
                     <button
                       onClick={handleCopyText}
-                      className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                      className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-2.5 cursor-pointer"
                     >
-                      <Copy className="h-4 w-4 text-zinc-400" />
+                      <Copy className="h-3.5 w-3.5 text-zinc-400" />
                       Copy Text
                     </button>
                     {user && comment.author._id === user._id && (
                       <>
                         <button
                           onClick={() => { setIsEditing(true); setEditText(comment.content); setContextMenu(null); }}
-                          className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-3 cursor-pointer"
+                          className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-200 hover:bg-zinc-850 rounded-xl flex items-center gap-2.5 cursor-pointer"
                         >
-                          <Pencil className="h-4 w-4 text-zinc-400" />
+                          <Pencil className="h-3.5 w-3.5 text-zinc-400" />
                           Edit
                         </button>
                         <button
                           onClick={() => { setShowDeleteConfirm(true); setContextMenu(null); }}
-                          className="w-full px-4 py-3 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-3 cursor-pointer"
+                          className="w-full px-3 py-2.5 text-left text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl flex items-center gap-2.5 cursor-pointer"
                         >
-                          <Trash2 className="h-4 w-4 text-red-400" />
+                          <Trash2 className="h-3.5 w-3.5 text-red-400" />
                           Delete
                         </button>
                       </>
                     )}
                     <button
                       onClick={() => setContextMenu(null)}
-                      className="w-full px-4 py-3 text-left text-xs font-bold text-zinc-400 hover:bg-zinc-850 rounded-xl flex items-center gap-3 border border-zinc-800/50 mt-2 cursor-pointer"
+                      className="w-full px-3 py-2.5 text-left text-xs font-bold text-zinc-400 hover:bg-zinc-850 rounded-xl flex items-center gap-2.5 border border-zinc-800/50 mt-1.5 cursor-pointer"
                     >
-                      <XIcon className="h-4 w-4 text-zinc-400" />
+                      <XIcon className="h-3.5 w-3.5 text-zinc-400" />
                       Cancel
                     </button>
                   </div>
@@ -885,12 +892,12 @@ export default function CommentNode({
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-4 w-full max-w-sm shadow-2xl"
+              className="bg-zinc-900/95 backdrop-blur-xl border border-zinc-800 rounded-2xl p-3 w-full max-w-xs shadow-2xl"
             >
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-widest">Pick an Emoji</h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[11px] font-bold text-zinc-200 uppercase tracking-widest">Pick an Emoji</h4>
                 <button onClick={() => { setShowEmojiPicker(false); setCustomEmojiInput(""); }}>
-                  <XIcon className="h-3.5 w-3.5 text-zinc-500 hover:text-white" />
+                  <XIcon className="h-3 w-3 text-zinc-500 hover:text-white" />
                 </button>
               </div>
               <input
@@ -909,19 +916,19 @@ export default function CommentNode({
                     setCustomEmojiInput("");
                   }
                 }}
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2.5 text-sm text-white outline-none focus:border-white text-center"
+                className="w-full rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-white outline-none focus:border-white text-center"
                 autoFocus
                 autoComplete="off"
                 placeholder="Tap for emoji"
               />
-              <div className="mt-3">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500 mb-2 text-center">Or pick one</p>
-                <div className="flex flex-wrap gap-1.5 justify-center">
+              <div className="mt-2">
+                <p className="text-[8px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5 text-center">Or pick one</p>
+                <div className="flex flex-wrap gap-1 justify-center">
                   {QUICK_EMOJIS.map((emoji) => (
                     <button
                       key={emoji}
                       onClick={() => { handleReaction(emoji); setShowEmojiPicker(false); }}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-lg hover:bg-zinc-800 transition-all hover:scale-110 cursor-pointer"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-base hover:bg-zinc-800 transition-all hover:scale-110 cursor-pointer"
                     >
                       {emoji}
                     </button>
