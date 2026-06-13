@@ -401,12 +401,12 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 		// In production, connect directly to the backend server
 		// In dev, connect to empty string (which Vite proxies)
 		const socketUrl = import.meta.env.PROD
-			? (import.meta.env.VITE_SOCKET_URL || "")
+			? (import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || "")
 			: "";
 
 		// Skip socket connection if no socket URL configured (e.g. frontend-only Vercel deploy)
 		if (!socketUrl) {
-			logger.info("No socket URL configured — skipping socket connection");
+			logger.info("No VITE_SOCKET_URL or VITE_API_URL configured — skipping socket connection (real-time disabled)");
 			return;
 		}
 
