@@ -410,9 +410,8 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 			return;
 		}
 
-		const socket = io(socketUrl, {
-			// TODO: revert these console logs back to logger after socket diagnostics complete
-			console.log("[ORBIT SOCKET] Connecting to:", socketUrl);
+		// TODO: revert these console logs back to logger after socket diagnostics complete
+		console.log("[ORBIT SOCKET] Connecting to:", socketUrl);
 
 		const socket = io(socketUrl, {
 			auth: token ? { token } : undefined,
