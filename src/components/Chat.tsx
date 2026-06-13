@@ -1421,8 +1421,9 @@ export default function Chat({ user, socket, conversations, setConversations, on
                         type="text"
                         required
                         value={editText}
-                        onChange={(e) => { setEditText(e.target.value); clearFieldError("edit"); }}                      className="w-full rounded-full border border-white/20 bg-zinc-900 px-4 py-2.5 text-[11px] text-white outline-none"
-                    />
+                        onChange={(e) => { setEditText(e.target.value); clearFieldError("edit"); }}
+                        className="w-full rounded-full border border-white/20 bg-zinc-900 px-4 py-2.5 text-[11px] text-white outline-none"
+                      />
                       <span className="absolute right-4 top-3 text-[8.5px] font-mono text-zinc-550 uppercase">
                         Editing
                       </span>
@@ -1430,16 +1431,16 @@ export default function Chat({ user, socket, conversations, setConversations, on
                     </div>
                     <button
                       type="submit"
-                      className="bg-white text-black text-[11px] font-bold px-3.5 py-2 rounded-full hover:bg-zinc-250 cursor-pointer shadow-md"
+                      className="flex shrink-0 items-center justify-center rounded-full bg-white text-black hover:bg-zinc-250 cursor-pointer shadow-md transition-all duration-200 h-9 w-9"
                     >
-                      Update
+                      <Send className="h-4 w-4" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingMessage(null)}
-                      className="bg-zinc-800 text-zinc-300 text-[11px] font-bold px-3.5 py-2 rounded-full hover:bg-zinc-750 cursor-pointer"
+                      className="flex shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all cursor-pointer h-7 w-7"
                     >
-                      Cancel
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   </form>
                 ) : (

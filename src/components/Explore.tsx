@@ -293,7 +293,7 @@ export default function Explore({
           placeholder={`Search ${activeSegment === "users" ? "users" : "posts"}`}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="w-full rounded-2xl border border-zinc-800 bg-zinc-950/60 backdrop-blur-xl py-3.5 pl-14 pr-24 text-sm font-medium text-slate-850 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-550 outline-none focus:border-white focus:ring-2 focus:ring-white/20 transition-all shadow-md relative z-10"
+          className="w-full rounded-2xl border border-zinc-800 bg-zinc-950/60 backdrop-blur-xl py-3.5 pl-14 pr-24 text-xs font-medium text-slate-850 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-550 outline-none focus:border-white focus:ring-2 focus:ring-white/20 transition-all shadow-md relative z-10"
         />
         <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400 z-10" />
         <button

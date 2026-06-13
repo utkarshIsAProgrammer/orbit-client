@@ -1940,7 +1940,7 @@ export default function Feed({
                       placeholder="write a comment....."
                       value={newCommentText}
                       onChange={(e) => { setNewCommentText(e.target.value); clearFieldError("comment"); }}
-                      className="w-full rounded-full border border-white/10 bg-zinc-950/60 px-5.5 py-3 text-sm text-white placeholder-zinc-500 outline-none focus:border-white/20 focus:bg-zinc-950/80 transition-all pr-16"
+                      className="w-full rounded-full border border-white/10 bg-zinc-950/60 px-5.5 py-3 text-xs text-white placeholder-zinc-500 outline-none focus:border-white/20 focus:bg-zinc-950/80 transition-all pr-16"
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       <CharCounter current={newCommentText.length} max={1000} />

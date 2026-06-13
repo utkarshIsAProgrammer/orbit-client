@@ -195,7 +195,7 @@ export default function PostModal({ isOpen, onClose, onPostCreated }: PostModalP
                   value={title}
                   onChange={(e) => { setTitle(e.target.value); clearFieldError("title"); }}
                   autoFocus
-                  className="flex-1 bg-transparent text-lg font-bold text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-600 outline-none"
+                  className="flex-1 bg-transparent text-xs font-bold text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-600 outline-none"
                 />
                 <CharCounter current={title.length} max={500} />
               </div>
