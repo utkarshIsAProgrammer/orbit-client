@@ -148,6 +148,17 @@ select {
   box-shadow: none !important;
 }
 
+/* ─── Waveform animation for voice note recording indicator ─────────── */
+@keyframes waveform {
+  0% { transform: scaleY(0.3); }
+  100% { transform: scaleY(1); }
+}
+
+.waveform-bar {
+  transform-origin: bottom;
+  animation: waveform 0.5s ease-in-out infinite alternate;
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -168,9 +179,10 @@ select {
     transition-duration: 0.1s !important;
   }
   
-  /* Re-enable essential micro-animations (spinner, pulse loaders) */
+  /* Re-enable essential micro-animations (spinner, pulse loaders, waveform) */
   .animate-spin,
-  .animate-pulse {
+  .animate-pulse,
+  .waveform-bar {
     animation-duration: 1.5s !important;
     animation-iteration-count: infinite !important;
   }

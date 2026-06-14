@@ -79,6 +79,9 @@ export default function Chat({ user, socket, conversations, setConversations, on
   const [partnerTyping, setPartnerTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Voice note recording indicator states
+  const [partnerRecording, setPartnerRecording] = useState(false);
+
   // Message edit state
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [editText, setEditText] = useState("");
@@ -177,6 +180,9 @@ export default function Chat({ user, socket, conversations, setConversations, on
     };
 
     fetchMessages();
+
+    // Reset partner recording indicator when switching conversations
+    setPartnerRecording(false);
 
     // Clear unread count for this conversation when opening it
     setConversations((prev) =>
@@ -448,6 +454,16 @@ export default function Chat({ user, socket, conversations, setConversations, on
       );
     });
 
+    // Listen for voice note recording indicators
+    s.on("chat:recording", ({ conversationId, userId: recordingUserId, isRecording: partnerIsRecording }: any) => {
+      logger.info("Chat: Received chat:recording event", { conversationId, recordingUserId, isRecording: partnerIsRecording });
+      const currentConv = selectedConvRef.current;
+      const currentUser = userRef.current;
+      if (currentConv && currentConv._id === conversationId && recordingUserId !== currentUser?._id) {
+        setPartnerRecording(partnerIsRecording);
+      }
+    });
+
     // Listen for typing indicators
     s.on("chat:typing", ({ conversationId, userId: typingUserId, isTyping: partnerIsTyping }: any) => {
       logger.info("Chat: Received chat:typing event", { conversationId, typingUserId, isTyping: partnerIsTyping });
@@ -471,6 +487,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
       s.off("conversation:cleared");
       s.off("messages:seen");
       s.off("chat:typing");
+      s.off("chat:recording");
     };
   }, [socket]);
 
@@ -618,6 +635,31 @@ export default function Chat({ user, socket, conversations, setConversations, on
   };
 
   // ─── Voice Note Recording ────────────────────────────────────────────
+  /** Detect the best supported audio MIME type for the current browser/platform.
+   *  Falls back to audio/webm if nothing else is supported.
+   *  - Chrome/Android: audio/webm;codecs=opus
+   *  - Safari/iOS:     audio/mp4 (AAC)
+   *  - Firefox:        audio/webm;codecs=opus or audio/ogg;codecs=opus
+   */
+  const getAudioMimeType = (): { mimeType: string; extension: string } => {
+    const candidates = [
+      { mimeType: "audio/webm;codecs=opus", extension: "webm" },
+      { mimeType: "audio/webm", extension: "webm" },
+      { mimeType: "audio/mp4;codecs=mp4a.40.2", extension: "mp4" },
+      { mimeType: "audio/mp4", extension: "mp4" },
+      { mimeType: "audio/aac", extension: "aac" },
+      { mimeType: "audio/ogg;codecs=opus", extension: "ogg" },
+      { mimeType: "audio/wav", extension: "wav" },
+    ];
+    for (const c of candidates) {
+      if (MediaRecorder.isTypeSupported(c.mimeType)) {
+        return c;
+      }
+    }
+    // Fallback: let the browser decide
+    return { mimeType: "", extension: "webm" };
+  };
+
   const handleMicToggle = async () => {
     if (isRecording) {
       // Stop recording
@@ -629,6 +671,11 @@ export default function Chat({ user, socket, conversations, setConversations, on
         recordingTimerRef.current = null;
       }
       setIsRecording(false);
+      // Notify partner that recording stopped
+      const conv = selectedConvRef.current;
+      if (conv) {
+        socketRef.current?.emit("chat:recording", { conversationId: conv._id, isRecording: false });
+      }
     } else {
       // Start recording
       try {
@@ -636,11 +683,13 @@ export default function Chat({ user, socket, conversations, setConversations, on
         audioChunksRef.current = [];
         setRecordingDuration(0);
         
-        const recorder = new MediaRecorder(stream, {
-          mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-            ? "audio/webm;codecs=opus"
-            : "audio/webm",
-        });
+        const { mimeType } = getAudioMimeType();
+        const recorderOptions: any = {};
+        if (mimeType) {
+          recorderOptions.mimeType = mimeType;
+        }
+        
+        const recorder = new MediaRecorder(stream, recorderOptions);
         
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0) {
@@ -649,7 +698,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
         };
         
         recorder.onstop = () => {
-          const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+          const actualMimeType = mimeType || recorder.mimeType || "audio/webm";
+          const blob = new Blob(audioChunksRef.current, { type: actualMimeType });
           setRecordedBlob(blob);
           setRecordedUrl(URL.createObjectURL(blob));
           // Stop all tracks to release the microphone
@@ -659,6 +709,12 @@ export default function Chat({ user, socket, conversations, setConversations, on
         mediaRecorderRef.current = recorder;
         recorder.start();
         setIsRecording(true);
+        
+        // Notify partner that we started recording a voice note
+        const currentConv = selectedConvRef.current;
+        if (currentConv) {
+          socket?.emit("chat:recording", { conversationId: currentConv._id, isRecording: true });
+        }
         
         // Start duration timer
         recordingTimerRef.current = setInterval(() => {
@@ -682,7 +738,12 @@ export default function Chat({ user, socket, conversations, setConversations, on
     try {
       const formData = new FormData();
       formData.append("text", "");
-      const audioFile = new File([recordedBlob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+      // Determine the file extension from the blob's actual MIME type
+      const blobMime = recordedBlob.type || "audio/webm";
+      const ext = blobMime.includes("mp4") || blobMime.includes("aac") ? "mp4" :
+                  blobMime.includes("ogg") ? "ogg" :
+                  blobMime.includes("wav") ? "wav" : "webm";
+      const audioFile = new File([recordedBlob], `voice-${Date.now()}.${ext}`, { type: blobMime });
       formData.append("files", audioFile);
       
       if (replyToMessage) {
@@ -1510,7 +1571,35 @@ export default function Chat({ user, socket, conversations, setConversations, on
                 <div ref={messagesEndRef} />
               </div>
 
-              <AnimatePresence>                    {partnerTyping && !isKeyboardOpen && (
+              <AnimatePresence>
+                {partnerRecording && !isKeyboardOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 5 }}
+                    className="px-4 py-1.5 text-[9.5px] font-black text-red-400 font-mono text-left tracking-wide select-none flex items-center gap-2"
+                  >
+                    <span className="flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                      <span>{getPartner(selectedConv).fullName} is recording a voice note...</span>
+                    </span>
+                    {/* Waveform bars */}
+                    <span className="flex items-center gap-[2px]">
+                      {[2, 4, 6, 8, 6, 4, 2].map((h, i) => (
+                        <span
+                          key={i}
+                          className="w-[2px] bg-red-400/60 rounded-full"
+                          style={{
+                            height: `${h}px`,
+                            transformOrigin: 'bottom',
+                            animation: `waveform 0.6s ease-in-out ${i * 0.15}s infinite alternate`,
+                          }}
+                        />
+                      ))}
+                    </span>
+                  </motion.div>
+                )}
+                {partnerTyping && !partnerRecording && !isKeyboardOpen && (
                   <motion.div
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1695,8 +1784,20 @@ export default function Chat({ user, socket, conversations, setConversations, on
 
                     {isRecording ? (
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                        <span className="text-[11px] font-mono text-red-400 tabular-nums">{recordingDuration}s</span>
+                        {/* Animated waveform bars */}
+                        <span className="flex items-center gap-[3px] h-5">
+                          {[3, 6, 10, 14, 18, 14, 10, 6, 3].map((h, i) => (
+                            <span
+                              key={i}
+                              className="waveform-bar w-[3px] bg-red-500 rounded-full"
+                              style={{
+                                height: `${h}px`,
+                                animation: `waveform 0.5s ease-in-out ${i * 0.1}s infinite alternate`,
+                              }}
+                            />
+                          ))}
+                        </span>
+                        <span className="text-[11px] font-mono text-red-400 tabular-nums font-bold">{recordingDuration}s</span>
                       </div>
                     ) : null}
 

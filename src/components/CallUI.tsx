@@ -23,6 +23,7 @@ interface CallUIProps {
 
 export default function CallUI({
   callState,
+  user,
   onEndCall,
   onAcceptCall,
   onRejectCall,
@@ -34,24 +35,27 @@ export default function CallUI({
   const [callDuration, setCallDuration] = useState(0);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const durationTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Wire local stream to local video element when call becomes active
-  // (localStreamRef.current is always populated before status transitions to "active")
   useEffect(() => {
     if (localVideoRef.current && localStreamRef.current) {
       localVideoRef.current.srcObject = localStreamRef.current;
     }
   }, [callState.status]);
 
-  // Wire remote stream to remote video element via ontrack
+  // Wire remote stream to remote video/audio elements via ontrack
   useEffect(() => {
     const pc = peerConnectionRef.current;
     if (!pc) return;
 
     const handleTrack = (e: RTCTrackEvent) => {
-      if (remoteVideoRef.current && e.streams[0]) {
+      if (e.track.kind === "video" && remoteVideoRef.current && e.streams[0]) {
         remoteVideoRef.current.srcObject = e.streams[0];
+      }
+      if (e.track.kind === "audio" && remoteAudioRef.current && e.streams[0]) {
+        remoteAudioRef.current.srcObject = e.streams[0];
       }
     };
 
@@ -111,7 +115,7 @@ export default function CallUI({
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-2xl flex flex-col items-center justify-center"
     >
-      {/* Remote video (full background for video calls) */}
+      {/* Remote video (full background for video calls) — hidden behind content overlay */}
       {callState.type === "video" && (
         <video
           ref={remoteVideoRef}
@@ -121,14 +125,22 @@ export default function CallUI({
         />
       )}
 
-      {/* Dark overlay for better UI contrast */}
+      {/* Hidden remote audio element for audio-only calls — ensures explicit media
+          element ownership for autoplay compliance on mobile browsers */}
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        playsInline
+      />
+
+      {/* Dark overlay for better UI contrast (video calls) or full background (audio calls) */}
       <div className="absolute inset-0 bg-black/40" />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-md px-6">
         {/* Partner info */}
         <div className="text-center">
-          <div className="relative">
+          <div className="relative inline-flex">
             <UserAvatar
               src={callState.partnerAvatar}
               alt={callState.partnerName}
@@ -162,8 +174,18 @@ export default function CallUI({
               autoPlay
               playsInline
               muted
-              className="w-full h-full object-cover"
+              className={`w-full h-full object-cover ${isVideoOff ? "opacity-0" : ""}`}
             />
+            {/* Avatar overlay when local video is hidden by the user */}
+            {isVideoOff && (
+              <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
+                <UserAvatar
+                  src={user.profilePic?.url}
+                  alt={user.fullName}
+                  className="h-14 w-14 rounded-full object-cover border-2 border-zinc-700 opacity-70"
+                />
+              </div>
+            )}
           </div>
         )}
 

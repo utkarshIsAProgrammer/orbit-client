@@ -841,6 +841,25 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 	}, []);
 
 	// ─── WebRTC Call Initiation ────────────────────────────────────────
+	const ICE_SERVERS: RTCIceServer[] = [
+		{ urls: "stun:stun.l.google.com:19302" },
+		{ urls: "stun:stun1.l.google.com:19302" },
+		{ urls: "stun:stun2.l.google.com:19302" },
+		{ urls: "stun:stun3.l.google.com:19302" },
+		{ urls: "stun:stun4.l.google.com:19302" },
+		// Free TURN server for NAT traversal on mobile/cellular networks
+		{
+			urls: "turn:openrelay.metered.ca:80",
+			username: "openrelayproject",
+			credential: "openrelayproject",
+		},
+		{
+			urls: "turn:openrelay.metered.ca:443",
+			username: "openrelayproject",
+			credential: "openrelayproject",
+		},
+	];
+
 	const handleStartCall = useCallback(async (partnerId: string, partnerName: string, type: "audio" | "video") => {
 		const sock = socketRef.current;
 		if (!sock) return;
@@ -862,9 +881,7 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 			});
 			localStreamRef.current = stream;
 
-			const pc = new RTCPeerConnection({
-				iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-			});
+			const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 			peerConnectionRef.current = pc;
 
 			stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -1861,9 +1878,7 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 								});
 								localStreamRef.current = stream;
 
-								const pc = new RTCPeerConnection({
-									iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-								});
+				const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 								peerConnectionRef.current = pc;
 
 								stream.getTracks().forEach((track) => pc.addTrack(track, stream));
