@@ -181,6 +181,16 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 		calleeId?: string;
 	} | null>(null);
 
+	// ICE connection state for monitoring network handoffs (WiFi → cellular, etc.)
+	const [iceConnectionState, setIceConnectionState] = useState<
+		RTCIceConnectionState | "new"
+	>("new");
+
+	// Ref to track call partner ID for ICE restart signaling
+	const callPartnerIdRef = useRef<string | null>(null);
+	// Timer ref for delayed ICE restart on temporary disconnects
+	const iceRestartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
 	// Global Toast Notification State
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
 	const [toastType, setToastType] = useState<"success" | "error">("success");
@@ -445,10 +455,27 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 		});
 
 		socketRef.current = socket;
-		setSocket(socket);
-
-		socket.on("connect", () => {
+		setSocket(socket);			socket.on("connect", () => {
 			logger.info("[ORBIT SOCKET] Connected successfully", { socketId: socket.id, userId });
+
+			// If we were in a call with a broken ICE connection, re-attempt ICE restart now
+			// that the signaling channel is restored (network handoff recovery).
+			// Read state directly from refs/PC to avoid stale closure captures.
+			const currentPc = peerConnectionRef.current;
+			const currentPartnerId = callPartnerIdRef.current;
+			const pcIceState = currentPc?.iceConnectionState;
+			if (
+				currentPc &&
+				currentPartnerId &&
+				(pcIceState === "disconnected" || pcIceState === "failed")
+			) {
+				logger.info("Socket reconnected during call with broken ICE — initiating ICE restart");
+				if (iceRestartTimeoutRef.current) {
+					clearTimeout(iceRestartTimeoutRef.current);
+					iceRestartTimeoutRef.current = null;
+				}
+				initiateIceRestart(currentPc, currentPartnerId);
+			}
 
 			// Mobile: when user returns to tab after phone was locked / app was backgrounded,
 			// the WebSocket may have been killed. Visibility change forces proactive reconnect.
@@ -794,6 +821,25 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 			}
 		});
 
+		// Handle ICE restart offer from the remote peer (network handoff recovery)
+		socket.on("call:ice-restart", async (data: { senderId: string; sdp: any }) => {
+			logger.info("Received call:ice-restart", data);
+			const pc = peerConnectionRef.current;
+			if (!pc || !data.sdp) return;
+			try {
+				await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+				const answer = await pc.createAnswer();
+				await pc.setLocalDescription(answer);
+				socket.emit("call:answer", {
+					targetUserId: data.senderId,
+					sdp: pc.localDescription,
+				});
+				logger.info("ICE restart: sent answer back");
+			} catch (err) {
+				logger.error("ICE restart: failed to handle remote offer", err);
+			}
+		});
+
 		socket.on("call:end", (data: { endedBy: string }) => {
 			logger.info("Received call:end", data);
 			// Clean up peer connection and local stream
@@ -806,6 +852,12 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 				localStreamRef.current = null;
 			}
 			pendingCallOfferRef.current = null;
+			callPartnerIdRef.current = null;
+			if (iceRestartTimeoutRef.current) {
+				clearTimeout(iceRestartTimeoutRef.current);
+				iceRestartTimeoutRef.current = null;
+			}
+			setIceConnectionState("closed");
 			setCallState(null);
 		});
 
@@ -870,11 +922,13 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 			localStreamRef.current.getTracks().forEach((t) => t.stop());
 		}
 
-		setCallState({ type, status: "outgoing", partnerId, partnerName });
-
-		try {
+		setCallState({ type, status: "outgoing", partnerId, partnerName });			try {
 			const stream = await navigator.mediaDevices.getUserMedia({
-				audio: true,
+				audio: {
+					echoCancellation: true,
+					noiseSuppression: true,
+					autoGainControl: true,
+				},
 				video: type === "video",
 			});
 			localStreamRef.current = stream;
@@ -882,6 +936,11 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 			const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 			peerConnectionRef.current = pc;
 
+			// Use addTransceiver for reliable audio track negotiation across mobile browsers
+			pc.addTransceiver("audio", { direction: "sendrecv" });
+			if (type === "video") {
+				pc.addTransceiver("video", { direction: "sendrecv" });
+			}
 			stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
 			pc.onicecandidate = (e) => {
@@ -896,6 +955,33 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 			pc.ontrack = (e) => {
 				// Remote stream received — the CallUI component's remoteVideoRef will pick it up
 				logger.info("Call: received remote track", { kind: e.track.kind });
+			};
+
+			// ── ICE connection state monitoring ───────────────────────
+			callPartnerIdRef.current = partnerId;
+			pc.oniceconnectionstatechange = () => {
+				const state = pc.iceConnectionState;
+				logger.info("ICE connection state changed", { state, partnerId });
+				setIceConnectionState(state);
+
+				// Trigger ICE restart on network handoff events (WiFi ↔ cellular)
+				if (state === "disconnected") {
+					// Give the connection a few seconds to recover naturally
+					if (iceRestartTimeoutRef.current) clearTimeout(iceRestartTimeoutRef.current);
+					iceRestartTimeoutRef.current = setTimeout(() => {
+						initiateIceRestart(pc, partnerId);
+					}, 3000);
+				} else if (state === "failed") {
+					// Immediate restart on failure
+					if (iceRestartTimeoutRef.current) clearTimeout(iceRestartTimeoutRef.current);
+					initiateIceRestart(pc, partnerId);
+				} else if (state === "connected" || state === "completed") {
+					// Clear any pending restart timer if connection recovered
+					if (iceRestartTimeoutRef.current) {
+						clearTimeout(iceRestartTimeoutRef.current);
+						iceRestartTimeoutRef.current = null;
+					}
+				}
 			};
 
 			const offer = await pc.createOffer({
@@ -923,6 +1009,30 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 			);
 		}
 	}, []);
+
+	// ─── ICE Restart Helper ────────────────────────────────────────
+	// Creates a new offer with iceRestart flag to re-establish the peer connection
+	// after a network handoff (e.g., WiFi → cellular on mobile).
+	const initiateIceRestart = useCallback(async (pc: RTCPeerConnection, partnerId: string) => {
+		const sock = socketRef.current;
+		if (!sock || !pc) return;
+		logger.info("ICE restart: initiating", { partnerId });
+		try {
+			const offer = await pc.createOffer({
+				iceRestart: true,
+				offerToReceiveAudio: true,
+				offerToReceiveVideo: callState?.type === "video",
+			});
+			await pc.setLocalDescription(offer);
+			sock.emit("call:ice-restart", {
+				targetUserId: partnerId,
+				sdp: pc.localDescription,
+			});
+			logger.info("ICE restart: offer sent");
+		} catch (err) {
+			logger.error("ICE restart: failed", err);
+		}
+	}, [callState?.type]);
 
 	const handleLogout = useCallback(async () => {
 		try {
@@ -1868,17 +1978,24 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 								}
 								if (localStreamRef.current) {
 									localStreamRef.current.getTracks().forEach((t) => t.stop());
-								}
-
-								const stream = await navigator.mediaDevices.getUserMedia({
-									audio: true,
-									video: callState.type === "video",
-								});
-								localStreamRef.current = stream;
+								}							const stream = await navigator.mediaDevices.getUserMedia({
+								audio: {
+									echoCancellation: true,
+									noiseSuppression: true,
+									autoGainControl: true,
+								},
+								video: callState.type === "video",
+							});
+							localStreamRef.current = stream;
 
 				const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 								peerConnectionRef.current = pc;
 
+								// Use addTransceiver for reliable audio track negotiation across mobile browsers
+								pc.addTransceiver("audio", { direction: "sendrecv" });
+								if (callState.type === "video") {
+									pc.addTransceiver("video", { direction: "sendrecv" });
+								}
 								stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
 								pc.onicecandidate = (e) => {
@@ -1892,6 +2009,37 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 
 								pc.ontrack = (e) => {
 									logger.info("Call: received remote track", { kind: e.track.kind });
+								};
+
+								// ── ICE connection state monitoring (callee) ─────
+								callPartnerIdRef.current = callState.partnerId;
+								pc.oniceconnectionstatechange = () => {
+									const state = pc.iceConnectionState;
+									logger.info("ICE connection state changed (callee)", { state, partnerId: callState.partnerId });
+									setIceConnectionState(state);
+
+									if (state === "disconnected") {
+										if (iceRestartTimeoutRef.current) clearTimeout(iceRestartTimeoutRef.current);
+										iceRestartTimeoutRef.current = setTimeout(() => {
+											const currentPc = peerConnectionRef.current;
+											if (currentPc && callPartnerIdRef.current) {
+												initiateIceRestart(currentPc, callPartnerIdRef.current);
+											}
+										}, 3000);
+									} else if (state === "failed") {
+										if (iceRestartTimeoutRef.current) clearTimeout(iceRestartTimeoutRef.current);
+										setTimeout(() => {
+											const currentPc = peerConnectionRef.current;
+											if (currentPc && callPartnerIdRef.current) {
+												initiateIceRestart(currentPc, callPartnerIdRef.current);
+											}
+										}, 0);
+									} else if (state === "connected" || state === "completed") {
+										if (iceRestartTimeoutRef.current) {
+											clearTimeout(iceRestartTimeoutRef.current);
+											iceRestartTimeoutRef.current = null;
+										}
+									}
 								};
 
 								const offer = pendingCallOfferRef.current;
@@ -1928,6 +2076,7 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 						}}
 						localStreamRef={localStreamRef}
 						peerConnectionRef={peerConnectionRef}
+						iceConnectionState={iceConnectionState}
 					/>
 				</Suspense>
 			)}

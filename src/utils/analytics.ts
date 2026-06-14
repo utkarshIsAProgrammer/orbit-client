@@ -5,6 +5,8 @@
  * to help understand app performance and user behavior.
  */
 
+import { logger } from "./logger";
+
 interface PerformanceMetric {
   name: string;
   value: number;
@@ -80,10 +82,8 @@ class Analytics {
       this.metrics = this.metrics.slice(-this.maxMetrics);
     }
 
-    // Log in development
-    if (import.meta.env.DEV) {
-      console.log(`[Analytics] Metric: ${name} = ${value}ms`);
-    }
+    // Log in development only
+    logger.log(`[Analytics] Metric: ${name} = ${value}ms`);
   }
 
   /**
@@ -107,10 +107,8 @@ class Analytics {
       this.events = this.events.slice(-this.maxEvents);
     }
 
-    // Log in development
-    if (import.meta.env.DEV) {
-      console.log(`[Analytics] Event: ${eventName}`, properties);
-    }
+    // Log in development only
+    logger.log(`[Analytics] Event: ${eventName}`, properties);
   }
 
   /**

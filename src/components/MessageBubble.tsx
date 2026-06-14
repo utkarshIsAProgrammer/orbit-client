@@ -286,7 +286,7 @@ const MessageBubble = React.memo(function MessageBubble({
         )}
 
         <div className="flex items-center gap-1 px-1.5 text-[8px] font-bold text-zinc-550 select-none">
-          {msg.isEdited && !msg.isDeleted && !deletedForMe && <span>edited</span>}
+          {msg.isEdited && !msg.isDeleted && !deletedForMe && !msg.attachments?.some(a => a.type === "voice_note") && <span>edited</span>}
           <span>{formatMessageTime(msg.createdAt)}</span>
           {isMe && (
             <span title={(msg as any)._pending ? 'Sending...' : msg.seen ? 'Seen' : 'Sent'}>

@@ -49,6 +49,7 @@ const defaultProps = {
   user: mockUser,
   localStreamRef: mockLocalStreamRef,
   peerConnectionRef: mockPeerConnectionRef,
+  iceConnectionState: "new" as const,
   onEndCall: vi.fn(),
   onAcceptCall: vi.fn(),
   onRejectCall: vi.fn(),
