@@ -342,6 +342,12 @@ function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
         _activeVoiceNotePlayer.reset();
       }
 
+      // If duration is still 0 (blob URL with no metadata), try preload="auto" first
+      if (duration === 0 && url.startsWith("blob:")) {
+        audio.preload = "auto";
+        audio.load();
+      }
+
       // Attempt to play — catch failures (e.g. unsupported format, network error)
       audio.play().catch(() => {
         setHasError(true);
@@ -404,7 +410,7 @@ function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
     <div className={`flex items-center gap-2.5 py-1.5 px-1 min-w-[160px] ${isMe ? "flex-row" : "flex-row"}`}>
       <button
         onClick={togglePlay}
-        disabled={duration === 0 && !playing}
+        disabled={false}
         className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer ${
           playing
             ? "bg-indigo-500/30"
@@ -437,7 +443,7 @@ function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
       <audio
         ref={audioRef}
         src={url}
-        preload="metadata"
+        preload={url.startsWith("blob:") ? "auto" : "metadata"}
         onLoadedMetadata={() => {
           if (audioRef.current) {
             const d = audioRef.current.duration;

@@ -428,12 +428,11 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 
 		// Skip socket connection if no socket URL configured (e.g. frontend-only Vercel deploy)
 		if (!socketUrl) {
-			console.warn("[ORBIT SOCKET] No VITE_SOCKET_URL or VITE_API_URL configured — skipping connection. Real-time features disabled.");
+			logger.warn("[ORBIT SOCKET] No VITE_SOCKET_URL or VITE_API_URL configured — skipping connection. Real-time features disabled.");
 			return;
 		}
 
-		// TODO: revert these console logs back to logger after socket diagnostics complete
-		console.log("[ORBIT SOCKET] Connecting to:", socketUrl);
+		logger.info("[ORBIT SOCKET] Connecting to:", { socketUrl });
 
 		const socket = io(socketUrl, {
 			auth: token ? { token } : undefined,
@@ -449,13 +448,13 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 		setSocket(socket);
 
 		socket.on("connect", () => {
-			console.log("[ORBIT SOCKET] Connected successfully", { socketId: socket.id, userId });
+			logger.info("[ORBIT SOCKET] Connected successfully", { socketId: socket.id, userId });
 
 			// Mobile: when user returns to tab after phone was locked / app was backgrounded,
 			// the WebSocket may have been killed. Visibility change forces proactive reconnect.
 			const handleVisibility = () => {
 				if (document.visibilityState === "visible" && socketRef.current && !socketRef.current.connected) {
-					console.log("[ORBIT SOCKET] Tab became visible — reconnecting socket");
+					logger.info("[ORBIT SOCKET] Tab became visible — reconnecting socket");
 					socketRef.current.connect();
 				}
 			};
@@ -468,16 +467,15 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 		});
 
 		socket.on("disconnect", (reason) => {
-			console.warn("[ORBIT SOCKET] Disconnected:", { reason, userId });
+			logger.warn("[ORBIT SOCKET] Disconnected:", { reason, userId });
 		});
 
 		socket.on("reconnect_attempt", (attempt) => {
-			console.warn("[ORBIT SOCKET] Reconnection attempt #" + attempt, { userId });
+			logger.warn("[ORBIT SOCKET] Reconnection attempt #" + attempt, { userId });
 		});
 
 		socket.on("connect_error", (error) => {
-			// Bypass logger — use real console.error so it's visible in production for diagnostics
-			console.error("[ORBIT SOCKET] Connection error:", error.message, error);
+			logger.error("[ORBIT SOCKET] Connection error:", error.message);
 		});
 
 		// ── Realtime message updates when Chat.tsx is not mounted ──
@@ -517,7 +515,7 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 
 		// ── Realtime user presence status changes ──
 		socket.on("user:presence", ({ userId: presenceUserId, status }: { userId: string; status: "online" | "offline" }) => {
-			console.log("[ORBIT DIAG] user:presence received", { presenceUserId, status, uid });
+			logger.info("[ORBIT DIAG] user:presence received", { presenceUserId, status, uid });
 			setConversations((prev) =>
 				prev.map((c) => {
 					const other = c.participants.find((p) => p && p._id === presenceUserId);
@@ -661,7 +659,7 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 		// ── Realtime new posts in feed (prepend to home feed) ──
 		// Skip own posts since they're already in the local state from createPost response
 		socket.on("post:created", (post: any) => {
-			console.log("[ORBIT DIAG] post:created received", { postId: post._id, authorId: post.author?._id, uid });
+			logger.info("[ORBIT DIAG] post:created received", { postId: post._id, authorId: post.author?._id, uid });
 			if (post.author?._id === uid) return;
 			window.dispatchEvent(new CustomEvent("newPostCreated", { detail: { post } }));
 		});
