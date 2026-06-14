@@ -306,21 +306,57 @@ const MessageBubble = React.memo(function MessageBubble({
 }, arePropsEqual);
 
 // ─── Voice Note Player (inline audio player for voice messages) ─────
+
+// Module-level shared state: enforces that only one voice note plays at a time.
+// When a new voice note starts playing, any previously-playing one is paused
+// and its React state is reset so the UI reflects the stopped state.
+let _activeVoiceNotePlayer: {
+  audio: HTMLAudioElement;
+  reset: () => void;
+} | null = null;
+
 function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [hasError, setHasError] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
   const togglePlay = () => {
-    if (!audioRef.current) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+
     if (playing) {
-      audioRef.current.pause();
+      // Pause current
+      audio.pause();
+      setPlaying(false);
+      // Clear active ref if it's us
+      if (_activeVoiceNotePlayer?.audio === audio) {
+        _activeVoiceNotePlayer = null;
+      }
     } else {
-      audioRef.current.play();
+      // Stop any other playing voice note first
+      if (_activeVoiceNotePlayer && _activeVoiceNotePlayer.audio !== audio) {
+        _activeVoiceNotePlayer.audio.pause();
+        _activeVoiceNotePlayer.reset();
+      }
+
+      // Attempt to play — catch failures (e.g. unsupported format, network error)
+      audio.play().catch(() => {
+        setHasError(true);
+      });
+
+      _activeVoiceNotePlayer = {
+        audio,
+        reset: () => {
+          setPlaying(false);
+          setCurrentTime(0);
+        },
+      };
+      setPlaying(true);
+      setHasError(false);
     }
-    setPlaying(!playing);
   };
 
   const formatTime = (s: number) => {
@@ -330,11 +366,50 @@ function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
+  // Retry loading if audio failed
+  const handleRetry = () => {
+    setHasError(false);
+    setDuration(0);
+    if (audioRef.current) {
+      audioRef.current.load();
+    }
+  };
+
+  if (hasError) {
+    return (
+      <div className={`flex items-center gap-2 py-1.5 px-1 min-w-[160px] ${isMe ? "flex-row" : "flex-row"}`}>
+        <button
+          onClick={handleRetry}
+          className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer bg-red-500/20 hover:bg-red-500/30"
+          title="Retry loading"
+        >
+          <Play className="h-3.5 w-3.5 text-red-400 ml-0.5" />
+        </button>
+        <span className="text-[9px] text-red-400/60 font-mono">Failed to load</span>
+        <audio
+          ref={audioRef}
+          src={url}
+          preload="none"
+          onLoadedMetadata={() => {
+            if (audioRef.current) setDuration(audioRef.current.duration);
+            setHasError(false);
+          }}
+          onError={() => setHasError(true)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={`flex items-center gap-2.5 py-1.5 px-1 min-w-[160px] ${isMe ? "flex-row" : "flex-row"}`}>
       <button
         onClick={togglePlay}
-        className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer bg-white/10 hover:bg-white/20"
+        disabled={duration === 0 && !playing}
+        className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+          playing
+            ? "bg-indigo-500/30"
+            : "bg-white/10 hover:bg-white/20"
+        } disabled:opacity-40 disabled:cursor-not-allowed`}
       >
         {playing ? <Pause className="h-3.5 w-3.5 text-white" /> : <Play className="h-3.5 w-3.5 text-white ml-0.5" />}
       </button>
@@ -344,13 +419,19 @@ function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
             ref={progressRef}
             className="h-full rounded-full transition-all duration-150"
             style={{
-              width: duration > 0 ? `${(currentTime / duration) * 100}%` : "0%",
+              width: duration > 0 ? `${(currentTime / duration) * 100}%` : playing ? "100%" : "0%",
               backgroundColor: isMe ? "rgba(255,255,255,0.6)" : "rgba(99,102,241,0.6)",
             }}
           />
         </div>
         <span className="text-[9px] font-mono text-zinc-400 tabular-nums shrink-0">
-          {playing ? formatTime(currentTime) : formatTime(duration)}
+          {duration === 0 && !playing ? (
+            <span className="text-zinc-600">--:--</span>
+          ) : playing ? (
+            formatTime(currentTime)
+          ) : (
+            formatTime(duration)
+          )}
         </span>
       </div>
       <audio
@@ -358,7 +439,13 @@ function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
         src={url}
         preload="metadata"
         onLoadedMetadata={() => {
-          if (audioRef.current) setDuration(audioRef.current.duration);
+          if (audioRef.current) {
+            const d = audioRef.current.duration;
+            if (isFinite(d) && d > 0) {
+              setDuration(d);
+              setHasError(false);
+            }
+          }
         }}
         onTimeUpdate={() => {
           if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
@@ -366,6 +453,12 @@ function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
         onEnded={() => {
           setPlaying(false);
           setCurrentTime(0);
+          if (_activeVoiceNotePlayer?.audio === audioRef.current) {
+            _activeVoiceNotePlayer = null;
+          }
+        }}
+        onError={() => {
+          setHasError(true);
         }}
       />
     </div>
