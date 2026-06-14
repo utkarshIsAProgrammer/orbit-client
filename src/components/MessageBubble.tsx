@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Check, CheckCheck, Loader2, CornerDownLeft } from "lucide-react";
+import { Check, CheckCheck, Loader2, CornerDownLeft, Play, Pause } from "lucide-react";
 import UserAvatar from "./UserAvatar";
 import type { Message } from "../types";
 
@@ -244,18 +244,22 @@ const MessageBubble = React.memo(function MessageBubble({
               <p className="leading-relaxed whitespace-pre-wrap select-text break-word pr-1.5">{msg.text}</p>
               {msg.attachments && msg.attachments.length > 0 && (
                 <div className="mt-2 space-y-1.5 max-w-sm rounded-xl overflow-hidden border border-zinc-800">
-                  {msg.attachments.map((att, aIdx) => (
-                    <img loading="lazy"
-                      key={aIdx}
-                      src={att.url}
-                      alt={`Attachment from ${msg.sender.fullName}`}
-                      className="w-full h-auto max-h-60 object-cover cursor-pointer hover:opacity-90"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.dispatchEvent(new CustomEvent("openImagePreview", { detail: att.url }));
-                      }}
-                    />
-                  ))}
+                  {msg.attachments.map((att, aIdx) => {
+                    return att.type === "voice_note" ? (
+                      <VoiceNotePlayer key={aIdx} url={att.url} isMe={isMe} />
+                    ) : (
+                      <img loading="lazy"
+                        key={aIdx}
+                        src={att.url}
+                        alt={`Attachment from ${msg.sender.fullName}`}
+                        className="w-full h-auto max-h-60 object-cover cursor-pointer hover:opacity-90"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.dispatchEvent(new CustomEvent("openImagePreview", { detail: att.url }));
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </>
@@ -300,5 +304,71 @@ const MessageBubble = React.memo(function MessageBubble({
     </div>
   );
 }, arePropsEqual);
+
+// ─── Voice Note Player (inline audio player for voice messages) ─────
+function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (playing) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setPlaying(!playing);
+  };
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div className={`flex items-center gap-2.5 py-1.5 px-1 min-w-[160px] ${isMe ? "flex-row" : "flex-row"}`}>
+      <button
+        onClick={togglePlay}
+        className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer bg-white/10 hover:bg-white/20"
+      >
+        {playing ? <Pause className="h-3.5 w-3.5 text-white" /> : <Play className="h-3.5 w-3.5 text-white ml-0.5" />}
+      </button>
+      <div className="flex-1 flex items-center gap-2 min-w-0">
+        <div className="flex-1 h-1.5 bg-white/15 rounded-full overflow-hidden">
+          <div
+            ref={progressRef}
+            className="h-full rounded-full transition-all duration-150"
+            style={{
+              width: duration > 0 ? `${(currentTime / duration) * 100}%` : "0%",
+              backgroundColor: isMe ? "rgba(255,255,255,0.6)" : "rgba(99,102,241,0.6)",
+            }}
+          />
+        </div>
+        <span className="text-[9px] font-mono text-zinc-400 tabular-nums shrink-0">
+          {playing ? formatTime(currentTime) : formatTime(duration)}
+        </span>
+      </div>
+      <audio
+        ref={audioRef}
+        src={url}
+        preload="metadata"
+        onLoadedMetadata={() => {
+          if (audioRef.current) setDuration(audioRef.current.duration);
+        }}
+        onTimeUpdate={() => {
+          if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+        }}
+        onEnded={() => {
+          setPlaying(false);
+          setCurrentTime(0);
+        }}
+      />
+    </div>
+  );
+}
 
 export default MessageBubble;

@@ -16,6 +16,12 @@ import {
   Copy,
   Share2,
   User,
+  Mic,
+  Square,
+  Play,
+  Pause,
+  Phone,
+  Video,
 } from "lucide-react";
 import { Socket } from "socket.io-client";
 import { User as UserType, Conversation, Message, MessageReaction } from "../types";
@@ -36,9 +42,10 @@ interface ChatProps {
   onUserSelected: (username: string) => void;
   onBack: () => void;
   onChatConversationChange?: (hasActive: boolean) => void;
+  onStartCall?: (partnerId: string, partnerName: string, type: "audio" | "video") => void;
 }
 
-export default function Chat({ user, socket, conversations, setConversations, onUserSelected, onChatConversationChange }: ChatProps) {
+export default function Chat({ user, socket, conversations, setConversations, onUserSelected, onChatConversationChange, onStartCall }: ChatProps) {
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingConvs] = useState(false);
@@ -75,6 +82,17 @@ export default function Chat({ user, socket, conversations, setConversations, on
   // Message edit state
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [editText, setEditText] = useState("");
+
+  // Voice note recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
 
   // Reply state
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
@@ -599,6 +617,114 @@ export default function Chat({ user, socket, conversations, setConversations, on
     }
   };
 
+  // ─── Voice Note Recording ────────────────────────────────────────────
+  const handleMicToggle = async () => {
+    if (isRecording) {
+      // Stop recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      setIsRecording(false);
+    } else {
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunksRef.current = [];
+        setRecordingDuration(0);
+        
+        const recorder = new MediaRecorder(stream, {
+          mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+            ? "audio/webm;codecs=opus"
+            : "audio/webm",
+        });
+        
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
+        };
+        
+        recorder.onstop = () => {
+          const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+          setRecordedBlob(blob);
+          setRecordedUrl(URL.createObjectURL(blob));
+          // Stop all tracks to release the microphone
+          stream.getTracks().forEach((track) => track.stop());
+        };
+        
+        mediaRecorderRef.current = recorder;
+        recorder.start();
+        setIsRecording(true);
+        
+        // Start duration timer
+        recordingTimerRef.current = setInterval(() => {
+          setRecordingDuration((prev) => prev + 1);
+        }, 1000);
+      } catch (err) {
+        logger.error("Failed to start recording", err);
+        window.dispatchEvent(
+          new CustomEvent("showToast", {
+            detail: { message: "Microphone access denied. Please allow microphone permissions.", type: "error" },
+          })
+        );
+      }
+    }
+  };
+
+  const handleSendVoiceNote = async () => {
+    if (!selectedConv || !recordedBlob || sendingMessage) return;
+    setSendingMessage(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append("text", "");
+      const audioFile = new File([recordedBlob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+      formData.append("files", audioFile);
+      
+      if (replyToMessage) {
+        formData.append("replyTo", replyToMessage._id);
+      }
+      
+      const res = await apiFetch(`/api/chats/conversations/${selectedConv._id}/messages`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.sentMessage) {
+        setMessages((prev) => {
+          if (prev.some((m) => m._id === data.sentMessage._id)) return prev;
+          return [...prev, data.sentMessage];
+        });
+        scrollToBottom();
+        setReplyToMessage(null);
+      } else {
+        logger.error("Voice note send failed", data.message);
+        window.dispatchEvent(
+          new CustomEvent("showToast", {
+            detail: { message: data.message || "Failed to send voice note.", type: "error" },
+          })
+        );
+      }
+    } catch (err) {
+      logger.error("Voice note send failed", err);
+      window.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: { message: "Failed to send voice note. Please try again.", type: "error" },
+        })
+      );
+    } finally {
+      setSendingMessage(false);
+      setRecordedBlob(null);
+      setRecordedUrl(null);
+      setRecordingDuration(0);
+      if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+    }
+  };
+
   // Send message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -977,6 +1103,15 @@ export default function Chat({ user, socket, conversations, setConversations, on
     }
   };
 
+  // ─── WebRTC Call Initiation ──────────────────────────────────────
+  const handleStartCall = (type: "audio" | "video") => {
+    const partner = selectedConv ? getPartner(selectedConv) : null;
+    if (!partner) return;
+    if (onStartCall) {
+      onStartCall(partner._id, partner.fullName, type);
+    }
+  };
+
   // Handle reply
   const handleReplyMessage = (message: Message) => {
     setReplyToMessage(message);
@@ -1292,7 +1427,21 @@ export default function Chat({ user, socket, conversations, setConversations, on
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => handleStartCall("audio")}
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200/10 hover:border-green-500/20 bg-white/5 hover:bg-green-500/10 text-zinc-400 hover:text-green-400 transition-all cursor-pointer shadow-sm"
+                    title="Audio Call"
+                  >
+                    <Phone className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleStartCall("video")}
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200/10 hover:border-sky-500/20 bg-white/5 hover:bg-sky-500/10 text-zinc-400 hover:text-sky-400 transition-all cursor-pointer shadow-sm"
+                    title="Video Call"
+                  >
+                    <Video className="h-3.5 w-3.5" />
+                  </button>
                   <button
                     onClick={handleClearChat}
                     className="flex h-7 px-2.5 items-center gap-1.5 rounded-full border border-zinc-200/10 hover:border-red-500/20 bg-white/5 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition-all cursor-pointer shadow-sm text-[9px] font-black uppercase tracking-wider"
@@ -1443,6 +1592,65 @@ export default function Chat({ user, socket, conversations, setConversations, on
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </form>
+                ) : recordedUrl ? (
+                  <div className="flex items-center gap-3 px-2 py-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (audioPreviewRef.current) {
+                          if (isPlayingPreview) {
+                            audioPreviewRef.current.pause();
+                            audioPreviewRef.current.currentTime = 0;
+                          }
+                          setIsPlayingPreview(!isPlayingPreview);
+                          if (!isPlayingPreview) {
+                            audioPreviewRef.current.play();
+                          }
+                        }
+                      }}
+                      className="h-9 w-9 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 hover:bg-indigo-500/30 transition-all cursor-pointer shrink-0"
+                    >
+                      {isPlayingPreview ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    </button>
+                    <div className="flex-1 flex items-center gap-2 min-w-0">
+                      <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-500/60 rounded-full w-0" id="voice-preview-progress" />
+                      </div>
+                      <span className="text-[10px] font-mono text-zinc-400 tabular-nums">
+                        {recordingDuration}s
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRecordedBlob(null);
+                        setRecordedUrl(null);
+                        setRecordingDuration(0);
+                        setIsPlayingPreview(false);
+                        if (recordedBlob) {
+                          URL.revokeObjectURL(recordedUrl!);
+                        }
+                      }}
+                      className="h-7 w-7 rounded-full border border-zinc-700 bg-zinc-800/60 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all cursor-pointer shrink-0"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSendVoiceNote}
+                      className="flex shrink-0 items-center justify-center rounded-full bg-white text-black hover:bg-zinc-250 cursor-pointer shadow-md transition-all duration-200 h-9 w-9"
+                    >
+                      <Send className="h-4 w-4" />
+                    </button>
+                    <audio ref={audioPreviewRef} src={recordedUrl} onEnded={() => setIsPlayingPreview(false)} onTimeUpdate={() => {
+                      if (audioPreviewRef.current) {
+                        const progress = document.getElementById("voice-preview-progress");
+                        if (progress) {
+                          progress.style.width = `${(audioPreviewRef.current.currentTime / (audioPreviewRef.current.duration || 1)) * 100}%`;
+                        }
+                      }
+                    }} />
+                  </div>
                 ) : (
                   <form onSubmit={handleSendMessage} className="flex gap-2.5 items-center">
                     <div className="relative shrink-0">
@@ -1461,7 +1669,8 @@ export default function Chat({ user, socket, conversations, setConversations, on
                       >
                         <ImageIcon className="h-4.5 w-4.5" />
                       </button>
-                    </div>                    <div className="grow relative">
+                    </div>
+                    <div className="grow relative">
                       <input
                         type="text"
                         placeholder="Type a message..."
@@ -1484,9 +1693,29 @@ export default function Chat({ user, socket, conversations, setConversations, on
                       )}
                     </div>
 
+                    {isRecording ? (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                        <span className="text-[11px] font-mono text-red-400 tabular-nums">{recordingDuration}s</span>
+                      </div>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={handleMicToggle}
+                      disabled={sendingMessage}
+                      className={`flex shrink-0 items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${
+                        isRecording
+                          ? "h-9 w-9 bg-red-500 text-white hover:bg-red-600"
+                          : "h-9 w-9 bg-zinc-800/60 border border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-700"
+                      }`}
+                    >
+                      {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    </button>
+
                     <button
                       type="submit"
-                      disabled={sendingMessage || (!inputText.trim() && attachments.length === 0)}
+                      disabled={sendingMessage || (!inputText.trim() && attachments.length === 0 && !recordedBlob)}
                       className={`flex shrink-0 items-center justify-center rounded-full bg-white text-black hover:bg-zinc-250 cursor-pointer shadow-md disabled:opacity-30 disabled:hover:bg-white transition-all duration-200 ${
                         isKeyboardOpen ? "h-8 w-8" : "h-9 w-9"
                       }`}

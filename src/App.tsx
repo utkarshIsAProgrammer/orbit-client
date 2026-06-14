@@ -34,7 +34,8 @@ const Settings = React.lazy(() => import("./components/Settings"));
 const Chat = React.lazy(() => import("./components/Chat"));
 const ImagePreviewRenderer = React.lazy(() => import("./components/ImagePreviewRenderer"));
 const Dock = React.lazy(() => import("./components/Dock"));
-const PostModal = React.lazy(() => import("./components/PostModal"));	export default function App() {
+const PostModal = React.lazy(() => import("./components/PostModal"));
+const CallUI = React.lazy(() => import("./components/CallUI"));	export default function App() {
 	const [user, setUser] = useState<User | null>(null);
 	const [sessionChecked, setSessionChecked] = useState(false);
 	const [showAuthForm] = useState(true);
@@ -56,6 +57,16 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 		};
 		preloadComponents();
 	}, []);
+
+	// WebRTC peer connection refs (shared between Chat initiation and CallUI display)
+	const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+	const localStreamRef = useRef<MediaStream | null>(null);
+	const pendingCallOfferRef = useRef<{
+		sdp: RTCSessionDescriptionInit;
+		type: "audio" | "video";
+		partnerId: string;
+		partnerName: string;
+	} | null>(null);
 
 	// Memoize socket connection to prevent unnecessary reconnections
 	const socketRef = useRef<ReturnType<typeof io> | null>(null);
@@ -158,6 +169,17 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 		Record<string, boolean>
 	>({});
 	const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+	// Call State (WebRTC audio/video calls)
+	const [callState, setCallState] = useState<{
+		type: "audio" | "video";
+		status: "outgoing" | "incoming" | "active";
+		partnerId: string;
+		partnerName: string;
+		partnerAvatar?: string;
+		callerId?: string;
+		calleeId?: string;
+	} | null>(null);
 
 	// Global Toast Notification State
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -511,9 +533,23 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 		});
 
 		// ── Realtime chat notifications & badge increments ──
-		socket.on("chat:notification", (payload: { conversationId: string; message: any; unreadCount: number }) => {
+		socket.on("chat:notification", (payload: { conversationId: string; message: any; unreadCount: number; conversation?: any }) => {
 			logger.info("Received chat:notification event", payload);
 			setConversations((prev) => {
+				const existing = prev.find((c) => c._id === payload.conversationId);
+				// If the conversation doesn't exist yet, add it from the payload data
+				if (!existing && payload.conversation) {
+					const newConv = {
+						...payload.conversation,
+						presence: "offline" as const,
+						unreadCounts: { [userId]: payload.unreadCount },
+						lastMessage: payload.message,
+					};
+					return [newConv, ...prev].sort((a, b) => 
+						new Date(b.lastMessage?.createdAt || b.updatedAt).getTime() - 
+						new Date(a.lastMessage?.createdAt || a.updatedAt).getTime()
+					);
+				}
 				const updated = prev.map((c) => {
 					if (c._id === payload.conversationId) {
 						return {
@@ -529,15 +565,6 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 				});
 				return updated.sort((a, b) => new Date(b.lastMessage?.createdAt || b.updatedAt).getTime() - new Date(a.lastMessage?.createdAt || a.updatedAt).getTime());
 			});
-
-			window.dispatchEvent(
-				new CustomEvent("showToast", {
-					detail: {
-						message: `New message from ${payload.message.sender.fullName}: "${payload.message.text}"`,
-						type: "success",
-					},
-				})
-			);
 		});
 
 		// Listen for WebSocket events from server
@@ -723,6 +750,77 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 			logger.info("Received post:unpin event", data);
 			window.dispatchEvent(new CustomEvent("postUnpinned", { detail: { postId: data.postId, userId: data.userId } }));
 		});
+
+		// ── WebRTC Call Signaling ────────────────────────────────────────
+		socket.on("call:offer", (data: { callerId: string; sdp: any; type: "audio" | "video" }) => {
+			logger.info("Received call:offer", data);
+			// Store the offer SDP for when the user accepts the call
+			if (data.sdp) {
+				pendingCallOfferRef.current = {
+					sdp: data.sdp,
+					type: data.type,
+					partnerId: data.callerId,
+					partnerName: "Calling...",
+				};
+			}
+			setCallState({
+				type: data.type,
+				status: "incoming",
+				partnerId: data.callerId,
+				partnerName: "Calling...",
+			});
+		});
+
+		socket.on("call:answer", async (data: { calleeId: string; sdp: any }) => {
+			logger.info("Received call:answer", data);
+			const pc = peerConnectionRef.current;
+			if (pc && data.sdp) {
+				try {
+					await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+				} catch (err) {
+					logger.error("Failed to set remote description from answer", err);
+				}
+			}
+			setCallState((prev) => prev ? { ...prev, status: "active" } : prev);
+		});
+
+		socket.on("call:ice-candidate", async (data: { senderId: string; candidate: any }) => {
+			logger.info("Received call:ice-candidate", data);
+			const pc = peerConnectionRef.current;
+			if (pc && data.candidate) {
+				try {
+					await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+				} catch (err) {
+					logger.error("Failed to add ICE candidate", err);
+				}
+			}
+		});
+
+		socket.on("call:end", (data: { endedBy: string }) => {
+			logger.info("Received call:end", data);
+			// Clean up peer connection and local stream
+			if (peerConnectionRef.current) {
+				peerConnectionRef.current.close();
+				peerConnectionRef.current = null;
+			}
+			if (localStreamRef.current) {
+				localStreamRef.current.getTracks().forEach((t) => t.stop());
+				localStreamRef.current = null;
+			}
+			pendingCallOfferRef.current = null;
+			setCallState(null);
+		});
+
+		socket.on("call:missed", (data: { callerId: string }) => {
+			logger.info("Received call:missed", data);
+			pendingCallOfferRef.current = null;
+			setCallState(null);
+			window.dispatchEvent(
+				new CustomEvent("showToast", {
+					detail: { message: "Missed call", type: "success" },
+				})
+			);
+		});
 	};
 
 	const handleAuthSuccess = useCallback((authUser: User, token?: string) => {
@@ -739,6 +837,75 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 		// Request permission for native OS notifications
 		if ("Notification" in window && Notification.permission === "default") {
 			Notification.requestPermission();
+		}
+	}, []);
+
+	// ─── WebRTC Call Initiation ────────────────────────────────────────
+	const handleStartCall = useCallback(async (partnerId: string, partnerName: string, type: "audio" | "video") => {
+		const sock = socketRef.current;
+		if (!sock) return;
+
+		// Clean up any previous call
+		if (peerConnectionRef.current) {
+			peerConnectionRef.current.close();
+		}
+		if (localStreamRef.current) {
+			localStreamRef.current.getTracks().forEach((t) => t.stop());
+		}
+
+		setCallState({ type, status: "outgoing", partnerId, partnerName });
+
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({
+				audio: true,
+				video: type === "video",
+			});
+			localStreamRef.current = stream;
+
+			const pc = new RTCPeerConnection({
+				iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+			});
+			peerConnectionRef.current = pc;
+
+			stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+			pc.onicecandidate = (e) => {
+				if (e.candidate) {
+					sock.emit("call:ice-candidate", {
+						targetUserId: partnerId,
+						candidate: e.candidate,
+					});
+				}
+			};
+
+			pc.ontrack = (e) => {
+				// Remote stream received — the CallUI component's remoteVideoRef will pick it up
+				logger.info("Call: received remote track", { kind: e.track.kind });
+			};
+
+			const offer = await pc.createOffer({
+				offerToReceiveAudio: true,
+				offerToReceiveVideo: type === "video",
+			});
+			await pc.setLocalDescription(offer);
+
+			sock.emit("call:offer", {
+				targetUserId: partnerId,
+				sdp: pc.localDescription,
+				type,
+			});
+		} catch (err) {
+			logger.error("Failed to start call", err);
+			setCallState(null);
+			if (localStreamRef.current) {
+				localStreamRef.current.getTracks().forEach((t) => t.stop());
+				localStreamRef.current = null;
+			}
+			window.dispatchEvent(
+				new CustomEvent("showToast", {
+					detail: { message: "Failed to start call. Please check camera/microphone permissions.", type: "error" },
+				})
+			);
 		}
 	}, []);
 
@@ -1427,13 +1594,11 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 																		setTab("home")
 																	}
 																	onChatConversationChange={setHasActiveConversation}
+																	onStartCall={handleStartCall}
 																/>
 																</motion.div>
-															)}
-														</AnimatePresence>
-													</Suspense>
-												</ErrorBoundary>
-											</div>{" "}
+															)}                        </AnimatePresence>											</Suspense>										</ErrorBoundary>
+										</div>{" "}
 											{/* Right Sidebar: Dual Liquid Glass Containers for Suggestions & Features */}
 											{user && currentTab !== "chat" && (
 												<div className="lg:col-span-3 w-full space-y-5 hidden lg:flex flex-col h-full overflow-hidden select-none shrink-0 pb-24">
@@ -1649,6 +1814,110 @@ const PostModal = React.lazy(() => import("./components/PostModal"));	export def
 						</motion.div>
 					)}
 				</AnimatePresence>
+
+			{/* Call UI Overlay (outside main layout flow) */}
+			{callState && socket && (
+				<Suspense fallback={null}>
+					<CallUI
+						socket={socket}
+						user={{
+							_id: user?._id || "",
+							fullName: user?.fullName || "",
+							profilePic: user?.profilePic,
+						}}
+						callState={{
+							type: callState.type,
+							status: callState.status,
+							partnerId: callState.partnerId,
+							partnerName: callState.partnerName,
+							partnerAvatar: callState.partnerAvatar,
+						}}
+						onEndCall={() => {
+							socket.emit("call:end", { targetUserId: callState.partnerId });
+							if (peerConnectionRef.current) {
+								peerConnectionRef.current.close();
+								peerConnectionRef.current = null;
+							}
+							if (localStreamRef.current) {
+								localStreamRef.current.getTracks().forEach((t) => t.stop());
+								localStreamRef.current = null;
+							}
+							pendingCallOfferRef.current = null;
+							setCallState(null);
+						}}
+						onAcceptCall={async () => {
+							try {
+								// Clean up any existing PC/stream
+								if (peerConnectionRef.current) {
+									peerConnectionRef.current.close();
+								}
+								if (localStreamRef.current) {
+									localStreamRef.current.getTracks().forEach((t) => t.stop());
+								}
+
+								const stream = await navigator.mediaDevices.getUserMedia({
+									audio: true,
+									video: callState.type === "video",
+								});
+								localStreamRef.current = stream;
+
+								const pc = new RTCPeerConnection({
+									iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+								});
+								peerConnectionRef.current = pc;
+
+								stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+								pc.onicecandidate = (e) => {
+									if (e.candidate) {
+										socket.emit("call:ice-candidate", {
+											targetUserId: callState.partnerId,
+											candidate: e.candidate,
+										});
+									}
+								};
+
+								pc.ontrack = (e) => {
+									logger.info("Call: received remote track", { kind: e.track.kind });
+								};
+
+								const offer = pendingCallOfferRef.current;
+								if (offer?.sdp) {
+									await pc.setRemoteDescription(new RTCSessionDescription(offer.sdp));
+									const answer = await pc.createAnswer();
+									await pc.setLocalDescription(answer);
+									socket.emit("call:answer", {
+										targetUserId: callState.partnerId,
+										sdp: pc.localDescription,
+									});
+								}
+
+								pendingCallOfferRef.current = null;
+								setCallState((prev) => prev ? { ...prev, status: "active" } : prev);
+							} catch (err) {
+								logger.error("Failed to accept call", err);
+								if (localStreamRef.current) {
+									localStreamRef.current.getTracks().forEach((t) => t.stop());
+									localStreamRef.current = null;
+								}
+								pendingCallOfferRef.current = null;
+								setCallState(null);
+								window.dispatchEvent(
+									new CustomEvent("showToast", {
+										detail: { message: "Failed to accept call.", type: "error" },
+									})
+								);
+							}
+						}}										onRejectCall={() => {
+							socket.emit("call:end", { targetUserId: callState.partnerId });
+							pendingCallOfferRef.current = null;
+							setCallState(null);
+						}}
+						localStreamRef={localStreamRef}
+						peerConnectionRef={peerConnectionRef}
+					/>
+				</Suspense>
+			)}
 			</div>
 		</ErrorBoundary>
 	);

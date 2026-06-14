@@ -23,15 +23,19 @@ export default function ImageCarousel({
   const minSwipeDistance = 50;
 
   const onTouchStart = (e: React.TouchEvent) => {
+    // Stop propagation so the post card's swipe-to-like/repost handler doesn't fire
+    e.stopPropagation();
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
+    e.stopPropagation();
     setTouchEnd(e.targetTouches[0].clientX);
   };
 
-  const onTouchEnd = useCallback(() => {
+  const onTouchEnd = useCallback((e?: React.TouchEvent) => {
+    if (e) e.stopPropagation();
     if (touchStart === null || touchEnd === null) return;
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > minSwipeDistance;
