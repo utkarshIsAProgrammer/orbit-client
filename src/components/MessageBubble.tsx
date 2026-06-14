@@ -315,7 +315,40 @@ let _activeVoiceNotePlayer: {
   reset: () => void;
 } | null = null;
 
+/**
+ * Transform a Cloudinary audio URL to transcode on-the-fly to a universally playable format.
+ * iOS Safari cannot play audio/webm (Chrome's default recording format), but Cloudinary
+ * can transcode to MP3 (supported everywhere) via its URL transformation API.
+ *
+ * Example:
+ *   input:  https://res.cloudinary.com/demo/video/upload/v123/orbit/chats/voice_notes/rec.wav
+ *   output: https://res.cloudinary.com/demo/video/upload/f_mp3/v123/orbit/chats/voice_notes/rec.wav
+ */
+function getPlayableUrl(originalUrl: string): string {
+  // Only transform Cloudinary URLs that might not be universally playable
+  if (!originalUrl.includes("cloudinary.com")) return originalUrl;
+
+  // Extract the format from the URL (last segment before any query params)
+  const pathname = originalUrl.split("?")[0];
+  const ext = pathname.split(".").pop()?.toLowerCase() || "";
+
+  // Formats that are universally playable on all devices (iOS Safari included)
+  const universallyPlayable = ["mp3", "m4a", "aac", "wav"];
+  if (universallyPlayable.includes(ext)) return originalUrl;
+
+  // Skip URLs that already have transformation segments (prevent double-transformation)
+  if (originalUrl.includes("/video/upload/f_")) return originalUrl;
+
+  // For webm, ogg, or any other exotic format, inject f_mp3 transformation
+  // to transcode on-the-fly via Cloudinary's API
+  return originalUrl.replace(
+    /(\/video\/upload\/)(.*)/,
+    "$1f_mp3/$2"
+  );
+}
+
 function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
+  const playableUrl = getPlayableUrl(url);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -384,18 +417,18 @@ function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
   if (hasError) {
     return (
       <div className={`flex items-center gap-2 py-1.5 px-1 min-w-[160px] ${isMe ? "flex-row" : "flex-row"}`}>
-        <button
-          onClick={handleRetry}
-          className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer bg-red-500/20 hover:bg-red-500/30"
-          title="Retry loading"
-        >
-          <Play className="h-3.5 w-3.5 text-red-400 ml-0.5" />
-        </button>
-        <span className="text-[9px] text-red-400/60 font-mono">Failed to load</span>
-        <audio
-          ref={audioRef}
-          src={url}
-          preload="none"
+      <button
+        onClick={handleRetry}
+        className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-all cursor-pointer bg-red-500/20 hover:bg-red-500/30"
+        title="Retry loading"
+      >
+        <Play className="h-3.5 w-3.5 text-red-400 ml-0.5" />
+      </button>
+      <span className="text-[9px] text-red-400/60 font-mono">Failed to load</span>
+      <audio
+        ref={audioRef}
+        src={playableUrl}
+        preload="none"
           onLoadedMetadata={() => {
             if (audioRef.current) setDuration(audioRef.current.duration);
             setHasError(false);
@@ -442,7 +475,7 @@ function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
       </div>
       <audio
         ref={audioRef}
-        src={url}
+        src={playableUrl}
         preload={url.startsWith("blob:") ? "auto" : "metadata"}
         onLoadedMetadata={() => {
           if (audioRef.current) {
