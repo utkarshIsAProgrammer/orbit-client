@@ -839,10 +839,10 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 			} catch (err) {
 				logger.error("ICE restart: failed to handle remote offer", err);
 			}
-		});
-
-		socket.on("call:end", (data: { endedBy: string }) => {
+		});			socket.on("call:end", (data: { endedBy: string }) => {
 			logger.info("Received call:end", data);
+			// Clean up bitrate monitor first (stops polling before PC is closed)
+			cleanupBitrateMonitor(peerConnectionRef.current);
 			// Clean up peer connection and local stream
 			if (peerConnectionRef.current) {
 				peerConnectionRef.current.close();
@@ -905,6 +905,109 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 		return sdp.replace(regex, `a=fmtp:${pt} maxaveragebitrate=64000;useinbandfec=1`);
 	};
 
+	// ─── Video Codec & SVC Helpers ────────────────────────────────────
+	// Prioritises VP9 (which supports SVC for network adaptation) over H.264.
+	// Falls back gracefully if the browser/hardware doesn't support VP9.
+	const getPreferredVideoCodec = (): { mimeType: string } | null => {
+		const caps = RTCRtpSender.getCapabilities('video');
+		if (!caps) return null;
+		// VP9 is preferred for its SVC (scalable video coding) support
+		const vp9 = caps.codecs.find(c => c.mimeType === 'video/VP9');
+		if (vp9) return vp9;
+		// Fall back to VP8 (universal support)
+		return caps.codecs.find(c => c.mimeType === 'video/VP8') || null;
+	};
+
+	// Reusable cleanup helper for bitrate monitor stored on peer connections.
+	// Called before closing a PC to prevent the getStats polling interval from leaking.
+	const cleanupBitrateMonitor = (pc: RTCPeerConnection | null) => {
+		if (!pc) return;
+		try {
+			const cleanup = (pc as any).__bitrateMonitorCleanup;
+			if (typeof cleanup === 'function') {
+				cleanup();
+			}
+			delete (pc as any).__bitrateMonitorCleanup;
+		} catch { /* best-effort cleanup */ }
+	};
+
+	// Attempts to configure VP9 SVC (scalabilityMode L3T3) on the video sender.
+	// L3T3 = 3 temporal layers — allows the browser to drop frame rate
+	// gracefully when network bandwidth drops, avoiding complete freeze.
+	// Falls back silently on browsers/codecs that don't support it.
+	const tryConfigureVideoSvc = async (pc: RTCPeerConnection) => {
+		const videoSender = pc.getSenders().find(s => s.track?.kind === 'video');
+		if (!videoSender) return;
+
+		try {
+			const params = videoSender.getParameters();
+			if (!params.encodings || params.encodings.length === 0) {
+				params.encodings = [{}];
+			}
+			// Set temporal scalability — the browser will auto-adjust frame rate
+			// based on network congestion without needing manual bitrate tuning.
+			(params.encodings[0] as any).scalabilityMode = 'L3T3';
+			await videoSender.setParameters(params);
+			logger.info('[SVC] VP9 L3T3 scalability configured');
+		} catch (err) {
+			// SVC not supported — this is expected on older browsers or
+			// when the codec isn't VP9. The call will work with default settings.
+			logger.info('[SVC] Not supported, using browser defaults');
+		}
+	};
+
+	// Monitors video sender stats and adjusts maxBitrate based on the
+	// available bandwidth reported by WebRTC's internal congestion control.
+	// This provides an additional layer of adaptation beyond SVC temporal layers.
+	const startBitrateMonitor = (pc: RTCPeerConnection, type: 'audio' | 'video'): (() => void) => {
+		if (type !== 'video') return () => {};
+
+		let lastMaxBitrate = 0;
+
+		const timer = setInterval(async () => {
+			try {
+				const stats = await pc.getStats();
+				let availableBitrate = 0;
+
+				stats.forEach(report => {
+					// Use the remote candidate-pair's available outgoing bitrate
+					if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+						availableBitrate = report.availableOutgoingBitrate || 0;
+					}
+					// Also check for "bandwidth-estimation" type if available
+					if (report.type === 'bandwidth-estimation' && report.availableBitrate) {
+						availableBitrate = report.availableBitrate;
+					}
+				});
+
+				if (availableBitrate > 0) {
+					const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+					if (!sender) return;
+
+					const params = sender.getParameters();
+					if (!params.encodings || params.encodings.length === 0) return;
+
+					// Set maxBitrate to 90% of estimated bandwidth (leaving headroom for audio/retransmits)
+					const newMax = Math.floor(availableBitrate * 0.9);
+					// Only update if changed by more than 10% to avoid churn
+					if (Math.abs(newMax - lastMaxBitrate) > lastMaxBitrate * 0.1) {
+						params.encodings[0].maxBitrate = newMax;
+						await sender.setParameters(params);
+						logger.info(`[Bitrate] Adjusted to ${Math.round(newMax / 1000)} kbps (available: ${Math.round(availableBitrate / 1000)} kbps)`);
+						lastMaxBitrate = newMax;
+					}
+				}
+			} catch {
+				// Stats polling is best-effort
+			}
+		}, 3000);
+
+		return () => {
+			clearInterval(timer);
+			lastMaxBitrate = 0;
+		};
+	};
+
 	// ─── WebRTC Call Initiation ────────────────────────────────────────
 	const ICE_SERVERS: RTCIceServer[] = [
 		{ urls: "stun:stun.l.google.com:19302" },
@@ -943,8 +1046,9 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 					echoCancellation: true,
 					noiseSuppression: true,
 					autoGainControl: true,
-					sampleRate: 48000,
-					channelCount: 1,
+					// ⚠️ Intentionally omitting sampleRate/channelCount.
+					// Letting the browser use its native audio format prevents
+					// AEC pipeline conflicts (resampling/downmixing) that cause echo.
 				},
 				video: type === "video",
 			});
@@ -953,7 +1057,35 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 			const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 			peerConnectionRef.current = pc;
 
-			stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+			// Add audio track (via addTrack — simple, no encodings needed)
+			stream.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
+
+			// Add video track via addTransceiver for SVC encoding configuration
+			const videoTracks = stream.getVideoTracks();
+			if (type === 'video' && videoTracks.length > 0) {
+				const videoCodec = getPreferredVideoCodec();
+				const videoTransceiver = pc.addTransceiver(videoTracks[0], {
+					streams: [stream],
+					direction: 'sendrecv',
+					sendEncodings: [
+						{
+							rid: 'q',
+							active: true,
+							maxBitrate: 2_500_000, // 2.5 Mbps ceiling — plenty for HD
+						},
+					],
+				});
+				// Prefer VP9 (supports SVC) when available
+				if (videoCodec) {
+					try {
+						(videoTransceiver as any).setCodecPreferences([videoCodec]);
+					} catch { /* codec preference not supported */ }
+				}
+				// Also add any remaining video tracks (e.g. from secondary cameras)
+				for (let i = 1; i < videoTracks.length; i++) {
+					pc.addTrack(videoTracks[i], stream);
+				}
+			}
 
 			pc.onicecandidate = (e) => {
 				if (e.candidate) {
@@ -1012,11 +1144,27 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 			offer.sdp = setOpusBitrate(offer.sdp || "");
 			await pc.setLocalDescription(offer);
 
+			// Configure VP9 SVC for adaptive video quality
+			if (type === 'video') {
+				tryConfigureVideoSvc(pc).catch(() => {});
+			}
+
 			sock.emit("call:offer", {
 				targetUserId: partnerId,
 				sdp: pc.localDescription,
 				type,
 			});
+
+			// Start bandwidth-aware bitrate monitor for video calls
+			// This polls getStats() every 3s and adjusts the video encoder's
+			// max bitrate based on the available bandwidth reported by WebRTC's
+			// internal congestion control (Google Congestion Control / GCC).
+			// Cleans up automatically when the peer connection is closed.
+			if (type === 'video') {
+				const stopMonitor = startBitrateMonitor(pc, type);
+				// Store the cleanup function on the pc for later disposal
+				(pc as any).__bitrateMonitorCleanup = stopMonitor;
+			}
 		} catch (err) {
 			logger.error("Failed to start call", err);
 			setCallState(null);
@@ -1981,6 +2129,8 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 						}}
 						onEndCall={() => {
 							socket.emit("call:end", { targetUserId: callState.partnerId });
+							// Stop bitrate monitor before closing PC
+							cleanupBitrateMonitor(peerConnectionRef.current);
 							if (peerConnectionRef.current) {
 								peerConnectionRef.current.close();
 								peerConnectionRef.current = null;
@@ -2005,8 +2155,6 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 									echoCancellation: true,
 									noiseSuppression: true,
 									autoGainControl: true,
-									sampleRate: 48000,
-									channelCount: 1,
 								},
 								video: callState.type === "video",
 							});
@@ -2015,7 +2163,33 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 				const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 								peerConnectionRef.current = pc;
 
-				stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+				// Add audio track
+				stream.getAudioTracks().forEach((track) => pc.addTrack(track, stream));
+
+				// Add video track via addTransceiver for SVC (same as caller setup)
+				const videoTracks = stream.getVideoTracks();
+				if (callState.type === 'video' && videoTracks.length > 0) {
+					const videoCodec = getPreferredVideoCodec();
+					const videoTransceiver = pc.addTransceiver(videoTracks[0], {
+						streams: [stream],
+						direction: 'sendrecv',
+						sendEncodings: [
+							{
+								rid: 'q',
+								active: true,
+								maxBitrate: 2_500_000,
+							},
+						],
+					});
+					if (videoCodec) {
+						try {
+							(videoTransceiver as any).setCodecPreferences([videoCodec]);
+						} catch { /* codec preference not supported */ }
+					}
+					for (let i = 1; i < videoTracks.length; i++) {
+						pc.addTrack(videoTracks[i], stream);
+					}
+				}
 
 								pc.onicecandidate = (e) => {
 									if (e.candidate) {
@@ -2076,10 +2250,22 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 									const answer = await pc.createAnswer();
 									answer.sdp = setOpusBitrate(answer.sdp || "");
 									await pc.setLocalDescription(answer);
+
+									// Configure VP9 SVC for adaptive video quality (callee side)
+									if (callState.type === 'video') {
+										tryConfigureVideoSvc(pc).catch(() => {});
+									}
+
 									socket.emit("call:answer", {
 										targetUserId: callState.partnerId,
 										sdp: pc.localDescription,
 									});
+								}
+
+								// Start bandwidth-aware bitrate monitor (callee side)
+								if (callState.type === 'video') {
+									const stopMonitor = startBitrateMonitor(pc, callState.type);
+									(pc as any).__bitrateMonitorCleanup = stopMonitor;
 								}
 
 								pendingCallOfferRef.current = null;
