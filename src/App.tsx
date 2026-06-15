@@ -61,6 +61,7 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 	// WebRTC peer connection refs (shared between Chat initiation and CallUI display)
 	const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
 	const localStreamRef = useRef<MediaStream | null>(null);
+	const remoteStreamRef = useRef<MediaStream | null>(null);
 	const pendingCallOfferRef = useRef<{
 		sdp: RTCSessionDescriptionInit;
 		type: "audio" | "video";
@@ -936,11 +937,6 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 			const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 			peerConnectionRef.current = pc;
 
-			// Use addTransceiver for reliable audio track negotiation across mobile browsers
-			pc.addTransceiver("audio", { direction: "sendrecv" });
-			if (type === "video") {
-				pc.addTransceiver("video", { direction: "sendrecv" });
-			}
 			stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
 			pc.onicecandidate = (e) => {
@@ -953,8 +949,17 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 			};
 
 			pc.ontrack = (e) => {
-				// Remote stream received — the CallUI component's remoteVideoRef will pick it up
 				logger.info("Call: received remote track", { kind: e.track.kind });
+				// Store the remote stream immediately in the ref so CallUI can wire it
+				// even if the component hasn't mounted its ontrack handler yet.
+				const stream = e.streams[0];
+				if (stream) {
+					remoteStreamRef.current = stream;
+				} else if (!remoteStreamRef.current) {
+					remoteStreamRef.current = new MediaStream([e.track]);
+				} else {
+					remoteStreamRef.current.addTrack(e.track);
+				}
 			};
 
 			// ── ICE connection state monitoring ───────────────────────
@@ -1991,12 +1996,7 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 				const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 								peerConnectionRef.current = pc;
 
-								// Use addTransceiver for reliable audio track negotiation across mobile browsers
-								pc.addTransceiver("audio", { direction: "sendrecv" });
-								if (callState.type === "video") {
-									pc.addTransceiver("video", { direction: "sendrecv" });
-								}
-								stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+				stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
 								pc.onicecandidate = (e) => {
 									if (e.candidate) {
@@ -2007,9 +2007,18 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 									}
 								};
 
-								pc.ontrack = (e) => {
-									logger.info("Call: received remote track", { kind: e.track.kind });
-								};
+				pc.ontrack = (e) => {
+					logger.info("Call: received remote track (callee)", { kind: e.track.kind });
+					// Store the remote stream immediately in the ref so CallUI can wire it
+					const stream = e.streams[0];
+					if (stream) {
+						remoteStreamRef.current = stream;
+					} else if (!remoteStreamRef.current) {
+						remoteStreamRef.current = new MediaStream([e.track]);
+					} else {
+						remoteStreamRef.current.addTrack(e.track);
+					}
+				};
 
 								// ── ICE connection state monitoring (callee) ─────
 								callPartnerIdRef.current = callState.partnerId;
@@ -2076,6 +2085,7 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 						}}
 						localStreamRef={localStreamRef}
 						peerConnectionRef={peerConnectionRef}
+						remoteStreamRef={remoteStreamRef}
 						iceConnectionState={iceConnectionState}
 					/>
 				</Suspense>

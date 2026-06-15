@@ -43,12 +43,14 @@ const mockUser = { _id: "user1", fullName: "Test User", profilePic: { url: "/ava
 const mockSocket = { emit: vi.fn(), on: vi.fn(), off: vi.fn() } as any;
 const mockLocalStreamRef = { current: null } as any;
 const mockPeerConnectionRef = { current: null } as any;
+const mockRemoteStreamRef = { current: null } as any;
 
 const defaultProps = {
   socket: mockSocket,
   user: mockUser,
   localStreamRef: mockLocalStreamRef,
   peerConnectionRef: mockPeerConnectionRef,
+  remoteStreamRef: mockRemoteStreamRef,
   iceConnectionState: "new" as const,
   onEndCall: vi.fn(),
   onAcceptCall: vi.fn(),

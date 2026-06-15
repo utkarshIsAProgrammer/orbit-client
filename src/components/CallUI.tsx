@@ -20,6 +20,7 @@ interface CallUIProps {
   onRejectCall: () => void;
   localStreamRef: React.MutableRefObject<MediaStream | null>;
   peerConnectionRef: React.MutableRefObject<RTCPeerConnection | null>;
+  remoteStreamRef: React.MutableRefObject<MediaStream | null>;
   iceConnectionState: RTCIceConnectionState | "new";
 }
 
@@ -31,6 +32,7 @@ export default function CallUI({
   onRejectCall,
   localStreamRef,
   peerConnectionRef,
+  remoteStreamRef,
   iceConnectionState,
 }: CallUIProps) {
   const [isMuted, setIsMuted] = useState(false);
@@ -53,22 +55,23 @@ export default function CallUI({
   const vibrationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // ─── Ringtone + Vibration for Incoming Calls ───────────────
-  // Generates a classic two-tone phone ring using Web Audio API oscillators
-  // (440Hz + 480Hz, pulsed rhythm ~400ms on / ~200ms off) and triggers
-  // device vibration on mobile browsers.
+  // Generates a pleasant melodic ringtone using Web Audio API.
+  // Uses two triangle-wave oscillators playing a short ascending
+  // four-note phrase (440→523→587→440 Hz) in a repeating pattern,
+  // with a soft attack/release envelope.
   const startRingtone = () => {
     try {
       const ctx = new AudioContext();
       ringtoneCtxRef.current = ctx;
 
-      // Two oscillators at classic telephone frequencies for a richer ring
+      // Two triangle-wave oscillators — triangle is warmer/softer than sine
       const osc1 = ctx.createOscillator();
-      osc1.type = "sine";
+      osc1.type = "triangle";
       osc1.frequency.value = 440;
 
       const osc2 = ctx.createOscillator();
-      osc2.type = "sine";
-      osc2.frequency.value = 480;
+      osc2.type = "triangle";
+      osc2.frequency.value = 523;
 
       const gain = ctx.createGain();
       gain.gain.value = 0;
@@ -84,27 +87,53 @@ export default function CallUI({
       ringtoneOsc2Ref.current = osc2;
       ringtoneGainRef.current = gain;
 
-      // Attempt to resume AudioContext — on desktop this starts the oscillator
-      // immediately; on iOS it will fail silently (requires user gesture) which
-      // is the acceptable fallback.
+      // Attempt to resume AudioContext
       ctx.resume().catch(() => {});
 
-      // Create a pulsing rhythm: ring for 400ms, pause for 200ms
-      const cycleDuration = 0.6; // 600ms total per cycle
-      const ringDuration = 0.4;  // 400ms audible
+      // ── Musical ring pattern ──
+      // A repeating 4-note ascending phrase: 440→523→587→440 Hz
+      // Each note rings for ~250ms with a 50ms gap between notes.
+      // After the 4-note phrase, there's a ~600ms silence, then repeat.
+      const notes = [
+        { freq1: 440, freq2: 523, dur: 0.25 },
+        { freq1: 523, freq2: 587, dur: 0.25 },
+        { freq1: 587, freq2: 659, dur: 0.25 },
+        { freq1: 440, freq2: 523, dur: 0.35 }, // slightly longer final note
+      ];
+      const noteGap = 0.05; // 50ms gap between notes
+      const phrasePause = 0.6; // 600ms pause before repeating
+      const phraseDuration = notes.reduce((acc, n) => acc + n.dur + noteGap, 0) + phrasePause;
 
-      const scheduleCycle = () => {
+      const schedulePhrase = () => {
         const ctxAlive = ringtoneCtxRef.current;
         if (!ctxAlive || ctxAlive.state === "closed") return;
-        const t = ctxAlive.currentTime;
-        gain.gain.setValueAtTime(0.3, t);
-        gain.gain.linearRampToValueAtTime(0.3, t + ringDuration);
-        gain.gain.setValueAtTime(0, t + ringDuration);
+
+        const baseTime = ctxAlive.currentTime;
+
+        // Schedule each note in the phrase
+        let noteTime = baseTime;
+        notes.forEach((note) => {
+          // Attack: ramp up to volume
+          gain.gain.setValueAtTime(0, noteTime);
+          gain.gain.linearRampToValueAtTime(0.25, noteTime + 0.02);
+
+          // Set frequencies for this note
+          osc1.frequency.setValueAtTime(note.freq1, noteTime);
+          osc2.frequency.setValueAtTime(note.freq2, noteTime);
+
+          // Release: fade out before next note
+          const noteEnd = noteTime + note.dur;
+          gain.gain.setValueAtTime(0.25, noteEnd - 0.02);
+          gain.gain.linearRampToValueAtTime(0, noteEnd);
+
+          noteTime = noteEnd + noteGap;
+        });
       };
 
-      // Schedule the first few cycles ahead
-      scheduleCycle();
-      ringtoneTimerRef.current = setInterval(scheduleCycle, cycleDuration * 1000);
+      // Schedule the first phrase immediately
+      schedulePhrase();
+      // Repeat the phrase
+      ringtoneTimerRef.current = setInterval(schedulePhrase, phraseDuration * 1000);
     } catch (err) {
       logger.warn("Ringtone unavailable:", err);
     }
@@ -174,25 +203,56 @@ export default function CallUI({
     }
   }, [callState.status]);
 
-  // Wire remote stream to remote video/audio elements via ontrack
+  // Wire remote stream to remote video/audio elements
+  // Uses multiple fallback sources to handle track timing:
+  // 1. remoteStreamRef (set by App.tsx's pc.ontrack to catch tracks early)
+  // 2. pc.getReceivers() (tracks already negotiated on the peer connection)
+  // 3. pc.ontrack (future tracks that arrive later)
   useEffect(() => {
     const pc = peerConnectionRef.current;
     if (!pc) return;
 
-    const handleTrack = (e: RTCTrackEvent) => {
-      // Use the stream if available; otherwise wire the track to a new stream
-      if (e.track.kind === "video" && remoteVideoRef.current) {
-        const stream = e.streams[0] || new MediaStream([e.track]);
+    const wireAudioTrack = (track: MediaStreamTrack) => {
+      if (remoteAudioRef.current) {
+        const existing = remoteAudioRef.current.srcObject as MediaStream | null;
+        if (existing && existing.getAudioTracks().includes(track)) return;
+        const stream = new MediaStream([track]);
+        remoteAudioRef.current.srcObject = stream;
+        remoteAudioRef.current?.play()?.catch(() => {});
+      }
+    };
+
+    const wireVideoTrack = (track: MediaStreamTrack) => {
+      if (remoteVideoRef.current) {
+        const existing = remoteVideoRef.current.srcObject as MediaStream | null;
+        if (existing && existing.getVideoTracks().includes(track)) return;
+        const stream = new MediaStream([track]);
         remoteVideoRef.current.srcObject = stream;
       }
-      if (e.track.kind === "audio" && remoteAudioRef.current) {
-        const stream = e.streams[0] || new MediaStream([e.track]);
-        remoteAudioRef.current.srcObject = stream;
-        // Explicit play attempt to establish audio context on iOS Safari
-        // (autoplay with playsInline may be blocked without a user gesture)
-        remoteAudioRef.current?.play()?.catch(() => {
-          // iOS blocks autoplay — will be retried when user interacts
-        });
+    };
+
+    // Source 1: Check remoteStreamRef for tracks that arrived before mount
+    if (remoteStreamRef.current) {
+      const remoteStream = remoteStreamRef.current;
+      remoteStream.getAudioTracks().forEach(wireAudioTrack);
+      remoteStream.getVideoTracks().forEach(wireVideoTrack);
+    }
+
+    // Source 2: Check pc.getReceivers() for already-negotiated remote tracks
+    pc.getReceivers().forEach((receiver) => {
+      if (receiver.track.kind === "audio") {
+        wireAudioTrack(receiver.track);
+      } else if (receiver.track.kind === "video") {
+        wireVideoTrack(receiver.track);
+      }
+    });
+
+    // Source 3: Set up ontrack for future remote tracks
+    const handleTrack = (e: RTCTrackEvent) => {
+      if (e.track.kind === "audio") {
+        wireAudioTrack(e.track);
+      } else if (e.track.kind === "video") {
+        wireVideoTrack(e.track);
       }
     };
 

@@ -745,6 +745,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
                   blobMime.includes("wav") ? "wav" : "webm";
       const audioFile = new File([recordedBlob], `voice-${Date.now()}.${ext}`, { type: blobMime });
       formData.append("files", audioFile);
+      formData.append("duration", String(recordingDuration));
       
       if (replyToMessage) {
         formData.append("replyTo", replyToMessage._id);

@@ -137,6 +137,7 @@ export interface Message {
       url: string;
       public_id?: string;
       type: "voice_note" | "image" | "gif";
+      duration?: number;
     }[];
     createdAt: string;
   }) | null;
@@ -144,6 +145,7 @@ export interface Message {
     url: string;
     public_id?: string;
     type: "voice_note" | "image" | "gif";
+    duration?: number;
   }[];
   seen: boolean;
   seenAt?: string | null;

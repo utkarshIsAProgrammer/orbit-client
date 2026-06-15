@@ -246,7 +246,7 @@ const MessageBubble = React.memo(function MessageBubble({
                 <div className="mt-2 space-y-1.5 max-w-sm rounded-xl overflow-hidden border border-zinc-800">
                   {msg.attachments.map((att, aIdx) => {
                     return att.type === "voice_note" ? (
-                      <VoiceNotePlayer key={aIdx} url={att.url} isMe={isMe} />
+                      <VoiceNotePlayer key={aIdx} url={att.url} isMe={isMe} initialDuration={att.duration} />
                     ) : (
                       <img loading="lazy"
                         key={aIdx}
@@ -347,11 +347,11 @@ function getPlayableUrl(originalUrl: string): string {
   );
 }
 
-function VoiceNotePlayer({ url, isMe }: { url: string; isMe: boolean }) {
+function VoiceNotePlayer({ url, isMe, initialDuration }: { url: string; isMe: boolean; initialDuration?: number }) {
   const playableUrl = getPlayableUrl(url);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(initialDuration || 0);
   const [hasError, setHasError] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
