@@ -891,14 +891,18 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 		}
 	}, []);
 
-	// ─── OPUS High-Bitrate SDP Helper ─────────────────────────────────────
-	// Overrides OPUS codec parameters in the SDP to request 128kbps bitrate.
-	// Without this, WebRTC defaults to ~32kbps which causes poor/high-pitched audio.
-	const setOpusHighBitrate = (sdp: string): string => {
-		return sdp.replace(
-			/a=fmtp:111 .*/g,
-			'a=fmtp:111 maxaveragebitrate=128000;stereo=1;sprop-stereo=1;useinbandfec=1'
-		);
+	// ─── OPUS Bitrate SDP Helper (Cross-Browser) ──────────────────────────
+	// Overrides OPUS codec parameters in the SDP to request 64kbps mono voice.
+	// Instead of hardcoding payload type 111 (Chrome), this looks up the OPUS
+	// payload type number from the rtpmap line so it works on all browsers.
+	const setOpusBitrate = (sdp: string): string => {
+		// Find OPUS payload type from rtpmap (e.g. "a=rtpmap:111 opus/48000/2")
+		const opusMatch = sdp.match(/a=rtpmap:(\d+) opus\/48000/i);
+		if (!opusMatch) return sdp; // No OPUS codec — return unmodified
+		const pt = opusMatch[1];
+		// Replace the fmtp line for that specific payload type
+		const regex = new RegExp(`a=fmtp:${pt} .*`, 'g');
+		return sdp.replace(regex, `a=fmtp:${pt} maxaveragebitrate=64000;useinbandfec=1`);
 	};
 
 	// ─── WebRTC Call Initiation ────────────────────────────────────────
@@ -1005,7 +1009,7 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 				offerToReceiveAudio: true,
 				offerToReceiveVideo: type === "video",
 			});
-			offer.sdp = setOpusHighBitrate(offer.sdp || "");
+			offer.sdp = setOpusBitrate(offer.sdp || "");
 			await pc.setLocalDescription(offer);
 
 			sock.emit("call:offer", {
@@ -2070,7 +2074,7 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 								if (offer?.sdp) {
 									await pc.setRemoteDescription(new RTCSessionDescription(offer.sdp));
 									const answer = await pc.createAnswer();
-									answer.sdp = setOpusHighBitrate(answer.sdp || "");
+									answer.sdp = setOpusBitrate(answer.sdp || "");
 									await pc.setLocalDescription(answer);
 									socket.emit("call:answer", {
 										targetUserId: callState.partnerId,

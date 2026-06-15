@@ -813,7 +813,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
         logger.error("Voice note send failed", data?.message);
         window.dispatchEvent(
           new CustomEvent("showToast", {
-            detail: { message: data?.message || "Failed to send voice note.", type: "error" },
+            detail: { message: data?.message || "Failed to send voice note. Please try again.", type: "error" },
           })
         );
       }
@@ -944,15 +944,17 @@ export default function Chat({ user, socket, conversations, setConversations, on
         logger.error("Message send failed", data.message);
         window.dispatchEvent(
           new CustomEvent("showToast", {
-            detail: {
-              message: data.message || "Failed to send message. Please try again.",
-              type: "error",
-            },
+            detail: { message: data?.message || "Failed to send message. Please try again.", type: "error" },
           })
         );
       }
     } catch (err) {
       logger.error(err);
+      window.dispatchEvent(
+        new CustomEvent("showToast", {
+          detail: { message: "Failed to send message. Please try again.", type: "error" },
+        })
+      );
       // Rollback on error — restore saved input
       setPendingMessageIds((prev) => {
         const next = new Set(prev);
@@ -965,14 +967,6 @@ export default function Chat({ user, socket, conversations, setConversations, on
         setAttachments(savedAttachments);
         setAttachmentPreviews(savedPreviews);
       }
-      window.dispatchEvent(
-        new CustomEvent("showToast", {
-          detail: {
-            message: "Failed to send message. Please try again.",
-            type: "error",
-          },
-        })
-      );
     } finally {
       setSendingMessage(false);
     }
@@ -1029,7 +1023,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
         logger.error("Delete for me failed");
         window.dispatchEvent(
           new CustomEvent("showToast", {
-            detail: { message: data.message || "Failed to delete message.", type: "error" },
+            detail: { message: "Failed to delete message. Please try again.", type: "error" },
           })
         );
       }
@@ -1037,7 +1031,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
       logger.error(e);
       window.dispatchEvent(
         new CustomEvent("showToast", {
-          detail: { message: "Error deleting message.", type: "error" },
+          detail: { message: "Failed to delete message. Please try again.", type: "error" },
         })
       );
     }
@@ -1063,10 +1057,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
         logger.error("Message deletion failed");
         window.dispatchEvent(
           new CustomEvent("showToast", {
-            detail: {
-              message: data.message || "Failed to delete message.",
-              type: "error",
-            },
+            detail: { message: "Failed to delete message. Please try again.", type: "error" },
           })
         );
       }
@@ -1074,10 +1065,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
       logger.error(e);
       window.dispatchEvent(
         new CustomEvent("showToast", {
-          detail: {
-            message: "Error deleting message.",
-            type: "error",
-          },
+          detail: { message: "Failed to delete message. Please try again.", type: "error" },
         })
       );
     }
@@ -1091,14 +1079,6 @@ export default function Chat({ user, socket, conversations, setConversations, on
     const conversation = conversations.find(c => c._id === conversationId);
     const unreadCount = conversation?.unreadCounts?.[user._id] || 0;
     if (unreadCount > 0) {
-      window.dispatchEvent(
-        new CustomEvent("showToast", {
-          detail: {
-            message: "Cannot delete conversation with unread messages",
-            type: "error",
-          },
-        })
-      );
       return;
     }
 

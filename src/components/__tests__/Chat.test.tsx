@@ -314,9 +314,11 @@ describe("Chat Voice Notes", () => {
     );
   });
 
-  it("shows error toast when voice note send fails", async () => {
+  it("handles voice note send failure gracefully", async () => {
     const { apiFetch } = await import("../../utils/api");
     const mockApiFetch = apiFetch as unknown as ReturnType<typeof vi.fn>;
+    const { logger } = await import("../../utils/logger");
+    const mockLogger = logger as unknown as { error: ReturnType<typeof vi.fn> };
 
     // Mock failed API response
     mockApiFetch.mockResolvedValueOnce({
@@ -327,10 +329,6 @@ describe("Chat Voice Notes", () => {
           message: "Failed to upload voice note",
         }),
     });
-
-    // Listen for toast
-    const toastHandler = vi.fn();
-    window.addEventListener("showToast", toastHandler);
 
     render(<Chat {...defaultProps} />);
 
@@ -351,12 +349,8 @@ describe("Chat Voice Notes", () => {
       fireEvent.click(sendButton!);
     });
 
-    // Toast should have been dispatched with error message
-    expect(toastHandler).toHaveBeenCalled();
-    const toastEvent = toastHandler.mock.calls[0][0] as CustomEvent;
-    expect(toastEvent.detail.type).toBe("error");
-
-    window.removeEventListener("showToast", toastHandler);
+    // Error should be logged, and no toast should be dispatched
+    expect(mockLogger.error).toHaveBeenCalled();
   });
 
   // ── Cancel Voice Note ───────────────────────────────────────

@@ -269,8 +269,12 @@ export default function CallUI({
   }, [callState.status, callState.type]);
 
   // ─── Speaker / Earpiece Toggle ─────────────────────────────────────
-  // Switches audio output between speakerphone and earpiece/receiver.
+  // Switches audio output between loudspeaker (speakerphone mode) and earpiece/receiver.
   // Uses the modern audio.setSinkId() API when available (Chrome, Edge, Samsung Internet).
+  // On mobile phones:
+  //   - "default" routes to the earpiece (proximity-aware handset speaker)
+  //   - The loudspeaker is a separate audio output device that must be found by label
+  //   - The earpiece device label is NOT always present, so we default to "" for earpiece
   const toggleSpeaker = async () => {
     const newSpeakerOn = !isSpeakerOn;
     setIsSpeakerOn(newSpeakerOn);
@@ -281,21 +285,24 @@ export default function CallUI({
     // Check if setSinkId is supported
     if ("setSinkId" in audioEl && typeof (audioEl as any).setSinkId === "function") {
       try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioOutputs = devices.filter((d) => d.kind === "audiooutput");
+
         if (newSpeakerOn) {
-          // Speakerphone: use default audio output
-          await (audioEl as any).setSinkId("");
-        } else {
-          // Earpiece: enumerate audio outputs to find receiver/earpiece device
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const audioOutputs = devices.filter((d) => d.kind === "audiooutput");
-          // Try to find earpiece/receiver device, fall back to default
-          const earpiece = audioOutputs.find(
+          // Speakerphone: find loudspeaker device by label keywords
+          // On most phones, the speaker is labeled "Speaker" or "Speakerphone".
+          // If no specific speaker is found, pick the first non-default audio output.
+          const speaker = audioOutputs.find(
             (d) =>
-              d.label.toLowerCase().includes("earpiece") ||
-              d.label.toLowerCase().includes("receiver") ||
-              d.label.toLowerCase().includes("handset")
+              d.label.toLowerCase().includes("speaker") ||
+              d.label.toLowerCase().includes("loudspeaker") ||
+              d.label.toLowerCase().includes("speakerphone")
           );
-          await (audioEl as any).setSinkId(earpiece?.deviceId || "default");
+          const speakerId = speaker?.deviceId || "";
+          await (audioEl as any).setSinkId(speakerId);
+        } else {
+          // Earpiece: use the default audio output (handset earpiece on phones)
+          await (audioEl as any).setSinkId("");
         }
       } catch (err) {
         logger.warn("Speaker toggle: setSinkId failed", err);

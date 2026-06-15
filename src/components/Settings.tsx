@@ -12,7 +12,8 @@ import {
   Shield,
   Eye,
   EyeOff,
-  X
+  X,
+  Volume2
 } from "lucide-react";
 import { User as UserType } from "../types";
 import GlassCard from "./GlassCard";
@@ -20,6 +21,7 @@ import ValidationMessage from "./ValidationMessage";
 import CharCounter from "./CharCounter";
 import { apiFetch } from "../utils/api";
 import { validateProfile, validatePasswordChange, validateDeleteAccount } from "../utils/validation";
+import EchoTest from "./EchoTest";
 
 interface SettingsProps {
   user: UserType;
@@ -30,9 +32,9 @@ interface SettingsProps {
 
 export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOpenChange }: SettingsProps) {
   // Navigation Tabs for settings sections
-  const [activeSubTab, setActiveSubTab] = useState<"profile" | "password" | "account" | "logout">("profile");
+  const [activeSubTab, setActiveSubTab] = useState<"profile" | "password" | "account" | "audio" | "logout">("profile");
 
-  const switchSubTab = (tab: "profile" | "password" | "account" | "logout") => {
+  const switchSubTab = (tab: "profile" | "password" | "account" | "audio" | "logout") => {
     setActiveSubTab(tab);
     setFieldErrors({});
   };
@@ -617,6 +619,10 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
             </GlassCard>
           )}
 
+          {activeSubTab === "audio" && (
+            <EchoTest />
+          )}
+
           {activeSubTab === "logout" && (
             <GlassCard animate={true} className="p-6 text-center space-y-5 max-w-sm mx-auto my-6 border-red-500/20 dark:border-red-900/40">
               <div className="mx-auto h-10 w-10 rounded-full bg-red-100 dark:bg-red-950/20 flex items-center justify-center text-red-600 dark:text-red-400 animate-pulse">
@@ -688,6 +694,18 @@ export default function Settings({ user, onUserUpdate, onLogout, onEditProfileOp
             >
               <Shield className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Account</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => switchSubTab("audio")}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-2.5 text-[11px] font-extrabold transition-all uppercase tracking-wider cursor-pointer ${activeSubTab === "audio"
+                ? "bg-slate-900 text-white dark:bg-white dark:text-black shadow-sm scale-102"
+                : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
+                }`}
+            >
+              <Volume2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Audio</span>
             </button>
 
             <button
