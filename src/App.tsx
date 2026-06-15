@@ -891,6 +891,16 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 		}
 	}, []);
 
+	// ─── OPUS High-Bitrate SDP Helper ─────────────────────────────────────
+	// Overrides OPUS codec parameters in the SDP to request 128kbps bitrate.
+	// Without this, WebRTC defaults to ~32kbps which causes poor/high-pitched audio.
+	const setOpusHighBitrate = (sdp: string): string => {
+		return sdp.replace(
+			/a=fmtp:111 .*/g,
+			'a=fmtp:111 maxaveragebitrate=128000;stereo=1;sprop-stereo=1;useinbandfec=1'
+		);
+	};
+
 	// ─── WebRTC Call Initiation ────────────────────────────────────────
 	const ICE_SERVERS: RTCIceServer[] = [
 		{ urls: "stun:stun.l.google.com:19302" },
@@ -929,6 +939,8 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 					echoCancellation: true,
 					noiseSuppression: true,
 					autoGainControl: true,
+					sampleRate: 48000,
+					channelCount: 1,
 				},
 				video: type === "video",
 			});
@@ -993,6 +1005,7 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 				offerToReceiveAudio: true,
 				offerToReceiveVideo: type === "video",
 			});
+			offer.sdp = setOpusHighBitrate(offer.sdp || "");
 			await pc.setLocalDescription(offer);
 
 			sock.emit("call:offer", {
@@ -1988,6 +2001,8 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 									echoCancellation: true,
 									noiseSuppression: true,
 									autoGainControl: true,
+									sampleRate: 48000,
+									channelCount: 1,
 								},
 								video: callState.type === "video",
 							});
@@ -2055,6 +2070,7 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 								if (offer?.sdp) {
 									await pc.setRemoteDescription(new RTCSessionDescription(offer.sdp));
 									const answer = await pc.createAnswer();
+									answer.sdp = setOpusHighBitrate(answer.sdp || "");
 									await pc.setLocalDescription(answer);
 									socket.emit("call:answer", {
 										targetUserId: callState.partnerId,

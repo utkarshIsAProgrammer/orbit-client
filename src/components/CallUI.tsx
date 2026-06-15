@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { Mic, MicOff, PhoneOff, Phone, Video, VideoOff } from "lucide-react";
+import { Mic, MicOff, PhoneOff, Phone, Video, VideoOff, Volume2, RefreshCw } from "lucide-react";
 import type { Socket } from "socket.io-client";
 import UserAvatar from "./UserAvatar";
 import { logger } from "../utils/logger";
@@ -37,6 +37,9 @@ export default function CallUI({
 }: CallUIProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [micLevel, setMicLevel] = useState(0); // 0–100 for the volume meter
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -265,6 +268,108 @@ export default function CallUI({
     };
   }, [callState.status, callState.type]);
 
+  // ─── Speaker / Earpiece Toggle ─────────────────────────────────────
+  // Switches audio output between speakerphone and earpiece/receiver.
+  // Uses the modern audio.setSinkId() API when available (Chrome, Edge, Samsung Internet).
+  const toggleSpeaker = async () => {
+    const newSpeakerOn = !isSpeakerOn;
+    setIsSpeakerOn(newSpeakerOn);
+
+    const audioEl = remoteAudioRef.current;
+    if (!audioEl) return;
+
+    // Check if setSinkId is supported
+    if ("setSinkId" in audioEl && typeof (audioEl as any).setSinkId === "function") {
+      try {
+        if (newSpeakerOn) {
+          // Speakerphone: use default audio output
+          await (audioEl as any).setSinkId("");
+        } else {
+          // Earpiece: enumerate audio outputs to find receiver/earpiece device
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const audioOutputs = devices.filter((d) => d.kind === "audiooutput");
+          // Try to find earpiece/receiver device, fall back to default
+          const earpiece = audioOutputs.find(
+            (d) =>
+              d.label.toLowerCase().includes("earpiece") ||
+              d.label.toLowerCase().includes("receiver") ||
+              d.label.toLowerCase().includes("handset")
+          );
+          await (audioEl as any).setSinkId(earpiece?.deviceId || "default");
+        }
+      } catch (err) {
+        logger.warn("Speaker toggle: setSinkId failed", err);
+        setIsSpeakerOn(!newSpeakerOn); // revert
+      }
+    }
+  };
+
+  // ─── Camera Switch (Front / Back) ───────────────────────────────────
+  // Toggles between front-facing (user) and rear-facing (environment) cameras.
+  // Stops the current video track, gets a new one with the opposite facingMode,
+  // and replaces it on the peer connection via replaceTrack().
+  const switchCamera = async () => {
+    const newFacingMode = facingMode === "user" ? "environment" : "user";
+
+    const pc = peerConnectionRef.current;
+    const localStream = localStreamRef.current;
+    if (!pc || !localStream) return;
+
+    try {
+      // Stop current video tracks
+      localStream.getVideoTracks().forEach((t) => t.stop());
+
+      // Get new stream with opposite facing mode
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: newFacingMode },
+      });
+
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      if (!newVideoTrack) {
+        newStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      // Remove old video tracks from local stream
+      localStream.getVideoTracks().forEach((t) => localStream.removeTrack(t));
+
+      // Add new video track to local stream
+      localStream.addTrack(newVideoTrack);
+
+      // Replace track on peer connection
+      const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+      if (sender) {
+        await sender.replaceTrack(newVideoTrack);
+      }
+
+      // Update local video preview
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = localStream;
+      }
+
+      setFacingMode(newFacingMode);
+    } catch (err) {
+      logger.warn("Failed to switch camera:", err);
+      // Revert facing mode on failure
+      setFacingMode(facingMode);
+    }
+  };
+
+  // Detect available cameras on mount — only show switch button if multiple cameras exist
+  useEffect(() => {
+    if (callState.type !== "video") return;
+    navigator.mediaDevices
+      .enumerateDevices()
+      .then((devices) => {
+        const videoInputs = devices.filter((d) => d.kind === "videoinput");
+        setHasMultipleCameras(videoInputs.length > 1);
+      })
+      .catch(() => {
+        setHasMultipleCameras(false);
+      });
+  }, [callState.type]);
+
   // ─── Microphone Volume Meter ───────────────────────────────────
   // Uses Web Audio API's AnalyserNode to compute RMS volume from the local
   // microphone stream and updates a 0–100 level state on every animation frame.
@@ -449,8 +554,9 @@ export default function CallUI({
         </div>
 
         {/* Local video preview (picture-in-picture for video calls) */}
+        {/* Remote video is fullscreen background; local user video is a small PiP at bottom-right */}
         {callState.type === "video" && (
-          <div className="absolute top-6 right-6 w-32 h-48 rounded-2xl overflow-hidden border-2 border-zinc-700 shadow-2xl">
+          <div className="absolute bottom-28 right-6 w-32 h-48 rounded-2xl overflow-hidden border-2 border-zinc-700 shadow-2xl">
             <video
               ref={localVideoRef}
               autoPlay
@@ -500,7 +606,35 @@ export default function CallUI({
         )}
 
         {/* Call controls */}
-        <div className="flex items-center gap-6 mt-6">
+        <div className="flex items-center justify-center gap-4 mt-6 flex-wrap">
+          {/* Speaker toggle — only during active calls */}
+          {callState.status === "active" && (
+            <button
+              onClick={toggleSpeaker}
+              className={`h-12 w-12 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                isSpeakerOn
+                  ? "bg-zinc-800/80 text-white hover:bg-zinc-700 border border-zinc-700"
+                  : "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
+              }`}
+              title={isSpeakerOn ? "Switch to earpiece" : "Switch to speaker"}
+              aria-label={isSpeakerOn ? "Switch to earpiece" : "Switch to speaker"}
+            >
+              <Volume2 className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Camera switch (front/back) — only during active video calls with multiple cameras */}
+          {callState.type === "video" && callState.status === "active" && hasMultipleCameras && (
+            <button
+              onClick={switchCamera}
+              className="h-12 w-12 rounded-full bg-zinc-800/80 text-white hover:bg-zinc-700 border border-zinc-700 flex items-center justify-center transition-all cursor-pointer"
+              title="Switch camera"
+              aria-label="Switch camera"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          )}
+
           {/* Mute button */}
           <button
             onClick={toggleMute}

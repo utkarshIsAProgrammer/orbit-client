@@ -679,12 +679,22 @@ export default function Chat({ user, socket, conversations, setConversations, on
     } else {
       // Start recording
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            sampleRate: 48000,
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
         audioChunksRef.current = [];
         setRecordingDuration(0);
         
         const { mimeType } = getAudioMimeType();
-        const recorderOptions: any = {};
+        const recorderOptions: any = {
+          audioBitsPerSecond: 128000,
+        };
         if (mimeType) {
           recorderOptions.mimeType = mimeType;
         }
@@ -732,13 +742,46 @@ export default function Chat({ user, socket, conversations, setConversations, on
   };
 
   const handleSendVoiceNote = async () => {
-    if (!selectedConv || !recordedBlob || sendingMessage) return;
+    if (!selectedConv || !recordedBlob || !recordedUrl || sendingMessage) return;
+
+    const partner = getPartner(selectedConv);
+    const pendingId = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const optimisticMessage: any = {
+      _id: pendingId,
+      conversation: selectedConv._id,
+      sender: { _id: user._id, username: user.username, fullName: user.fullName, profilePic: user.profilePic },
+      recipient: partner._id,
+      text: "",
+      replyTo: replyToMessage ? {
+        _id: replyToMessage._id,
+        sender: replyToMessage.sender,
+        text: replyToMessage.text,
+        attachments: replyToMessage.attachments,
+        createdAt: replyToMessage.createdAt,
+      } : null,
+      attachments: [{ url: recordedUrl, type: "voice_note", duration: recordingDuration }],
+      seen: false,
+      _pending: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Insert optimistic message immediately
+    setMessages((prev) => [...prev, optimisticMessage]);
+    scrollToBottom();
+
+    // Clear recording UI immediately so user can send next message
+    setRecordedBlob(null);
+    setRecordedUrl(null);
+    setRecordingDuration(0);
+    setIsPlayingPreview(false);
+    setReplyToMessage(null);
+
     setSendingMessage(true);
     
     try {
       const formData = new FormData();
       formData.append("text", "");
-      // Determine the file extension from the blob's actual MIME type
       const blobMime = recordedBlob.type || "audio/webm";
       const ext = blobMime.includes("mp4") || blobMime.includes("aac") ? "mp4" :
                   blobMime.includes("ogg") ? "ogg" :
@@ -757,21 +800,26 @@ export default function Chat({ user, socket, conversations, setConversations, on
       });
       const data = await res.json();
       if (res.ok && data.success && data.sentMessage) {
+        // Replace pending message with confirmed one from server
         setMessages((prev) => {
-          if (prev.some((m) => m._id === data.sentMessage._id)) return prev;
-          return [...prev, data.sentMessage];
+          const filtered = prev.filter((m) => m._id !== pendingId);
+          if (filtered.some((m) => m._id === data.sentMessage._id)) return filtered;
+          return [...filtered, data.sentMessage];
         });
         scrollToBottom();
-        setReplyToMessage(null);
       } else {
-        logger.error("Voice note send failed", data.message);
+        // Remove pending message on failure
+        setMessages((prev) => prev.filter((m) => m._id !== pendingId));
+        logger.error("Voice note send failed", data?.message);
         window.dispatchEvent(
           new CustomEvent("showToast", {
-            detail: { message: data.message || "Failed to send voice note.", type: "error" },
+            detail: { message: data?.message || "Failed to send voice note.", type: "error" },
           })
         );
       }
     } catch (err) {
+      // Remove pending message on error
+      setMessages((prev) => prev.filter((m) => m._id !== pendingId));
       logger.error("Voice note send failed", err);
       window.dispatchEvent(
         new CustomEvent("showToast", {
@@ -780,9 +828,7 @@ export default function Chat({ user, socket, conversations, setConversations, on
       );
     } finally {
       setSendingMessage(false);
-      setRecordedBlob(null);
-      setRecordedUrl(null);
-      setRecordingDuration(0);
+      // Revoke the blob URL now that the pending message is gone or replaced
       if (recordedUrl) URL.revokeObjectURL(recordedUrl);
     }
   };

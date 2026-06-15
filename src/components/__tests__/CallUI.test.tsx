@@ -28,6 +28,8 @@ vi.mock("lucide-react", () => ({
   Phone: () => <span data-testid="icon-phone">Phone</span>,
   Video: () => <span data-testid="icon-video">Video</span>,
   VideoOff: () => <span data-testid="icon-video-off">VideoOff</span>,
+  Volume2: () => <span data-testid="icon-volume2">Volume2</span>,
+  RefreshCw: () => <span data-testid="icon-refresh-cw">RefreshCw</span>,
 }));
 
 // Mock UserAvatar — renders a simple avatar placeholder
@@ -36,6 +38,19 @@ vi.mock("../UserAvatar", () => ({
     <div data-testid="user-avatar" className={className} data-src={src} data-alt={alt} />
   ),
 }));
+
+// ── Mock navigator.mediaDevices.enumerateDevices ────────────────
+const mockEnumerateDevices = vi.fn().mockResolvedValue([
+  { kind: "videoinput", deviceId: "camera1", label: "Front Camera" },
+  { kind: "audioinput", deviceId: "mic1", label: "Microphone" },
+  { kind: "audiooutput", deviceId: "speaker1", label: "Speaker" },
+]);
+
+Object.defineProperty(navigator, "mediaDevices", {
+  value: { enumerateDevices: mockEnumerateDevices },
+  configurable: true,
+  writable: true,
+});
 
 // ── Shared test data ──────────────────────────────────────────────
 
