@@ -27,6 +27,7 @@ export interface Post {
   content: string;
   image?: CloudinaryImage;
   images?: CloudinaryImage[];
+  video?: CloudinaryImage;
   likesCount: number;
   commentsCount: number;
   savesCount: number;
@@ -155,6 +156,24 @@ export interface Message {
   reactions?: MessageReaction[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Glimpse {
+  _id: string;
+  author: {
+    _id: string;
+    username: string;
+    fullName: string;
+    profilePic?: CloudinaryImage;
+  };
+  media: CloudinaryImage;
+  mediaType: "image" | "video";
+  viewers: { user: string; viewedAt: string }[];
+  maxViews: number;
+  viewsRemaining: number;
+  viewedByMe: boolean;
+  expiresAt: string;
+  createdAt: string;
 }
 
 export interface Conversation {

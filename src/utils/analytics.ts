@@ -221,14 +221,4 @@ export const trackPageView = (page: string, properties?: Record<string, any>) =>
   analytics.trackPageView(page, properties);
 };
 
-export const trackEvent = (eventName: string, properties?: Record<string, any>) => {
-  analytics.trackEvent(eventName, properties);
-};
 
-export const trackMetric = (name: string, value: number) => {
-  analytics.trackMetric(name, value);
-};
-
-export const setAnalyticsUserId = (userId: string) => {
-  analytics.setUserId(userId);
-};

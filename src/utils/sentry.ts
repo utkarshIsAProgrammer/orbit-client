@@ -28,21 +28,3 @@ export const captureException = (error: Error, context?: Record<string, any>) =>
   });
 };
 
-export const captureMessage = (message: string, level: "info" | "warning" | "error" = "info", context?: Record<string, any>) => {
-  Sentry.captureMessage(message, {
-    level,
-    extra: context,
-  });
-};
-
-export const setUserContext = (user: { id: string; username: string; email: string }) => {
-  Sentry.setUser({
-    id: user.id,
-    username: user.username,
-    email: user.email,
-  });
-};
-
-export const clearUserContext = () => {
-  Sentry.setUser(null);
-};

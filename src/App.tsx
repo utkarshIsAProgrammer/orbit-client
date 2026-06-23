@@ -862,6 +862,27 @@ const CallUI = React.lazy(() => import("./components/CallUI"));	export default f
 			setCallState(null);
 		});
 
+		// ── Realtime glimpse events (ephemeral stories) ──
+		socket.on("glimpse:created", (glimpse: any) => {
+			logger.info("Received glimpse:created", { glimpseId: glimpse._id, authorId: glimpse.author?._id });
+			window.dispatchEvent(new CustomEvent("glimpse:created", { detail: glimpse }));
+		});
+
+		socket.on("glimpse:viewed", (data: { glimpseId: string; viewerId: string; remainingViews: number; viewers: any[] }) => {
+			logger.info("Received glimpse:viewed", data);
+			window.dispatchEvent(new CustomEvent("glimpse:viewed", { detail: data }));
+		});
+
+		socket.on("glimpse:one-view-left", (data: { glimpseId: string; authorId: string; remainingViews: number }) => {
+			logger.info("Received glimpse:one-view-left", data);
+			window.dispatchEvent(new CustomEvent("glimpse:one-view-left", { detail: data }));
+		});
+
+		socket.on("glimpse:expired", (data: { glimpseId: string }) => {
+			logger.info("Received glimpse:expired", data);
+			window.dispatchEvent(new CustomEvent("glimpse:expired", { detail: data }));
+		});
+
 		socket.on("call:missed", (data: { callerId: string }) => {
 			logger.info("Received call:missed", data);
 			pendingCallOfferRef.current = null;

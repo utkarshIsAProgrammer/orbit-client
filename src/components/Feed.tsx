@@ -10,6 +10,7 @@ import {
   Bookmark,
   Send,
   Image,
+  Video,
   Loader2,
   Eye,
   Share2,
@@ -28,6 +29,7 @@ import CommentNode from "./CommentNode";
 import Skeleton from "./Skeleton";
 import ValidationMessage from "./ValidationMessage";
 import CharCounter from "./CharCounter";
+import GlimpsesFeed from "./GlimpsesFeed";
 import { apiFetch } from "../utils/api";
 import { logger } from "../utils/logger";
 import { validatePost, validateComment } from "../utils/validation";
@@ -87,6 +89,8 @@ export default function Feed({
   const [content, setContent] = useState("");
   const [postImageFiles, setPostImageFiles] = useState<File[]>([]);
   const [postImagePreviews, setPostImagePreviews] = useState<string[]>([]);
+  const [postVideoFile, setPostVideoFile] = useState<File | null>(null);
+  const [postVideoPreview, setPostVideoPreview] = useState<string | null>(null);
   const [submittingPost, setSubmittingPost] = useState(false);
 
   // Crop queue for sequential multi-image cropping
@@ -98,6 +102,7 @@ export default function Feed({
   // Re-crop/replace state for individual images in the preview
   const [reCropIndex, setReCropIndex] = useState<number>(-1);
   const replaceFileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   // Process next image in crop queue
   const processNextCrop = useCallback(() => {
@@ -757,6 +762,9 @@ export default function Feed({
     postImageFiles.forEach((file) => {
       formData.append("images", file);
     });
+    if (postVideoFile) {
+      formData.append("video", postVideoFile);
+    }
 
     try {
       const res = await apiFetch("/api/posts", {
@@ -774,6 +782,8 @@ export default function Feed({
         setContent("");
         setPostImageFiles([]);
         setPostImagePreviews([]);
+        setPostVideoFile(null);
+        setPostVideoPreview(null);
 
         window.dispatchEvent(new CustomEvent("showToast", { detail: { message: "Your post was successfully published!", type: "success" } }));
       } else {
@@ -1198,6 +1208,13 @@ export default function Feed({
           </div>
         </div>
       )}
+      {/* Glimpses Feed — ephemeral story-like row */}
+      {user && !searchQuery && !showSavesOnly && !showRepostsOnly && !singlePostSlug && (
+        <div className="mb-6 px-1.5">
+          <GlimpsesFeed user={user} />
+        </div>
+      )}
+
       {/* Title */}
       <div className="mb-6 px-1.5 flex items-center justify-between">
         <div>                          <h2 className="font-sans text-xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
@@ -1348,56 +1365,114 @@ export default function Feed({
                     </div>
                   )}
 
+                  {/* Video preview in composer */}
+                  {postVideoPreview && (
+                    <div className="mt-2 relative overflow-hidden rounded-2xl border border-zinc-800 bg-black/60 max-w-md">
+                      <video
+                        src={postVideoPreview}
+                        className="w-full max-h-48"
+                        controls
+                        preload="metadata"
+                        playsInline
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          URL.revokeObjectURL(postVideoPreview);
+                          setPostVideoFile(null);
+                          setPostVideoPreview(null);
+                        }}
+                        className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black z-20"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                      <div className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2.5 py-0.5 text-[9px] font-bold text-white">
+                        Video
+                      </div>
+                    </div>
+                  )}
+
                   {/* Bottom Actions of Composer */}
                   <div className={`flex items-center justify-between border-t border-zinc-800 transition-all duration-200 ${
                     isKeyboardOpen ? "pt-2.5" : "pt-3.5"
                   }`}>
-                    <div className="relative">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        disabled={postImageFiles.length >= 5}
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          const remaining = 5 - postImageFiles.length;
-                          const toAdd = files.slice(0, remaining);
-                          // Reset any leftover re-crop state from previous replace attempt
-                          setReCropIndex(-1);
-                          // GIFs bypass cropping — add directly with previews
-                          const gifFiles = toAdd.filter((f) => f.type === "image/gif");
-                          const cropFiles = toAdd.filter((f) => f.type !== "image/gif");
-                          if (gifFiles.length > 0) {
-                            setPostImageFiles((prev) => [...prev, ...gifFiles]);
-                            const gifPreviews = gifFiles.map((f) => URL.createObjectURL(f));
-                            setPostImagePreviews((prev) => [...prev, ...gifPreviews]);
-                          }
-                          // Queue files for sequential cropping
-                          const newUrls = cropFiles.map((f) => URL.createObjectURL(f));
-                          const newNames = cropFiles.map((f) => f.name);
-                          setCropQueue((prev) => [...prev, ...newUrls]);
-                          setCropQueueNames((prev) => [...prev, ...newNames]);
-                          if (cropQueue.length === 0 && !cropModalOpen && newUrls.length > 0) {
-                            setCurrentCropSrc(newUrls[0]);
-                            setCropModalOpen(true);
-                            setCropQueue((prev) => {
-                              const [, ...rest] = prev;
-                              return rest;
-                            });
-                          }
-                          e.target.value = '';
-                        }}
-                        className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                      />
-                      <button
-                        type="button"
-                        className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100 pointer-events-none"
-                      >
-                        <Image className="h-4.5 w-4.5" />
-                      </button>
-                      {postImageFiles.length > 0 && !isKeyboardOpen && (
-                        <span className="text-[9px] text-zinc-500 ml-1">{postImageFiles.length}/5</span>
-                      )}
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          disabled={postImageFiles.length >= 5}
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            const remaining = 5 - postImageFiles.length;
+                            const toAdd = files.slice(0, remaining);
+                            // Reset any leftover re-crop state from previous replace attempt
+                            setReCropIndex(-1);
+                            // GIFs bypass cropping — add directly with previews
+                            const gifFiles = toAdd.filter((f) => f.type === "image/gif");
+                            const cropFiles = toAdd.filter((f) => f.type !== "image/gif");
+                            if (gifFiles.length > 0) {
+                              setPostImageFiles((prev) => [...prev, ...gifFiles]);
+                              const gifPreviews = gifFiles.map((f) => URL.createObjectURL(f));
+                              setPostImagePreviews((prev) => [...prev, ...gifPreviews]);
+                            }
+                            // Queue files for sequential cropping
+                            const newUrls = cropFiles.map((f) => URL.createObjectURL(f));
+                            const newNames = cropFiles.map((f) => f.name);
+                            setCropQueue((prev) => [...prev, ...newUrls]);
+                            setCropQueueNames((prev) => [...prev, ...newNames]);
+                            if (cropQueue.length === 0 && !cropModalOpen && newUrls.length > 0) {
+                              setCurrentCropSrc(newUrls[0]);
+                              setCropModalOpen(true);
+                              setCropQueue((prev) => {
+                                const [, ...rest] = prev;
+                                return rest;
+                              });
+                            }
+                            e.target.value = '';
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <button
+                          type="button"
+                          className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100 pointer-events-none"
+                        >
+                          <Image className="h-4.5 w-4.5" />
+                        </button>
+                        {postImageFiles.length > 0 && !isKeyboardOpen && (
+                          <span className="text-[9px] text-zinc-500 ml-1">{postImageFiles.length}/5</span>
+                        )}
+                      </div>
+
+                      {/* Video upload button */}
+                      <div className="relative">
+                        <input
+                          ref={videoInputRef}
+                          type="file"
+                          accept="video/*"
+                          disabled={!!postVideoFile}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const preview = URL.createObjectURL(file);
+                            setPostVideoFile(file);
+                            setPostVideoPreview(preview);
+                            e.target.value = '';
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <button
+                          type="button"
+                          className={`flex h-9 w-9 items-center justify-center rounded-full transition-all pointer-events-none ${
+                            postVideoFile
+                              ? "bg-violet-600/30 text-violet-400 border border-violet-500/30"
+                              : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100"
+                          }`}
+                        >
+                          <Video className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
 
                     <button
@@ -1520,6 +1595,20 @@ export default function Feed({
                             {renderFormattedContent(post.content)}
                           </p>
                         </div>
+
+                        {/* Video attachment */}
+                        {post.video?.url ? (
+                          <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-800 bg-black/60">
+                            <video
+                              src={post.video.url}
+                              className="w-full max-h-96"
+                              controls
+                              preload="metadata"
+                              playsInline
+                              onPlay={() => registerViewCount(post._id)}
+                            />
+                          </div>
+                        ) : null}
 
                         {/* Context Image media attachment — single or multi-image carousel */}
                         {(post.images && post.images.length > 0) ? (
@@ -1737,6 +1826,20 @@ export default function Feed({
                           {renderFormattedContent(post.content)}
                         </p>
                       </div>
+
+                      {/* Video attachment */}
+                      {post.video?.url ? (
+                        <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-800 bg-black/60">
+                          <video
+                            src={post.video.url}
+                            className="w-full max-h-96"
+                            controls
+                            preload="metadata"
+                            playsInline
+                            onPlay={() => registerViewCount(post._id)}
+                          />
+                        </div>
+                      ) : null}
 
                       {/* Context Image media attachment — single or multi-image carousel */}
                       {(post.images && post.images.length > 0) ? (

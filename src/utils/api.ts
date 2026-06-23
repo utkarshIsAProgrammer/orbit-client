@@ -22,14 +22,6 @@ function getCsrfToken(): string | null {
   return match ? match[1]! : null;
 }
 
-export function clearCache(_pattern?: string) {
-  // GET caching disabled for realtime accuracy — kept for API compatibility
-}
-
-export function invalidateCache(_patterns: string[]) {
-  // GET caching disabled — kept for API compatibility
-}
-
 export async function apiFetch(
   url: string,
   options: RequestInit = {}
